@@ -112,22 +112,22 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
           </p>
         </div>
 
-        {/* Interactive Choice Cards (Grid 2 Kolom dengan Rasio 4:3 yang Memanjang Kesamping) */}
+        {/* Interactive Choice Cards (Grid 2 Kolom dengan Rasio 4:2.5 yang Memanjang Kesamping) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-5xl">
           
           {/* CARD 1: PORTAL MAHASISWA */}
           <div
             onClick={() => onSelectRole('STUDENT', '/mahasiswa')}
-            className="group relative backdrop-blur-2xl bg-slate-900/75 hover:bg-slate-900/95 rounded-3xl p-7 sm:p-8 border border-white/15 hover:border-cyan-400/60 ring-1 ring-cyan-500/20 hover:ring-2 hover:ring-cyan-400/40 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] hover:shadow-[0_25px_60px_-15px_rgba(56,189,248,0.25)] transition-all duration-300 cursor-pointer flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden md:aspect-[4/3] min-h-[310px]"
+            className="group relative backdrop-blur-2xl bg-slate-900/75 hover:bg-slate-900/95 rounded-3xl p-6 sm:p-7 border border-white/15 hover:border-cyan-400/60 ring-1 ring-cyan-500/20 hover:ring-2 hover:ring-cyan-400/40 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] hover:shadow-[0_25px_60px_-15px_rgba(56,189,248,0.25)] transition-all duration-300 cursor-pointer flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden md:aspect-[4/2.5] min-h-[290px]"
           >
             {/* Top Specular Glow */}
             <div className="absolute top-0 left-0 right-0 h-28 bg-gradient-to-b from-cyan-500/10 via-transparent to-transparent pointer-events-none rounded-t-3xl" />
 
             <div>
               {/* Top Row: Icon & Badge */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30 ring-2 ring-white/20 group-hover:scale-105 transition-transform">
-                  <GraduationCap className="w-7 h-7" />
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30 ring-2 ring-white/20 group-hover:scale-105 transition-transform">
+                  <GraduationCap className="w-6 h-6" />
                 </div>
                 <span className="px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                   Untuk Mahasiswa
@@ -135,7 +135,7 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
               </div>
 
               {/* Title & Description */}
-              <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-white group-hover:text-cyan-300 transition-colors tracking-tight leading-tight mt-3 mb-2">
+              <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-white group-hover:text-cyan-300 transition-colors tracking-tight leading-tight mt-2 mb-1.5">
                 Portal Praktik Mahasiswa
               </h3>
               <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
@@ -144,8 +144,8 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
             </div>
 
             {/* Action CTA Button */}
-            <div className="mt-6 pt-2">
-              <div className="w-full py-3.5 px-5 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 group-hover:from-blue-500 group-hover:to-cyan-500 text-white font-bold text-xs sm:text-sm rounded-2xl transition-all shadow-md shadow-blue-600/30 flex items-center justify-center gap-2">
+            <div className="mt-4 pt-1">
+              <div className="w-full py-3 px-5 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 group-hover:from-blue-500 group-hover:to-cyan-500 text-white font-bold text-xs sm:text-sm rounded-2xl transition-all shadow-md shadow-blue-600/30 flex items-center justify-center gap-2">
                 <span>Masuk ke Portal Mahasiswa</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
               </div>
@@ -155,16 +155,16 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
           {/* CARD 2: PORTAL INSTRUKTUR */}
           <div
             onClick={() => onSelectRole('INSTRUCTOR', '/instruktur')}
-            className="group relative backdrop-blur-2xl bg-slate-900/75 hover:bg-slate-900/95 rounded-3xl p-7 sm:p-8 border border-white/15 hover:border-indigo-400/60 ring-1 ring-indigo-500/20 hover:ring-2 hover:ring-indigo-400/40 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] hover:shadow-[0_25px_60px_-15px_rgba(99,102,241,0.25)] transition-all duration-300 cursor-pointer flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden md:aspect-[4/3] min-h-[310px]"
+            className="group relative backdrop-blur-2xl bg-slate-900/75 hover:bg-slate-900/95 rounded-3xl p-6 sm:p-7 border border-white/15 hover:border-indigo-400/60 ring-1 ring-indigo-500/20 hover:ring-2 hover:ring-indigo-400/40 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] hover:shadow-[0_25px_60px_-15px_rgba(99,102,241,0.25)] transition-all duration-300 cursor-pointer flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden md:aspect-[4/2.5] min-h-[290px]"
           >
             {/* Top Specular Glow */}
             <div className="absolute top-0 left-0 right-0 h-28 bg-gradient-to-b from-indigo-500/10 via-transparent to-transparent pointer-events-none rounded-t-3xl" />
 
             <div>
               {/* Top Row: Icon & Badge */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-blue-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 ring-2 ring-white/20 group-hover:scale-105 transition-transform">
-                  <ShieldCheck className="w-7 h-7" />
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-blue-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 ring-2 ring-white/20 group-hover:scale-105 transition-transform">
+                  <ShieldCheck className="w-6 h-6" />
                 </div>
                 <span className="px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                   Dosen & Instruktur
@@ -172,7 +172,7 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
               </div>
 
               {/* Title & Description */}
-              <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-white group-hover:text-indigo-300 transition-colors tracking-tight leading-tight mt-3 mb-2">
+              <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-white group-hover:text-indigo-300 transition-colors tracking-tight leading-tight mt-2 mb-1.5">
                 Portal Instruktur & Dosen
               </h3>
               <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
@@ -181,8 +181,8 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
             </div>
 
             {/* Action CTA Button */}
-            <div className="mt-6 pt-2">
-              <div className="w-full py-3.5 px-5 bg-slate-800 group-hover:bg-indigo-600 text-white font-bold text-xs sm:text-sm rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 border border-slate-700 group-hover:border-indigo-500">
+            <div className="mt-4 pt-1">
+              <div className="w-full py-3 px-5 bg-slate-800 group-hover:bg-indigo-600 text-white font-bold text-xs sm:text-sm rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 border border-slate-700 group-hover:border-indigo-500">
                 <Lock className="w-4 h-4 text-indigo-400 group-hover:text-white" />
                 <span>{isInstructorLoggedIn ? 'Buka Command Center' : 'Masuk sebagai Instruktur'}</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
