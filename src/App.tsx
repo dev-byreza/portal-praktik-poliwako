@@ -145,9 +145,13 @@ export const App: React.FC = () => {
         : 'min-h-screen bg-slate-100 flex flex-col'
     }`}>
       
-      {/* Student Mode Header: Hanya tampil jika mahasiswa sudah login di portal */}
-      {activeRoute === 'STUDENT' && studentSession && currentStudent && (
-        <Navbar onOpenInstructorLogin={() => setIsLoginModalOpen(true)} />
+      {/* Header Utama: Aktif untuk halaman login Mahasiswa & Instruktur */}
+      {(activeRoute === 'STUDENT' || (activeRoute === 'INSTRUCTOR' && !isInstructorLoggedIn)) && (
+        <Navbar
+          activeRoute={activeRoute}
+          onNavigate={navigateTo}
+          onOpenInstructorLogin={() => setIsLoginModalOpen(true)}
+        />
       )}
 
       {/* Main Content Area */}

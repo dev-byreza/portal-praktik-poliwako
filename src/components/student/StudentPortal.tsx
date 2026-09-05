@@ -251,7 +251,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
       <div 
         onPointerMove={handlePointerMove}
         onMouseMove={handlePointerMove}
-        className="relative flex-1 min-h-0 w-full h-full flex flex-col justify-center items-center p-4 overflow-hidden bg-slate-950 select-none"
+        className="relative flex-1 min-h-0 w-full h-full flex flex-col justify-center items-center p-4 overflow-y-auto overflow-x-hidden bg-slate-950 select-none py-6"
       >
         
         {/* Animated & Pointer-Reactive Background Mesh & Glow Orbs */}
