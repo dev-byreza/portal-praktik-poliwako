@@ -19,6 +19,7 @@ import {
 } from '../types';
 import { StorageService } from '../services/storageService';
 import { isSupabaseConfigured } from '../services/supabaseClient';
+import { ApiService } from '../services/apiService';
 import { computeAttendanceStats, calculateWeightedFinalScore, getFeedbackForScore } from '../utils/gradeCalculators';
 import { computePeriodEndDate, computePeriodStatus, getWitaDateString } from '../utils/dateUtils';
 
@@ -36,7 +37,14 @@ interface AppContextType {
   instructor: InstructorProfile;
   isInstructorLoggedIn: boolean;
   isLiveBackend: boolean;
-  loginInstructor: (email: string, password?: string) => { success: boolean; message: string };
+  loginInstructor: (email: string, password?: string) => Promise<{ success: boolean; message: string }>;
+  signUpInstructor: (params: {
+    email: string;
+    password: string;
+    name: string;
+    department?: string;
+    nip?: string;
+  }) => Promise<{ success: boolean; message: string }>;
   logoutInstructor: () => void;
 
   // Active View & Course
@@ -219,25 +227,43 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [studentSession, students]);
 
   // Auth
-  const loginInstructor = (email: string, password?: string) => {
+  const loginInstructor = async (email: string, password?: string): Promise<{ success: boolean; message: string }> => {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail.endsWith('@politekniksorowako.ac.id')) {
       showToast('Akses Ditolak', 'Hanya email berdomain @politekniksorowako.ac.id yang diizinkan untuk akun instruktur.', 'error');
       return { success: false, message: 'Domain email tidak diizinkan. Gunakan akun institusi Politeknik Sorowako.' };
     }
 
-    // Check password if provided for real instructor account
-    if (cleanEmail === 'rezaf@politekniksorowako.ac.id' && password && password !== '732401#Jhe') {
+    // Try live Supabase authentication first if password provided
+    if (ApiService.isLiveBackend() && password) {
+      const { error } = await ApiService.loginInstructor(cleanEmail, password);
+      if (error) {
+        console.warn('Supabase auth notice:', error.message);
+        if (error.message.includes('Invalid login credentials') || error.message.includes('invalid_credentials')) {
+          showToast('Login Gagal', 'Email atau password salah. Silakan periksa kembali.', 'error');
+          return { success: false, message: 'Email atau password salah. Silakan periksa kembali.' };
+        }
+      }
+    } else if (cleanEmail === 'rezaf@politekniksorowako.ac.id' && password && password !== '732401#Jhe') {
       showToast('Password Salah', 'Password yang dimasukkan tidak cocok.', 'error');
       return { success: false, message: 'Password salah. Silakan periksa kembali password akun Anda.' };
     }
 
+    let profileName = 'Reza Febriadi Rauf';
+    let department = 'Rekayasa Perancangan Mekanik';
+    let nip = '198709122015041002';
+
+    if (cleanEmail !== 'rezaf@politekniksorowako.ac.id') {
+      profileName = cleanEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+
     const updated: InstructorProfile = {
       ...instructor,
+      id: 'inst-' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '-'),
       email: cleanEmail,
-      name: cleanEmail === 'rezaf@politekniksorowako.ac.id'
-        ? 'Reza Febriadi Rauf'
-        : (cleanEmail.includes('reza') ? 'Reza Febriadi Rauf' : 'Instruktur Politeknik Sorowako')
+      name: profileName,
+      department,
+      nip
     };
     setInstructor(updated);
     StorageService.saveInstructor(updated);
@@ -246,6 +272,62 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast('Login Berhasil', `Selamat datang, ${updated.name}`, 'success');
     return { success: true, message: 'Login berhasil' };
   };
+
+  const signUpInstructor = async (params: {
+    email: string;
+    password: string;
+    name: string;
+    department?: string;
+    nip?: string;
+  }): Promise<{ success: boolean; message: string }> => {
+    const cleanEmail = params.email.trim().toLowerCase();
+    if (!cleanEmail.endsWith('@politekniksorowako.ac.id')) {
+      showToast('Akses Ditolak', 'Hanya email berdomain @politekniksorowako.ac.id yang diizinkan.', 'error');
+      return { success: false, message: 'Hanya email berdomain @politekniksorowako.ac.id yang diizinkan.' };
+    }
+
+    if (!params.name.trim()) {
+      return { success: false, message: 'Nama lengkap wajib diisi.' };
+    }
+
+    if (params.password.length < 6) {
+      return { success: false, message: 'Password minimal harus 6 karakter.' };
+    }
+
+    try {
+      const { user, error } = await ApiService.signUpInstructor(
+        cleanEmail,
+        params.password,
+        params.name.trim(),
+        params.department || 'Rekayasa Perancangan Mekanik',
+        params.nip
+      );
+
+      if (error) {
+        showToast('Pendaftaran Gagal', error.message, 'error');
+        return { success: false, message: error.message };
+      }
+
+      const newProfile: InstructorProfile = {
+        id: user?.id || 'inst-' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '-'),
+        email: cleanEmail,
+        name: params.name.trim(),
+        department: params.department || 'Rekayasa Perancangan Mekanik',
+        nip: params.nip || undefined
+      };
+
+      setInstructor(newProfile);
+      StorageService.saveInstructor(newProfile);
+      setIsInstructorLoggedIn(true);
+      setRole('INSTRUCTOR');
+      showToast('Pendaftaran Berhasil', `Selamat datang, ${newProfile.name}! Akun Anda telah aktif.`, 'success');
+      return { success: true, message: 'Akun instruktur berhasil didaftarkan!' };
+    } catch (err: any) {
+      showToast('Terjadi Kesalahan', err.message || 'Gagal mendaftar', 'error');
+      return { success: false, message: err.message || 'Gagal mendaftar akun baru.' };
+    }
+  };
+
 
   const logoutInstructor = () => {
     setIsInstructorLoggedIn(false);
@@ -1102,6 +1184,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         isInstructorLoggedIn,
         isLiveBackend,
         loginInstructor,
+        signUpInstructor,
         logoutInstructor,
         activeCourseId,
         setActiveCourseId,

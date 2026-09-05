@@ -68,11 +68,80 @@ export async function signInInstructor(
   }
 }
 
+export async function signUpInstructor(
+  email: string,
+  password: string,
+  name: string,
+  department: string = 'Rekayasa Perancangan Mekanik',
+  nip?: string
+): Promise<{ user: any; error: Error | null }> {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail.endsWith('@politekniksorowako.ac.id')) {
+    return {
+      user: null,
+      error: new Error(
+        'Akses ditolak: Hanya email resmi dengan domain @politekniksorowako.ac.id yang diizinkan.'
+      ),
+    };
+  }
+
+  if (password.length < 6) {
+    return {
+      user: null,
+      error: new Error('Password minimal harus terdiri dari 6 karakter.'),
+    };
+  }
+
+  if (!supabase) {
+    return {
+      user: {
+        id: 'inst-' + Date.now(),
+        email: cleanEmail,
+        user_metadata: { name, department, nip }
+      },
+      error: null
+    };
+  }
+
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email: cleanEmail,
+      password,
+      options: {
+        data: {
+          name: name.trim(),
+          full_name: name.trim(),
+          department: department.trim(),
+          nip: nip?.trim() || '',
+        },
+      },
+    });
+
+    if (error) throw error;
+
+    if (data.user) {
+      await supabase.from('profiles').upsert({
+        id: data.user.id,
+        email: cleanEmail,
+        name: name.trim(),
+        department: department.trim(),
+        nip: nip?.trim() || null,
+        updated_at: new Date().toISOString()
+      });
+    }
+
+    return { user: data.user, error: null };
+  } catch (err: any) {
+    return { user: null, error: err };
+  }
+}
+
 export async function signOutInstructor(): Promise<void> {
   if (supabase) {
     await supabase.auth.signOut();
   }
 }
+
 
 // ====================================================================
 // STORAGE UTILITIES (Submissions & Materials PDF)

@@ -5,6 +5,7 @@ import {
   supabase,
   isSupabaseConfigured,
   signInInstructor as authSignInInstructor,
+  signUpInstructor as authSignUpInstructor,
   signOutInstructor as authSignOutInstructor,
 } from './supabaseClient';
 import { StorageService } from './storageService';
@@ -35,9 +36,20 @@ export class ApiService {
     return authSignInInstructor(email, password);
   }
 
+  static async signUpInstructor(
+    email: string,
+    password: string,
+    name: string,
+    department: string = 'Rekayasa Perancangan Mekanik',
+    nip?: string
+  ): Promise<{ user?: any; error: Error | null }> {
+    return authSignUpInstructor(email, password, name, department, nip);
+  }
+
   static async logout(): Promise<void> {
     await authSignOutInstructor();
   }
+
 
   // ====================================================================
   // INSTRUCTOR PROFILE
