@@ -2,6 +2,14 @@
 
 export type UserRole = 'INSTRUCTOR' | 'STUDENT';
 
+export const STUDY_PROGRAMS = [
+  'Perawatan dan Perbaikan Mesin',
+  'Rekayasa Perancangan Mekanik',
+  'Teknologi Rekayasa Pengelasan dan Fabrikasi',
+] as const;
+
+export type StudyProgram = typeof STUDY_PROGRAMS[number];
+
 export interface InstructorProfile {
   id: string;
   email: string;

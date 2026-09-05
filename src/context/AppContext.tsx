@@ -668,7 +668,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       semester: courseData.semester || 'Ganjil',
       slug: courseData.slug || `praktik-${Date.now()}`,
       description: courseData.description || '',
-      department: courseData.department || 'Teknik Perawatan Mesin',
+      department: courseData.department || 'Perawatan dan Perbaikan Mesin',
       status: 'PUBLISHED',
       createdAt: getWitaDateString(),
       subCpmks: courseData.subCpmks || [

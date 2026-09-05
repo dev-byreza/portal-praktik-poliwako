@@ -405,12 +405,11 @@ export const InstructorLoginGate: React.FC = () => {
                     <select
                       value={signupDepartment}
                       onChange={e => setSignupDepartment(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-slate-950/60 border border-slate-700/80 focus:border-cyan-400 focus:bg-slate-900/90 rounded-2xl text-xs font-semibold text-white focus:outline-none focus:ring-4 focus:ring-cyan-500/20 transition-all"
+                      className="w-full px-3 py-2.5 bg-slate-950/60 border border-slate-700/80 focus:border-cyan-400 focus:bg-slate-900/90 rounded-2xl text-xs font-semibold text-white focus:outline-none focus:ring-4 focus:ring-cyan-500/20 transition-all truncate"
                     >
-                      <option value="Rekayasa Perancangan Mekanik">Rek. Perancangan Mekanik</option>
-                      <option value="Teknik Perawatan Mesin">Teknik Perawatan Mesin</option>
-                      <option value="Teknik Otomasi Industri">Teknik Otomasi Industri</option>
-                      <option value="Teknik Pengolahan Hasil Tambang">Pengolahan Hasil Tambang</option>
+                      <option value="Perawatan dan Perbaikan Mesin">Perawatan dan Perbaikan Mesin</option>
+                      <option value="Rekayasa Perancangan Mekanik">Rekayasa Perancangan Mekanik</option>
+                      <option value="Teknologi Rekayasa Pengelasan dan Fabrikasi">Teknologi Rekayasa Pengelasan dan Fabrikasi</option>
                     </select>
                   </div>
                   <div>

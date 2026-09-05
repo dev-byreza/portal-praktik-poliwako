@@ -35,7 +35,7 @@ export const CourseWizardModal: React.FC<CourseWizardModalProps> = ({ isOpen, on
   const [courseCode, setCourseCode] = useState('');
   const [academicYear, setAcademicYear] = useState('2026/2027');
   const [semester, setSemester] = useState<'Ganjil' | 'Genap'>('Ganjil');
-  const [department, setDepartment] = useState('Teknik Perawatan Mesin');
+  const [department, setDepartment] = useState('Perawatan dan Perbaikan Mesin');
   const [description, setDescription] = useState('');
   const [slug, setSlug] = useState('');
 
@@ -222,14 +222,17 @@ export const CourseWizardModal: React.FC<CourseWizardModalProps> = ({ isOpen, on
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                  Jurusan / Program Studi
+                  Program Studi
                 </label>
-                <input
-                  type="text"
+                <select
                   value={department}
                   onChange={e => setDepartment(e.target.value)}
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                />
+                >
+                  <option value="Perawatan dan Perbaikan Mesin">Perawatan dan Perbaikan Mesin</option>
+                  <option value="Rekayasa Perancangan Mekanik">Rekayasa Perancangan Mekanik</option>
+                  <option value="Teknologi Rekayasa Pengelasan dan Fabrikasi">Teknologi Rekayasa Pengelasan dan Fabrikasi</option>
+                </select>
               </div>
 
               <div>
