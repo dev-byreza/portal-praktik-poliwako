@@ -33,8 +33,8 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
   const [activeTab, setActiveTab] = useState<AuthTab>('LOGIN');
 
   // Login State
-  const [loginEmail, setLoginEmail] = useState('rezaf@politekniksorowako.ac.id');
-  const [loginPassword, setLoginPassword] = useState('732401#Jhe');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   // Signup State
@@ -116,12 +116,6 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const setPresetEmail = (sampleEmail: string, samplePass: string = '') => {
-    setLoginEmail(sampleEmail);
-    setLoginPassword(samplePass);
-    setErrorMsg(null);
   };
 
   return (
@@ -257,31 +251,6 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-1 cursor-pointer"
                     >
                       {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Quick Testing Preset Buttons */}
-                <div className="pt-1">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1.5">
-                    Akun Instruktur Terdaftar:
-                  </span>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setPresetEmail('rezaf@politekniksorowako.ac.id', '732401#Jhe')}
-                      className="p-2.5 text-left bg-slate-950/50 hover:bg-slate-800/80 border border-cyan-500/30 rounded-xl text-slate-200 transition-colors cursor-pointer"
-                    >
-                      <p className="font-bold text-[11px] text-white">Reza Febriadi Rauf</p>
-                      <p className="text-[10px] text-cyan-400 truncate">rezaf@politekniksorowako.ac.id</p>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPresetEmail('dosen.tpm@politekniksorowako.ac.id', 'password123')}
-                      className="p-2.5 text-left bg-slate-950/50 hover:bg-slate-800/80 border border-slate-700 rounded-xl text-slate-300 transition-colors cursor-pointer"
-                    >
-                      <p className="font-bold text-[11px] text-white">Dosen Rekayasa</p>
-                      <p className="text-[10px] text-slate-400 truncate">dosen.tpm@...</p>
                     </button>
                   </div>
                 </div>

@@ -23,8 +23,8 @@ export const InstructorLoginGate: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'LOGIN' | 'SIGNUP'>('LOGIN');
 
   // Login State
-  const [loginEmail, setLoginEmail] = useState('rezaf@politekniksorowako.ac.id');
-  const [loginPassword, setLoginPassword] = useState('732401#Jhe');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   // Signup State
@@ -110,12 +110,6 @@ export const InstructorLoginGate: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const setPresetEmail = (sampleEmail: string, samplePass: string = '') => {
-    setLoginEmail(sampleEmail);
-    setLoginPassword(samplePass);
-    setErrorMsg(null);
   };
 
   const spotlightX = rawMouse.x !== null ? `${rawMouse.x}px` : '50%';
@@ -340,26 +334,6 @@ export const InstructorLoginGate: React.FC = () => {
                       {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                </div>
-
-                {/* Quick Preset Buttons */}
-                <div className="pt-1">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1.5">
-                    Akun Pengajar Cepat:
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setPresetEmail('rezaf@politekniksorowako.ac.id', '732401#Jhe')}
-                    className="w-full p-2.5 text-left bg-slate-950/50 hover:bg-slate-800/80 border border-cyan-500/30 hover:border-cyan-400 rounded-xl text-slate-200 transition-all flex items-center justify-between group cursor-pointer"
-                  >
-                    <div>
-                      <p className="font-bold text-xs text-white group-hover:text-cyan-300 transition-colors">Reza Febriadi Rauf</p>
-                      <p className="text-[11px] text-slate-400 font-mono">rezaf@politekniksorowako.ac.id</p>
-                    </div>
-                    <span className="text-[10px] font-bold text-cyan-400 bg-cyan-950/80 border border-cyan-800/60 px-2 py-0.5 rounded-md">
-                      Isi Otomatis
-                    </span>
-                  </button>
                 </div>
 
                 <button
