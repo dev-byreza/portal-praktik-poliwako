@@ -133,10 +133,10 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
       </header>
 
       {/* Main Content Body */}
-      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col justify-start">
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col justify-start items-center">
         
         {/* Welcome Banner */}
-        <div className="mb-8">
+        <div className="mb-8 text-center max-w-3xl mx-auto flex flex-col items-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-medium mb-2.5">
             <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
             <span>Mata Kuliah Praktik Terdaftar Semester Ganjil 2026/2027</span>
@@ -144,13 +144,13 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
             Pilih Mata Kuliah Praktik
           </h1>
-          <p className="text-sm text-slate-400 mt-1.5 max-w-3xl leading-relaxed">
+          <p className="text-sm text-slate-400 mt-1.5 leading-relaxed">
             Selamat datang di Portal Pembelajaran Praktik Poliwako. Silakan pilih salah satu mata kuliah praktik di bawah ini untuk mengakses modul ajar, video tutorial, pengumpulan penugasan, dan rekap penilaian OBE Anda.
           </p>
         </div>
 
-        {/* Course Cards Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Course Cards Container: Selalu center! Jika 1 frame berada di tengah, jika 2 frame bergeser seimbang ke kiri dan kanan dengan titik tengah simetris */}
+        <div className="flex flex-wrap justify-center items-stretch gap-6 w-full max-w-5xl mx-auto">
           {publishedCourses.map((course) => {
             // Find active period for this course
             const activePeriod = periods.find(p => p.courseId === course.id && p.status === 'ACTIVE') ||
@@ -173,7 +173,7 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
             return (
               <div
                 key={course.id}
-                className="group relative flex flex-col bg-slate-900/70 hover:bg-slate-900/90 border border-slate-800 hover:border-blue-500/50 rounded-2xl p-6 transition-all duration-300 shadow-xl hover:shadow-2xl hover:shadow-blue-500/10 backdrop-blur-sm"
+                className={`w-full ${publishedCourses.length === 1 ? 'max-w-xl' : 'md:w-[calc(50%-12px)] max-w-xl'} group relative flex flex-col justify-between bg-slate-900/70 hover:bg-slate-900/90 border border-slate-800 hover:border-blue-500/50 rounded-2xl p-6 transition-all duration-300 shadow-xl hover:shadow-2xl hover:shadow-blue-500/10 backdrop-blur-sm`}
               >
                 {/* Course Header */}
                 <div className="flex items-start justify-between gap-4 mb-4">
