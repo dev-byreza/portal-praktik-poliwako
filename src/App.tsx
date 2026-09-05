@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from './context/AppContext';
 import { Navbar } from './components/common/Navbar';
-import { Lock, ArrowLeft } from 'lucide-react';
+import { Lock, ArrowLeft, Home } from 'lucide-react';
 import { ToastContainer } from './components/common/ToastContainer';
 import { AuthLoginModal } from './components/instructor/AuthLoginModal';
 import { InstructorCommandCenter } from './components/instructor/InstructorCommandCenter';
 import { StudentPortal } from './components/student/StudentPortal';
+import { PortalSelectorGate } from './components/portal/PortalSelectorGate';
+import { InteractiveNotFoundPage } from './components/portal/InteractiveNotFoundPage';
+
+type ActiveRoute = 'ROOT_SELECTOR' | 'STUDENT' | 'INSTRUCTOR' | 'NOT_FOUND';
 
 export const App: React.FC = () => {
   const {
@@ -18,6 +22,9 @@ export const App: React.FC = () => {
     currentStudent,
     isInstructorLoggedIn
   } = useApp();
+
+  const [activeRoute, setActiveRoute] = useState<ActiveRoute>('ROOT_SELECTOR');
+  const [invalidSlug, setInvalidSlug] = useState<string>('');
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isCourseWizardOpen, setIsCourseWizardOpen] = useState(false);
 
@@ -27,24 +34,32 @@ export const App: React.FC = () => {
   // Handle URL Path & Query Parameters Routing
   useEffect(() => {
     const handleUrlRouting = () => {
-      const path = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
+      const rawPath = window.location.pathname.replace(/^\/+|\/+$/g, '');
+      const path = rawPath.toLowerCase();
       const params = new URLSearchParams(window.location.search);
       const roleParam = params.get('role')?.toLowerCase();
       const courseParam = params.get('course')?.toLowerCase();
 
-      // Priority 1: Match course slug in URL path (e.g. /cad-1-1 or /pemesinan-cnc)
+      // Case 1: Root path (/) -> Opsi Pilihan Portal (Portal Instruktur & Portal Mahasiswa)
+      if (!path) {
+        setActiveRoute('ROOT_SELECTOR');
+        return;
+      }
+
+      // Case 2: Match course slug in URL path (e.g. /cad-1-1 or /pemesinan-cnc)
       const matchedCourse = courses.find(
         c => c.slug.toLowerCase() === path || c.slug.toLowerCase() === courseParam
       );
 
       if (matchedCourse) {
+        setActiveRoute('STUDENT');
         setRole('STUDENT');
         setActiveCourseId(matchedCourse.id);
         setCurrentSlug(matchedCourse.slug);
         return;
       }
 
-      // Priority 2: Match student portal routes (e.g. /mahasiswa, /portal-mahasiswa, /student)
+      // Case 3: Match student portal routes (e.g. /mahasiswa, /portal-mahasiswa, /student)
       if (
         path === 'mahasiswa' ||
         path === 'portal-mahasiswa' ||
@@ -52,11 +67,12 @@ export const App: React.FC = () => {
         roleParam === 'student' ||
         roleParam === 'mahasiswa'
       ) {
+        setActiveRoute('STUDENT');
         setRole('STUDENT');
         return;
       }
 
-      // Priority 3: Match instructor portal routes (e.g. /instruktur, /instructor, /dosen)
+      // Case 4: Match instructor portal routes (e.g. /instruktur, /instructor, /dosen)
       if (
         path === 'instruktur' ||
         path === 'instructor' ||
@@ -64,22 +80,20 @@ export const App: React.FC = () => {
         roleParam === 'instructor' ||
         roleParam === 'instruktur'
       ) {
+        setActiveRoute('INSTRUCTOR');
         setRole('INSTRUCTOR');
         return;
       }
 
-      // Priority 4: Root path (/) default
-      if (!path) {
-        if (!isInstructorLoggedIn) {
-          setRole('STUDENT');
-        }
-      }
+      // Case 5: Invalid Slug -> Interactive 404 Page!
+      setInvalidSlug(rawPath);
+      setActiveRoute('NOT_FOUND');
     };
 
     handleUrlRouting();
     window.addEventListener('popstate', handleUrlRouting);
     return () => window.removeEventListener('popstate', handleUrlRouting);
-  }, [courses, isInstructorLoggedIn]);
+  }, [courses]);
 
   useEffect(() => {
     if (activeCourse) {
@@ -87,39 +101,87 @@ export const App: React.FC = () => {
     }
   }, [activeCourse]);
 
-  const handleSwitchToStudent = () => {
-    setRole('STUDENT');
-    window.history.pushState(null, '', '/mahasiswa');
+  const navigateTo = (targetPath: string) => {
+    window.history.pushState(null, '', targetPath);
+    const rawPath = targetPath.replace(/^\/+|\/+$/g, '');
+    const path = rawPath.toLowerCase();
+
+    if (!path) {
+      setActiveRoute('ROOT_SELECTOR');
+      return;
+    }
+
+    const matchedCourse = courses.find(c => c.slug.toLowerCase() === path);
+    if (matchedCourse) {
+      setActiveRoute('STUDENT');
+      setRole('STUDENT');
+      setActiveCourseId(matchedCourse.id);
+      setCurrentSlug(matchedCourse.slug);
+      return;
+    }
+
+    if (path === 'mahasiswa' || path === 'portal-mahasiswa' || path === 'student') {
+      setActiveRoute('STUDENT');
+      setRole('STUDENT');
+      return;
+    }
+
+    if (path === 'instruktur' || path === 'instructor' || path === 'dosen') {
+      setActiveRoute('INSTRUCTOR');
+      setRole('INSTRUCTOR');
+      return;
+    }
+
+    setInvalidSlug(rawPath);
+    setActiveRoute('NOT_FOUND');
   };
 
-  const handleSwitchToInstructor = () => {
-    setRole('INSTRUCTOR');
-    window.history.pushState(null, '', '/instruktur');
-  };
+  const isDarkFullscreenGate = activeRoute !== 'INSTRUCTOR' || !isInstructorLoggedIn;
 
   return (
     <div className={`selection:bg-blue-600 selection:text-white ${
-      (role === 'STUDENT' || !isInstructorLoggedIn)
+      isDarkFullscreenGate
         ? 'h-screen w-screen overflow-hidden flex flex-col bg-slate-900'
         : 'min-h-screen bg-slate-100 flex flex-col'
     }`}>
       
-      {/* Student Mode Header: Hanya tampil jika mahasiswa sudah login */}
-      {role === 'STUDENT' && studentSession && currentStudent && (
+      {/* Student Mode Header: Hanya tampil jika mahasiswa sudah login di portal */}
+      {activeRoute === 'STUDENT' && studentSession && currentStudent && (
         <Navbar onOpenInstructorLogin={() => setIsLoginModalOpen(true)} />
       )}
 
-
       {/* Main Content Area */}
-      <div className={(role === 'STUDENT' || !isInstructorLoggedIn) ? 'flex-1 min-h-0 overflow-hidden flex flex-col' : 'flex-1'}>
-        {role === 'INSTRUCTOR' ? (
+      <div className={isDarkFullscreenGate ? 'flex-1 min-h-0 overflow-hidden flex flex-col' : 'flex-1'}>
+        {/* ROOT: PILIHAN PORTAL (Portal Instruktur & Portal Mahasiswa) */}
+        {activeRoute === 'ROOT_SELECTOR' && (
+          <PortalSelectorGate
+            onSelectRole={(selectedRole, path) => {
+              setRole(selectedRole);
+              navigateTo(path);
+            }}
+          />
+        )}
+
+        {/* 404: INTERACTIVE 404 PAGE JIKA SLUG SALAH */}
+        {activeRoute === 'NOT_FOUND' && (
+          <InteractiveNotFoundPage
+            invalidPath={invalidSlug}
+            onNavigate={(path) => navigateTo(path)}
+          />
+        )}
+
+        {/* STUDENT PORTAL (/mahasiswa atau /:courseSlug) */}
+        {activeRoute === 'STUDENT' && (
+          <StudentPortal courseSlug={currentSlug} />
+        )}
+
+        {/* INSTRUCTOR COMMAND CENTER (/instruktur) */}
+        {activeRoute === 'INSTRUCTOR' && (
           <InstructorCommandCenter
             onOpenLoginModal={() => setIsLoginModalOpen(true)}
             isCourseWizardOpen={isCourseWizardOpen}
             setIsCourseWizardOpen={setIsCourseWizardOpen}
           />
-        ) : (
-          <StudentPortal courseSlug={currentSlug} />
         )}
       </div>
 
@@ -132,8 +194,11 @@ export const App: React.FC = () => {
         onClose={() => setIsLoginModalOpen(false)}
       />
 
-      {/* Shared View Footer - Product by dev-byreza (Aktif di halaman login mahasiswa & instruktur) */}
-      {((role === 'STUDENT' && (!studentSession || !currentStudent)) || (role === 'INSTRUCTOR' && !isInstructorLoggedIn)) && (
+      {/* Shared View Footer - Product by dev-byreza (Aktif di halaman login & gate) */}
+      {(activeRoute === 'ROOT_SELECTOR' ||
+        activeRoute === 'NOT_FOUND' ||
+        (activeRoute === 'STUDENT' && (!studentSession || !currentStudent)) ||
+        (activeRoute === 'INSTRUCTOR' && !isInstructorLoggedIn)) && (
         <footer className="bg-slate-900 border-t border-slate-800/80 py-3 shrink-0 text-xs relative z-20">
           <div className="max-w-7xl mx-auto px-4 flex items-center justify-center gap-3">
             <span className="text-slate-400 text-xs font-normal">Product by</span>
@@ -176,23 +241,47 @@ export const App: React.FC = () => {
             </a>
           </div>
 
-          {/* Discreet Access / Role Switch */}
-          {role === 'INSTRUCTOR' ? (
+          {/* Contextual Navigation Buttons */}
+          {activeRoute === 'INSTRUCTOR' && (
             <button
-              onClick={handleSwitchToStudent}
+              onClick={() => navigateTo('/mahasiswa')}
               className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-all px-2.5 py-1 rounded-lg hover:bg-slate-800 text-xs font-medium flex items-center gap-1.5 cursor-pointer"
-              title="Kembali ke Portal Mahasiswa"
+              title="Pindah ke Portal Mahasiswa"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Portal Mahasiswa</span>
             </button>
-          ) : (
+          )}
+
+          {activeRoute === 'STUDENT' && (
+            <>
+              <button
+                onClick={() => navigateTo('/')}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-all px-2.5 py-1 rounded-lg hover:bg-slate-800 text-xs font-medium flex items-center gap-1.5 cursor-pointer"
+                title="Pilihan Portal"
+              >
+                <Home className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Pilihan Portal</span>
+              </button>
+
+              <button
+                onClick={() => navigateTo('/instruktur')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 opacity-25 hover:opacity-100 transition-all p-1.5 rounded-lg hover:bg-slate-800 cursor-pointer"
+                title="Akses Instruktur"
+              >
+                <Lock className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
+
+          {(activeRoute === 'ROOT_SELECTOR' || activeRoute === 'NOT_FOUND') && (
             <button
-              onClick={handleSwitchToInstructor}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 opacity-25 hover:opacity-100 transition-all p-1.5 rounded-lg hover:bg-slate-800 cursor-pointer"
-              title="Akses Instruktur"
+              onClick={() => navigateTo('/')}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-all px-2.5 py-1 rounded-lg hover:bg-slate-800 text-xs font-medium flex items-center gap-1.5 cursor-pointer"
+              title="Beranda Portal"
             >
-              <Lock className="w-3.5 h-3.5" />
+              <Home className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Beranda</span>
             </button>
           )}
         </footer>
