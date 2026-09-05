@@ -223,8 +223,8 @@ export const InstructorLoginGate: React.FC = () => {
             
             {/* Header / Brand Icon */}
             <div className="text-center mb-5">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 text-white flex items-center justify-center mx-auto mb-3.5 shadow-xl shadow-cyan-500/25 ring-2 ring-white/20">
-                <ShieldCheck className="w-7 h-7" />
+              <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md p-2 flex items-center justify-center mx-auto mb-3.5 shadow-xl shadow-cyan-500/15 ring-2 ring-white/20">
+                <img src="/logo-poliwako.webp" alt="Logo Politeknik Sorowako" className="w-full h-full object-contain" />
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                 Portal Praktik Instruktur

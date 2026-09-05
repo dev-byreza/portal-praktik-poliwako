@@ -100,7 +100,10 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
         }}
       >
         {/* Brand Header */}
-        <div className="text-center mb-8 sm:mb-12">
+        <div className="text-center mb-8 sm:mb-12 flex flex-col items-center">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 mb-3.5 p-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-xl shadow-cyan-500/15 hover:scale-105 transition-transform shrink-0">
+            <img src="/logo-poliwako.webp" alt="Logo Politeknik Sorowako" className="w-full h-full object-contain" />
+          </div>
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-xs font-bold text-cyan-300 mb-3.5 shadow-xs">
             <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
             <span>Politeknik Sorowako • Sistem Pembelajaran Praktik OBE</span>
@@ -127,8 +130,8 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
             <div>
               {/* Top Row: Icon & Badge */}
               <div className="flex items-center justify-between mb-5">
-                <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30 ring-2 ring-white/20 group-hover:scale-105 transition-transform">
-                  <GraduationCap className="w-7 h-7" />
+                <div className="w-13 h-13 rounded-2xl bg-white/10 backdrop-blur-md p-1.5 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20 ring-2 ring-white/20 group-hover:scale-105 transition-transform">
+                  <img src="/logo-poliwako.webp" alt="Logo Poliwako" className="w-full h-full object-contain" />
                 </div>
                 <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                   Untuk Mahasiswa

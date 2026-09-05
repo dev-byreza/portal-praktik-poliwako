@@ -142,8 +142,8 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
 
           {/* Header */}
           <div className="p-6 sm:p-8 text-white text-center relative z-10 pb-0">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center mx-auto mb-3.5 shadow-xl shadow-cyan-500/25 ring-2 ring-white/20">
-              <GraduationCap className="w-7 h-7 text-white" />
+            <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md p-2 flex items-center justify-center mx-auto mb-3.5 shadow-xl shadow-cyan-500/15 ring-2 ring-white/20">
+              <img src="/logo-poliwako.webp" alt="Logo Politeknik Sorowako" className="w-full h-full object-contain" />
             </div>
             <h2 className="text-xl font-black tracking-tight text-white">Portal Praktik Poliwako</h2>
             <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-[11px] font-bold text-cyan-300 mx-auto mt-1.5 shadow-xs">

@@ -73,8 +73,8 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       {/* Brand Header */}
       <div className="h-16 px-4 flex items-center justify-between border-b border-slate-800 shrink-0">
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-700 to-cyan-500 flex items-center justify-center text-white shrink-0 shadow-lg shadow-blue-900/40">
-            <GraduationCap className="w-6 h-6" />
+          <div className="w-10 h-10 rounded-xl bg-white/10 p-1 flex items-center justify-center text-white shrink-0 shadow-lg shadow-cyan-900/20 ring-1 ring-white/20">
+            <img src="/logo-poliwako.webp" alt="Logo Politeknik Sorowako" className="w-full h-full object-contain" />
           </div>
           {!isCollapsed && (
             <div className="min-w-0 transition-opacity duration-200">

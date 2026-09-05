@@ -54,8 +54,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="flex items-center gap-2.5 cursor-pointer group text-left select-none"
             title="Kembali ke Beranda Pilihan Portal"
           >
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 flex items-center justify-center text-white shadow-md shadow-cyan-500/20 ring-1 ring-white/20 group-hover:scale-105 transition-transform shrink-0">
-              <GraduationCap className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-xl bg-white/10 p-1 flex items-center justify-center shadow-md shadow-cyan-500/10 ring-1 ring-white/20 group-hover:scale-105 transition-transform shrink-0">
+              <img src="/logo-poliwako.webp" alt="Logo Poliwako" className="w-full h-full object-contain" />
             </div>
             <div>
               <p className="font-bold text-slate-200 text-xs sm:text-sm tracking-tight group-hover:text-cyan-300 transition-colors">
