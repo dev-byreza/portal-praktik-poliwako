@@ -133,7 +133,37 @@ export class StorageService {
 
 
   static getStudents(): Student[] {
-    return getItem<Student[]>(STORAGE_KEYS.STUDENTS, INITIAL_STUDENTS);
+    const students = getItem<Student[]>(STORAGE_KEYS.STUDENTS, INITIAL_STUDENTS);
+    // Ensure Tester dummy account (nim: '001', password: '123') exists & is active
+    const testerIdx = students.findIndex(s => s.nim.toLowerCase() === '001');
+    if (testerIdx === -1) {
+      students.unshift({
+        id: 'std-tester-001',
+        nim: '001',
+        name: 'Tester',
+        className: '1C',
+        email: 'tester@politekniksorowako.ac.id',
+        password: '123',
+        hasCreatedPassword: true,
+        createdAt: '2026-08-01T08:00:00.000Z'
+      });
+      this.saveStudents(students);
+    } else {
+      let changed = false;
+      if (students[testerIdx].name !== 'Tester') {
+        students[testerIdx].name = 'Tester';
+        changed = true;
+      }
+      if (students[testerIdx].password !== '123' || !students[testerIdx].hasCreatedPassword) {
+        students[testerIdx].password = '123';
+        students[testerIdx].hasCreatedPassword = true;
+        changed = true;
+      }
+      if (changed) {
+        this.saveStudents(students);
+      }
+    }
+    return students;
   }
 
   static saveStudents(students: Student[]): void {
@@ -153,7 +183,57 @@ export class StorageService {
   }
 
   static getCourses(): Course[] {
-    return getItem<Course[]>(STORAGE_KEYS.COURSES, INITIAL_COURSES);
+    const courses = getItem<Course[]>(STORAGE_KEYS.COURSES, INITIAL_COURSES);
+    let changed = false;
+    courses.forEach(c => {
+      if (!c.qualityRubrics || c.qualityRubrics.length === 0) {
+        c.qualityRubrics = INITIAL_COURSES[0].qualityRubrics;
+        changed = true;
+      } else {
+        const hasAttitude = c.qualityRubrics.some(r => r.category === 'ATTITUDE');
+        const hasCreativity = c.qualityRubrics.some(r => r.category === 'CREATIVITY');
+        const hasReport = c.qualityRubrics.some(r => r.category === 'REPORT');
+        if (!hasAttitude) {
+          c.qualityRubrics.push(
+            {
+              id: `rub-${c.id}-s1`,
+              name: 'Kedisiplinan Waktu & Kepatuhan APD / K3',
+              category: 'ATTITUDE',
+              description: 'Ketepatan waktu kehadiran, kepatuhan K3 bengkel/lab komputer, dan etika kerja.'
+            },
+            {
+              id: `rub-${c.id}-s2`,
+              name: 'Tanggung Jawab & Perawatan Fasilitas Lab CAD',
+              category: 'ATTITUDE',
+              description: 'Kerapian workstation, pemeliharaan software/hardware, dan kerja sama tim.'
+            }
+          );
+          changed = true;
+        }
+        if (!hasCreativity) {
+          c.qualityRubrics.push({
+            id: `rub-${c.id}-c1`,
+            name: 'Inisiatif Desain & Optimasi Fitur CAD',
+            category: 'CREATIVITY',
+            description: 'Kemampuan eksplorasi alternatif pemodelan 3D, efisiensi feature tree, dan inovasi bentuk.'
+          });
+          changed = true;
+        }
+        if (!hasReport) {
+          c.qualityRubrics.push({
+            id: `rub-${c.id}-r1`,
+            name: 'Kelengkapan Laporan Praktik & Etiket Drafting',
+            category: 'REPORT',
+            description: 'Sistematika pelaporan, lembar kerja job sheet, serta kelengkapan dimensi toleransi ISO.'
+          });
+          changed = true;
+        }
+      }
+    });
+    if (changed) {
+      this.saveCourses(courses);
+    }
+    return courses;
   }
 
   static saveCourses(courses: Course[]): void {

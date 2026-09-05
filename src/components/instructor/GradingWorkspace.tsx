@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Assessment, CriterionScore, Submission } from '../../types';
+import { Assessment, CriterionScore, Submission, RubricCriterion } from '../../types';
 import {
   calculateQualityCompositeScore,
   calculateWeightedFinalScore,
@@ -185,17 +185,53 @@ export const GradingWorkspace: React.FC = () => {
     });
   }, [activeCourse]);
 
+  const DEFAULT_ATTITUDE_RUBRICS: RubricCriterion[] = useMemo(() => [
+    {
+      id: 'rub-cad1-s1',
+      name: 'Kedisiplinan Waktu & Kepatuhan APD / K3',
+      category: 'ATTITUDE',
+      description: 'Ketepatan waktu kehadiran, kepatuhan K3 bengkel/lab komputer, dan etika kerja.'
+    },
+    {
+      id: 'rub-cad1-s2',
+      name: 'Tanggung Jawab & Perawatan Fasilitas Lab CAD',
+      category: 'ATTITUDE',
+      description: 'Kerapian workstation, pemeliharaan software/hardware, dan kerja sama tim.'
+    }
+  ], []);
+
+  const DEFAULT_CREATIVITY_RUBRICS: RubricCriterion[] = useMemo(() => [
+    {
+      id: 'rub-cad1-c1',
+      name: 'Inisiatif Desain & Optimasi Fitur CAD',
+      category: 'CREATIVITY',
+      description: 'Kemampuan eksplorasi alternatif pemodelan 3D, efisiensi feature tree, dan inovasi bentuk.'
+    }
+  ], []);
+
+  const DEFAULT_REPORT_RUBRICS: RubricCriterion[] = useMemo(() => [
+    {
+      id: 'rub-cad1-r1',
+      name: 'Kelengkapan Laporan Praktik & Etiket Drafting',
+      category: 'REPORT',
+      description: 'Sistematika pelaporan, lembar kerja job sheet, serta kelengkapan dimensi toleransi ISO.'
+    }
+  ], []);
+
   const attitudeRubrics = useMemo(() => {
-    return activeCourse?.qualityRubrics.filter(r => r.category === 'ATTITUDE') || [];
-  }, [activeCourse]);
+    const list = activeCourse?.qualityRubrics?.filter(r => r.category === 'ATTITUDE') || [];
+    return list.length > 0 ? list : DEFAULT_ATTITUDE_RUBRICS;
+  }, [activeCourse, DEFAULT_ATTITUDE_RUBRICS]);
 
   const creativityRubrics = useMemo(() => {
-    return activeCourse?.qualityRubrics.filter(r => r.category === 'CREATIVITY') || [];
-  }, [activeCourse]);
+    const list = activeCourse?.qualityRubrics?.filter(r => r.category === 'CREATIVITY') || [];
+    return list.length > 0 ? list : DEFAULT_CREATIVITY_RUBRICS;
+  }, [activeCourse, DEFAULT_CREATIVITY_RUBRICS]);
 
   const reportRubrics = useMemo(() => {
-    return activeCourse?.qualityRubrics.filter(r => r.category === 'REPORT') || [];
-  }, [activeCourse]);
+    const list = activeCourse?.qualityRubrics?.filter(r => r.category === 'REPORT') || [];
+    return list.length > 0 ? list : DEFAULT_REPORT_RUBRICS;
+  }, [activeCourse, DEFAULT_REPORT_RUBRICS]);
 
   // Local Criterion Scores State
   const [qualityScores, setQualityScores] = useState<CriterionScore[]>([]);
@@ -205,6 +241,10 @@ export const GradingWorkspace: React.FC = () => {
 
   // Initialize scores when student or course changes
   useEffect(() => {
+    const defaultA = attitudeRubrics.map(r => ({ criterionId: r.id, score: 100, level: 'Sangat Baik' }));
+    const defaultC = creativityRubrics.map(r => ({ criterionId: r.id, score: 75, level: 'Baik' }));
+    const defaultR = reportRubrics.map(r => ({ criterionId: r.id, score: 75, level: 'Baik' }));
+
     if (existingAssessment) {
       setQualityScores(existingAssessment.qualityScores || []);
       setEntryBehaviorScore(existingAssessment.entryBehaviorScore ?? 85);
@@ -218,16 +258,32 @@ export const GradingWorkspace: React.FC = () => {
       
       setPostTestScore(existingAssessment.postTestScore ?? 80);
       setReportScore(existingAssessment.reportScore ?? (existingAssessment.reportScores?.[0]?.score ?? 80));
-      setAttitudeScores(existingAssessment.attitudeScores || []);
-      setCreativityScores(existingAssessment.creativityScores || []);
-      setReportScores(existingAssessment.reportScores || []);
+
+      // Restore or fallback attitude scores
+      if (existingAssessment.attitudeScores && existingAssessment.attitudeScores.length > 0) {
+        setAttitudeScores(existingAssessment.attitudeScores);
+      } else {
+        setAttitudeScores(defaultA);
+      }
+
+      // Restore or fallback creativity scores
+      if (existingAssessment.creativityScores && existingAssessment.creativityScores.length > 0) {
+        setCreativityScores(existingAssessment.creativityScores);
+      } else {
+        setCreativityScores(defaultC);
+      }
+
+      // Restore or fallback report scores
+      if (existingAssessment.reportScores && existingAssessment.reportScores.length > 0) {
+        setReportScores(existingAssessment.reportScores);
+      } else {
+        setReportScores(defaultR);
+      }
+
       setCustomFeedback(existingAssessment.feedback || '');
     } else {
       // Default: set initial 75 for each course Sub-CPMK
       const defaultQ = qualityItems.map(item => ({ criterionId: item.id, score: 75, level: 'Baik' }));
-      const defaultA = attitudeRubrics.map(r => ({ criterionId: r.id, score: 100, level: 'Sangat Baik' }));
-      const defaultC = creativityRubrics.map(r => ({ criterionId: r.id, score: 75, level: 'Baik' }));
-      const defaultR = reportRubrics.map(r => ({ criterionId: r.id, score: 75, level: 'Baik' }));
 
       setQualityScores(defaultQ);
       setEntryBehaviorScore(85);
@@ -246,7 +302,7 @@ export const GradingWorkspace: React.FC = () => {
       setReportScores(defaultR);
       setCustomFeedback('');
     }
-  }, [currentParticipant, existingAssessment, activeCourse, qualityItems, tasksToGrade]);
+  }, [currentParticipant, existingAssessment, activeCourse, qualityItems, tasksToGrade, attitudeRubrics, creativityRubrics, reportRubrics]);
 
   // Compute Sub-CPMK Practice Average (Ketercapaian Praktik - 50% dari Kualitas)
   const subCpmkPracticeScore = useMemo(() => {

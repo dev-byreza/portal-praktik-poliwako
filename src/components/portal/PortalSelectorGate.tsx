@@ -130,8 +130,8 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
             <div>
               {/* Top Row: Icon & Badge */}
               <div className="flex items-center justify-between mb-5">
-                <div className="w-13 h-13 rounded-2xl bg-white/10 backdrop-blur-md p-1.5 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20 ring-2 ring-white/20 group-hover:scale-105 transition-transform">
-                  <img src="/logo-poliwako.webp" alt="Logo Poliwako" className="w-full h-full object-contain" />
+                <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30 ring-2 ring-white/20 group-hover:scale-105 transition-transform">
+                  <GraduationCap className="w-7 h-7" />
                 </div>
                 <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                   Untuk Mahasiswa

@@ -65,6 +65,17 @@ export const INITIAL_STUDENTS: Student[] = [
   { id: 'std-22603034', nim: '22603034', name: 'William Gredi Sidwel Alinsky', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
   { id: 'std-22603035', nim: '22603035', name: 'Winda Tri Lestari', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
   { id: 'std-22603036', nim: '22603036', name: 'Yulfikatrin Yuyun', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
+  // Akun Dummy Tester Mahasiswa
+  {
+    id: 'std-tester-001',
+    nim: '001',
+    name: 'Tester',
+    className: '1C',
+    email: 'tester@politekniksorowako.ac.id',
+    password: '123',
+    hasCreatedPassword: true,
+    createdAt: '2026-08-01T08:00:00.000Z'
+  }
 ];
 
 // Mata Kuliah Real: CAD 1.1
@@ -122,6 +133,30 @@ export const INITIAL_COURSES: Course[] = [
         name: 'Standar Drafting 2D & Toleransi ISO',
         category: 'QUALITY',
         description: 'Standar etiket ISO, proyeksi orthogonal, potongan, dan ketepatan dimensi drafting.'
+      },
+      {
+        id: 'rub-cad1-s1',
+        name: 'Kedisiplinan Waktu & Kepatuhan APD / K3',
+        category: 'ATTITUDE',
+        description: 'Ketepatan waktu kehadiran, kepatuhan K3 bengkel/lab komputer, dan etika kerja.'
+      },
+      {
+        id: 'rub-cad1-s2',
+        name: 'Tanggung Jawab & Perawatan Fasilitas Lab CAD',
+        category: 'ATTITUDE',
+        description: 'Kerapian workstation, pemeliharaan software/hardware, dan kerja sama tim.'
+      },
+      {
+        id: 'rub-cad1-c1',
+        name: 'Inisiatif Desain & Optimasi Fitur CAD',
+        category: 'CREATIVITY',
+        description: 'Kemampuan eksplorasi alternatif pemodelan 3D, efisiensi feature tree, dan inovasi bentuk.'
+      },
+      {
+        id: 'rub-cad1-r1',
+        name: 'Kelengkapan Laporan Praktik & Etiket Drafting',
+        category: 'REPORT',
+        description: 'Sistematika pelaporan, lembar kerja job sheet, serta kelengkapan dimensi toleransi ISO.'
       }
     ]
   }
@@ -529,6 +564,16 @@ export const INITIAL_PARTICIPANTS: PracticeParticipant[] = [
     student: INITIAL_STUDENTS[32], // Wahidatul Hasanah
     enrolledAt: '2026-09-10T08:00:00.000Z',
     progressStatus: 'NOT_STARTED',
+    finalProjectConfirmed: false
+  },
+  // Participant Tester di Gelombang Aktif CAD 1.1
+  {
+    id: 'part-g2-tester',
+    periodId: 'per-cad1-1-g2',
+    studentId: 'std-tester-001',
+    student: INITIAL_STUDENTS[36], // Tester
+    enrolledAt: '2026-08-31T08:00:00.000Z',
+    progressStatus: 'IN_PROGRESS',
     finalProjectConfirmed: false
   }
 ];
