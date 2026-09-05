@@ -30,6 +30,7 @@ import {
   BookOpen,
   Compass,
   Eye,
+  EyeOff,
   FileCheck
 } from 'lucide-react';
 import { Badge } from '../common/Badge';
@@ -56,6 +57,10 @@ export const GradingWorkspace: React.FC = () => {
   const [pdfPage, setPdfPage] = useState<number>(1);
   const [isAutosaving, setIsAutosaving] = useState<boolean>(false);
   const [customFeedback, setCustomFeedback] = useState<string>('');
+
+  // Top Category Tabs Navigation & PDF Preview Visibility
+  const [activeCategoryTab, setActiveCategoryTab] = useState<'QUALITY' | 'ATTITUDE' | 'CREATIVITY' | 'REPORT' | 'ALL'>('QUALITY');
+  const [isPdfOpen, setIsPdfOpen] = useState<boolean>(true);
 
   // Turunan Nilai Kualitas (70%) States
   const [entryBehaviorScore, setEntryBehaviorScore] = useState<number>(85); // 10%
@@ -341,6 +346,7 @@ export const GradingWorkspace: React.FC = () => {
   };
 
   const handleInspectAssignmentPdf = (assignmentId: string, submission?: Submission, taskTitle?: string) => {
+    setIsPdfOpen(true);
     setActiveDocType('ASSIGNMENT');
     setActiveAssignmentId(assignmentId);
     if (submission) {
@@ -356,6 +362,7 @@ export const GradingWorkspace: React.FC = () => {
   };
 
   const handleInspectPostTestPdf = () => {
+    setIsPdfOpen(true);
     setActiveDocType('POST_TEST');
     showToast('Memuat Berkas Post-Test', 'Lembar hasil Post-Test mahasiswa ditampilkan di panel PDF sebelah kiri.', 'info');
   };
@@ -377,6 +384,7 @@ export const GradingWorkspace: React.FC = () => {
   };
 
   const handleInspectReportPdf = () => {
+    setIsPdfOpen(true);
     setActiveDocType('SUBMISSION');
     showToast('Memuat Berkas Laporan', 'Dokumen PDF Laporan Praktikum mahasiswa ditampilkan di panel PDF sebelah kiri.', 'info');
   };
@@ -503,10 +511,11 @@ export const GradingWorkspace: React.FC = () => {
 
       {/* Main Split Screen Area (PRD Section 51) */}
       {currentParticipant ? (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className={`grid gap-6 items-start transition-all duration-300 ${isPdfOpen ? 'grid-cols-1 lg:grid-cols-12' : 'grid-cols-1'}`}>
           
           {/* Left Pane: PDF Document Previewer (6 cols) */}
-          <div className="lg:col-span-6 bg-slate-900 rounded-3xl border border-slate-800 shadow-xl overflow-hidden flex flex-col h-[82vh]">
+          {isPdfOpen && (
+            <div className="lg:col-span-6 bg-slate-900 rounded-3xl border border-slate-800 shadow-xl overflow-hidden flex flex-col h-[82vh]">
             
             {/* Document Tabs Switcher */}
             <div className="px-4 py-2 bg-slate-950 border-b border-slate-800 flex items-center justify-between text-xs">
@@ -620,6 +629,16 @@ export const GradingWorkspace: React.FC = () => {
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsPdfOpen(false)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 hover:text-rose-100 rounded-lg text-xs font-semibold transition-all border border-rose-500/30 ml-1 cursor-pointer"
+                  title="Tutup & Sembunyikan Preview PDF"
+                >
+                  <EyeOff className="w-3.5 h-3.5 text-rose-400" />
+                  <span className="hidden sm:inline">Tutup PDF</span>
+                </button>
               </div>
             </div>
 
@@ -884,12 +903,13 @@ export const GradingWorkspace: React.FC = () => {
             </div>
 
           </div>
+          )}
 
-          {/* Right Pane: Student OBE Rubric Grading Form (6 cols) */}
-          <div className="lg:col-span-6 bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6 max-h-[82vh] overflow-y-auto">
+          {/* Right Pane: Student OBE Rubric Grading Form (6 cols when PDF open, full width when PDF closed) */}
+          <div className={`${isPdfOpen ? 'lg:col-span-6' : 'w-full max-w-5xl mx-auto'} bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6 max-h-[82vh] overflow-y-auto transition-all`}>
             
             {/* Student Switcher Bar */}
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-sm">
                   {currentParticipant.student.name.charAt(0)}
@@ -902,8 +922,20 @@ export const GradingWorkspace: React.FC = () => {
                 </div>
               </div>
 
-              {/* Student Navigation Controls */}
+              {/* Student Navigation & PDF Toggle Controls */}
               <div className="flex items-center gap-2">
+                {!isPdfOpen && (
+                  <button
+                    type="button"
+                    onClick={() => setIsPdfOpen(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 rounded-xl text-xs font-bold border border-blue-200 transition-all shadow-xs"
+                    title="Buka kembali dokumen preview PDF di sisi kiri"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Buka Preview PDF</span>
+                  </button>
+                )}
+
                 <button
                   disabled={currentStudentIndex === 0}
                   onClick={() => setCurrentStudentIndex(prev => Math.max(prev - 1, 0))}
@@ -935,10 +967,146 @@ export const GradingWorkspace: React.FC = () => {
               <Badge status={existingAssessment?.isPublished ? 'PUBLISHED' : 'ASSESSED'} size="sm" />
             </div>
 
+            {/* Menu Navigasi Kategori Nilai (Top Menu Tabs) */}
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-blue-600" />
+                  Menu Kategori Penilaian
+                </span>
+                <span className="text-[10px] text-slate-400">
+                  Klik tab untuk fokus memeriksa per-kategori
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200">
+                {/* 1. Kualitas (70%) */}
+                <button
+                  type="button"
+                  onClick={() => setActiveCategoryTab('QUALITY')}
+                  className={`p-2.5 rounded-xl text-left transition-all flex flex-col justify-between cursor-pointer ${
+                    activeCategoryTab === 'QUALITY'
+                      ? 'bg-white shadow-sm border border-blue-300 ring-2 ring-blue-500/20'
+                      : 'hover:bg-white/70 text-slate-600 border border-transparent'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className={`text-[11px] font-bold truncate ${activeCategoryTab === 'QUALITY' ? 'text-blue-900' : 'text-slate-700'}`}>
+                      1. Kualitas
+                    </span>
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-100 text-blue-800 shrink-0">
+                      70%
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-baseline justify-between">
+                    <span className="text-[10px] text-slate-400">Rata2:</span>
+                    <span className="text-xs font-mono font-black text-blue-700">{compositeQualityScore}</span>
+                  </div>
+                </button>
+
+                {/* 2. Sikap (10%) */}
+                <button
+                  type="button"
+                  onClick={() => setActiveCategoryTab('ATTITUDE')}
+                  className={`p-2.5 rounded-xl text-left transition-all flex flex-col justify-between cursor-pointer ${
+                    activeCategoryTab === 'ATTITUDE'
+                      ? 'bg-white shadow-sm border border-indigo-300 ring-2 ring-indigo-500/20'
+                      : 'hover:bg-white/70 text-slate-600 border border-transparent'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className={`text-[11px] font-bold truncate ${activeCategoryTab === 'ATTITUDE' ? 'text-indigo-900' : 'text-slate-700'}`}>
+                      2. Sikap
+                    </span>
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-100 text-indigo-800 shrink-0">
+                      10%
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-baseline justify-between">
+                    <span className="text-[10px] text-slate-400">Rata2:</span>
+                    <span className="text-xs font-mono font-black text-indigo-700">{attitudeAvg}</span>
+                  </div>
+                </button>
+
+                {/* 3. Kreativitas (5%) */}
+                <button
+                  type="button"
+                  onClick={() => setActiveCategoryTab('CREATIVITY')}
+                  className={`p-2.5 rounded-xl text-left transition-all flex flex-col justify-between cursor-pointer ${
+                    activeCategoryTab === 'CREATIVITY'
+                      ? 'bg-white shadow-sm border border-teal-300 ring-2 ring-teal-500/20'
+                      : 'hover:bg-white/70 text-slate-600 border border-transparent'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className={`text-[11px] font-bold truncate ${activeCategoryTab === 'CREATIVITY' ? 'text-teal-900' : 'text-slate-700'}`}>
+                      3. Kreativitas
+                    </span>
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-teal-100 text-teal-800 shrink-0">
+                      5%
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-baseline justify-between">
+                    <span className="text-[10px] text-slate-400">Rata2:</span>
+                    <span className="text-xs font-mono font-black text-teal-700">{creativityAvg}</span>
+                  </div>
+                </button>
+
+                {/* 4. Laporan (15%) */}
+                <button
+                  type="button"
+                  onClick={() => setActiveCategoryTab('REPORT')}
+                  className={`p-2.5 rounded-xl text-left transition-all flex flex-col justify-between cursor-pointer ${
+                    activeCategoryTab === 'REPORT'
+                      ? 'bg-white shadow-sm border border-amber-300 ring-2 ring-amber-500/20'
+                      : 'hover:bg-white/70 text-slate-600 border border-transparent'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className={`text-[11px] font-bold truncate ${activeCategoryTab === 'REPORT' ? 'text-amber-900' : 'text-slate-700'}`}>
+                      4. Laporan
+                    </span>
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800 shrink-0">
+                      15%
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-baseline justify-between">
+                    <span className="text-[10px] text-slate-400">Rata2:</span>
+                    <span className="text-xs font-mono font-black text-amber-700">{reportScore}</span>
+                  </div>
+                </button>
+
+                {/* 5. Semua Kategori */}
+                <button
+                  type="button"
+                  onClick={() => setActiveCategoryTab('ALL')}
+                  className={`col-span-2 sm:col-span-1 p-2.5 rounded-xl text-left transition-all flex flex-col justify-between cursor-pointer ${
+                    activeCategoryTab === 'ALL'
+                      ? 'bg-white shadow-sm border border-slate-400 ring-2 ring-slate-500/20'
+                      : 'hover:bg-white/70 text-slate-600 border border-transparent'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className={`text-[11px] font-bold truncate ${activeCategoryTab === 'ALL' ? 'text-slate-900' : 'text-slate-700'}`}>
+                      Semua
+                    </span>
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-200 text-slate-700 shrink-0">
+                      100%
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-baseline justify-between">
+                    <span className="text-[10px] text-slate-400">Total:</span>
+                    <span className="text-xs font-mono font-black text-slate-800">{computedFinalScore}</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
             {/* ========================================================================= */}
             {/* COMPONENT 1: NILAI KUALITAS (70%) */}
             {/* Turunan: Entry Behavior (10%) + Ketercapaian Praktik Sub-CPMK (50%) + Tugas (15%) + Post-Test (25%) */}
             {/* ========================================================================= */}
+            {(activeCategoryTab === 'QUALITY' || activeCategoryTab === 'ALL') && (
             <div className="space-y-3">
               
               {/* Header Nilai Kualitas (70%) - Format seragam seperti Sikap */}
@@ -1330,14 +1498,28 @@ export const GradingWorkspace: React.FC = () => {
                 </div>
               </div>
 
-            </div>
+                {activeCategoryTab === 'QUALITY' && (
+                  <div className="pt-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setActiveCategoryTab('ATTITUDE')}
+                      className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold flex items-center gap-1.5 border border-indigo-200 transition-all shadow-xs cursor-pointer"
+                    >
+                      <span>Lanjut: Nilai Sikap & K3 (10%)</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Component 2: Sikap Kerja & K3 (10%) */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between pb-1 border-b border-slate-100">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-900">
-                  Sikap & K3 (Bobot 10%)
-                </h4>
+            {(activeCategoryTab === 'ATTITUDE' || activeCategoryTab === 'ALL') && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-900">
+                    Sikap & K3 (Bobot 10%)
+                  </h4>
                 <span className="text-xs font-black text-indigo-700 font-mono">
                   Rata2: {attitudeAvg}
                 </span>
@@ -1375,55 +1557,100 @@ export const GradingWorkspace: React.FC = () => {
                   </div>
                 );
               })}
-            </div>
+                {activeCategoryTab === 'ATTITUDE' && (
+                  <div className="pt-2 flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setActiveCategoryTab('QUALITY')}
+                      className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                      <span>Kembali ke Kualitas</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveCategoryTab('CREATIVITY')}
+                      className="px-4 py-2 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-xl text-xs font-bold flex items-center gap-1.5 border border-teal-200 transition-all shadow-xs cursor-pointer"
+                    >
+                      <span>Lanjut: Kreativitas (5%)</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Component 3: Kreativitas & Inisiatif (5%) */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between pb-1 border-b border-slate-100">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-teal-900">
-                  Kreativitas (Bobot 5%)
-                </h4>
-                <span className="text-xs font-black text-teal-700 font-mono">
-                  Rata2: {creativityAvg}
-                </span>
-              </div>
+            {(activeCategoryTab === 'CREATIVITY' || activeCategoryTab === 'ALL') && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-teal-900">
+                    Kreativitas (Bobot 5%)
+                  </h4>
+                  <span className="text-xs font-black text-teal-700 font-mono">
+                    Rata2: {creativityAvg}
+                  </span>
+                </div>
 
-              {creativityRubrics.map(rub => {
-                const currentScoreObj = creativityScores.find(q => q.criterionId === rub.id);
-                const activeScore = currentScoreObj?.score ?? 75;
+                {creativityRubrics.map(rub => {
+                  const currentScoreObj = creativityScores.find(q => q.criterionId === rub.id);
+                  const activeScore = currentScoreObj?.score ?? 75;
 
-                return (
-                  <div key={rub.id} className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-                    <div className="flex items-start justify-between">
-                      <h5 className="text-xs font-bold text-slate-900">{rub.name}</h5>
-                      <span className="text-xs font-mono font-bold text-teal-700 bg-teal-100/70 px-2 py-0.5 rounded">
-                        {activeScore}
-                      </span>
+                  return (
+                    <div key={rub.id} className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                      <div className="flex items-start justify-between">
+                        <h5 className="text-xs font-bold text-slate-900">{rub.name}</h5>
+                        <span className="text-xs font-mono font-bold text-teal-700 bg-teal-100/70 px-2 py-0.5 rounded">
+                          {activeScore}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-5 gap-1.5 pt-1">
+                        {RUBRIC_LEVELS.map(lvl => (
+                          <button
+                            key={lvl.score}
+                            type="button"
+                            onClick={() => handleScoreChange('CREATIVITY', rub.id, lvl.score, lvl.label)}
+                            className={`py-1.5 px-1 rounded-lg text-center text-[10px] font-bold border transition-all ${
+                              activeScore === lvl.score
+                                ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            <div>{lvl.score}</div>
+                            <div className="text-[8px] font-normal truncate">{lvl.label}</div>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-5 gap-1.5 pt-1">
-                      {RUBRIC_LEVELS.map(lvl => (
-                        <button
-                          key={lvl.score}
-                          type="button"
-                          onClick={() => handleScoreChange('CREATIVITY', rub.id, lvl.score, lvl.label)}
-                          className={`py-1.5 px-1 rounded-lg text-center text-[10px] font-bold border transition-all ${
-                            activeScore === lvl.score
-                              ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
-                              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          <div>{lvl.score}</div>
-                          <div className="text-[8px] font-normal truncate">{lvl.label}</div>
-                        </button>
-                      ))}
-                    </div>
+                  );
+                })}
+
+                {activeCategoryTab === 'CREATIVITY' && (
+                  <div className="pt-2 flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setActiveCategoryTab('ATTITUDE')}
+                      className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                      <span>Kembali ke Sikap</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveCategoryTab('REPORT')}
+                      className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-xl text-xs font-bold flex items-center gap-1.5 border border-amber-200 transition-all shadow-xs cursor-pointer"
+                    >
+                      <span>Lanjut: Laporan (15%)</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                );
-              })}
-            </div>
+                )}
+              </div>
+            )}
 
             {/* Component 4: Laporan Kerja Praktik (15%) */}
-            <div className="space-y-3">
+            {(activeCategoryTab === 'REPORT' || activeCategoryTab === 'ALL') && (
+              <div className="space-y-3">
               <div className="flex items-center justify-between pb-1 border-b border-slate-100">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900">
                   Laporan Kerja (Bobot 15%)
@@ -1524,7 +1751,29 @@ export const GradingWorkspace: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {activeCategoryTab === 'REPORT' && (
+                <div className="pt-2 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setActiveCategoryTab('CREATIVITY')}
+                    className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span>Kembali ke Kreativitas</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveCategoryTab('ALL')}
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                  >
+                    <span>Tinjau Semua Kategori</span>
+                    <Layers className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
+            )}
 
             {/* Live Final Score Badge & Formula Summary (PRD Section 50) */}
             <div className="bg-gradient-to-br from-blue-900 to-indigo-950 text-white rounded-2xl p-5 shadow-lg border border-blue-800">
