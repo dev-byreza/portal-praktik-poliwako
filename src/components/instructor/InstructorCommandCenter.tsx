@@ -99,7 +99,7 @@ export const InstructorCommandCenter: React.FC<InstructorCommandCenterProps> = (
         />
 
         {/* Tab Pages */}
-        <main className="flex-1 p-6 lg:p-8 animate-fadeIn max-w-7xl w-full mx-auto">
+        <main className="flex-1 p-6 lg:p-8 animate-fadeIn w-full">
           {activeTab === 'DASHBOARD' && <DashboardOverview onNavigateTab={tab => setActiveTab(tab)} />}
           {activeTab === 'STUDENTS' && <MasterStudentManager />}
           {activeTab === 'PERIODS' && <PracticePeriodManager />}
