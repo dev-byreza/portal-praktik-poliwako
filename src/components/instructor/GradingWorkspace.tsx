@@ -962,7 +962,7 @@ export const GradingWorkspace: React.FC = () => {
           )}
 
           {/* Right Pane: Student OBE Rubric Grading Form (6 cols when PDF open, full width when PDF closed) */}
-          <div className={`${isPdfOpen ? 'lg:col-span-6' : 'w-full max-w-5xl mx-auto'} bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6 max-h-[82vh] overflow-y-auto transition-all`}>
+          <div className={`${isPdfOpen ? 'lg:col-span-6' : 'w-full'} bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6 max-h-[82vh] overflow-y-auto transition-all`}>
             
             {/* Student Switcher Bar */}
             <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
