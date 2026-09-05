@@ -18,7 +18,7 @@ interface PortalSelectorGateProps {
 }
 
 export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelectRole }) => {
-  const { activeCourse, isInstructorLoggedIn } = useApp();
+  const { isInstructorLoggedIn } = useApp();
   const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
   const [rawMouse, setRawMouse] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
 
@@ -154,7 +154,7 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                  <span>Mata kuliah aktif: <strong>{activeCourse?.name || 'CAD 1.1'}</strong></span>
+                  <span>Akses modul materi, penugasan & presensi harian WITA</span>
                 </div>
               </div>
             </div>
