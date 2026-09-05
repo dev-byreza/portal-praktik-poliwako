@@ -4,11 +4,7 @@ import {
   Clock,
   RotateCcw,
   Copy,
-  BookOpen,
-  ShieldCheck,
-  Sparkles,
   ChevronRight,
-  Database,
   Share2
 } from 'lucide-react';
 import { formatIndonesianDate, getWitaDateString } from '../../utils/dateUtils';
@@ -23,7 +19,7 @@ export const InstructorHeader: React.FC<InstructorHeaderProps> = ({
   activeTab,
   onOpenCopyCourse
 }) => {
-  const { role, setRole, activeCourse, resetToDefaultData, isLiveBackend } = useApp();
+  const { activeCourse, resetToDefaultData } = useApp();
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const tabTitleMap: Record<string, string> = {
@@ -59,19 +55,6 @@ export const InstructorHeader: React.FC<InstructorHeaderProps> = ({
       {/* Right Controls */}
       <div className="flex items-center gap-3">
         
-        {/* Backend Mode Status Badge */}
-        <div
-          className={`hidden lg:flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-lg border ${
-            isLiveBackend
-              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-              : 'bg-slate-50 text-slate-600 border-slate-200'
-          }`}
-          title={isLiveBackend ? 'Terhubung ke PostgreSQL Supabase' : 'Mode Offline / LocalStorage'}
-        >
-          <Database className={`w-3.5 h-3.5 ${isLiveBackend ? 'text-emerald-600' : 'text-slate-400'}`} />
-          <span>{isLiveBackend ? 'Supabase Live' : 'Local Storage'}</span>
-        </div>
-
         {/* WITA Date Indicator */}
         <div className="hidden md:flex items-center gap-1.5 text-xs text-slate-500 font-medium bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
           <Clock className="w-3.5 h-3.5 text-blue-600" />
@@ -106,32 +89,6 @@ export const InstructorHeader: React.FC<InstructorHeaderProps> = ({
         >
           <RotateCcw className="w-4 h-4" />
         </button>
-
-        {/* Role Switcher */}
-        <div className="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200">
-          <button
-            onClick={() => setRole('INSTRUCTOR')}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              role === 'INSTRUCTOR'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Instruktur</span>
-          </button>
-          <button
-            onClick={() => setRole('STUDENT')}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              role === 'STUDENT'
-                ? 'bg-teal-600 text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Mahasiswa</span>
-          </button>
-        </div>
 
       </div>
 
