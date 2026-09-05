@@ -17,6 +17,8 @@ import { CourseSettings } from './CourseSettings';
 import { CourseWizardModal } from './CourseWizardModal';
 import { CopyCourseModal } from './CopyCourseModal';
 
+import { InstructorLoginGate } from './InstructorLoginGate';
+
 interface InstructorCommandCenterProps {
   onOpenLoginModal: () => void;
   isCourseWizardOpen: boolean;
@@ -33,44 +35,8 @@ export const InstructorCommandCenter: React.FC<InstructorCommandCenterProps> = (
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [isCopyCourseOpen, setIsCopyCourseOpen] = useState<boolean>(false);
 
-  useEffect(() => {
-    if (!isInstructorLoggedIn) {
-      onOpenLoginModal();
-    }
-  }, [isInstructorLoggedIn]);
-
   if (!isInstructorLoggedIn) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-        <div className="max-w-md w-full p-8 bg-slate-800/90 rounded-3xl border border-slate-700 shadow-2xl text-center backdrop-blur-xl">
-          <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center mx-auto mb-4 font-bold">
-            <ShieldCheck className="w-8 h-8" />
-          </div>
-          <h2 className="text-xl font-bold text-white">Akses Terkunci: Khusus Instruktur</h2>
-          <p className="text-xs text-slate-300 max-w-sm mx-auto mt-2 leading-relaxed">
-            Halaman ini dilindungi autentikasi institusi. Silakan masuk menggunakan akun resmi (domain <strong>@politekniksorowako.ac.id</strong>) untuk mengelola mata kuliah, mahasiswa, dan penilaian OBE.
-          </p>
-
-          <div className="mt-6 space-y-2.5">
-            <button
-              onClick={onOpenLoginModal}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Lock className="w-4 h-4" />
-              <span>Login / Verifikasi Identitas Instruktur</span>
-            </button>
-
-            <button
-              onClick={() => setRole('STUDENT')}
-              className="w-full py-2.5 bg-slate-700/60 hover:bg-slate-700 text-slate-300 hover:text-white font-medium text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Kembali ke Portal Mahasiswa</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    return <InstructorLoginGate />;
   }
 
 

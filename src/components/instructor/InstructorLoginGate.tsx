@@ -1,36 +1,26 @@
-// Instructor Authentication Modal: Login & Signup with Institutional Domain Check (PRD Section 8.1 & 93)
-
+// Instructor Authentication Full-Page Gate with Pointer-Reactive Cyber Mesh, Glassmorphism, & Presets
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
-  GraduationCap,
   ShieldCheck,
   AlertCircle,
-  CheckCircle2,
   Lock,
   ArrowRight,
+  ArrowLeft,
   Sparkles,
   Eye,
   EyeOff,
   UserPlus,
   LogIn,
-  X,
-  Building,
   User,
-  Loader2
+  Loader2,
+  CheckCircle2,
+  Building
 } from 'lucide-react';
-import { ModalPortal } from '../common/ModalPortal';
 
-interface AuthLoginModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-type AuthTab = 'LOGIN' | 'SIGNUP';
-
-export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose }) => {
-  const { loginInstructor, signUpInstructor } = useApp();
-  const [activeTab, setActiveTab] = useState<AuthTab>('LOGIN');
+export const InstructorLoginGate: React.FC = () => {
+  const { loginInstructor, signUpInstructor, setRole } = useApp();
+  const [activeTab, setActiveTab] = useState<'LOGIN' | 'SIGNUP'>('LOGIN');
 
   // Login State
   const [loginEmail, setLoginEmail] = useState('rezaf@politekniksorowako.ac.id');
@@ -46,11 +36,19 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
   const [showSignupPassword, setShowSignupPassword] = useState(false);
 
-  // Common UI State
+  // Status & Interactive Pointer State
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
+  const [rawMouse, setRawMouse] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
 
-  if (!isOpen) return null;
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    setMousePos({ x, y });
+    setRawMouse({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,9 +57,7 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
 
     try {
       const result = await loginInstructor(loginEmail, loginPassword);
-      if (result.success) {
-        onClose();
-      } else {
+      if (!result.success) {
         setErrorMsg(result.message);
       }
     } catch (err: any) {
@@ -106,9 +102,7 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
         nip: signupNip.trim() || undefined
       });
 
-      if (result.success) {
-        onClose();
-      } else {
+      if (!result.success) {
         setErrorMsg(result.message);
       }
     } catch (err: any) {
@@ -124,10 +118,104 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
     setErrorMsg(null);
   };
 
+  const spotlightX = rawMouse.x !== null ? `${rawMouse.x}px` : '50%';
+  const spotlightY = rawMouse.y !== null ? `${rawMouse.y}px` : '50%';
+
   return (
-    <ModalPortal>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-fadeIn overflow-y-auto">
-        <div className="relative backdrop-blur-3xl bg-slate-900/90 rounded-[2.25rem] shadow-[0_25px_70px_-15px_rgba(0,0,0,0.85),0_0_50px_rgba(56,189,248,0.2)] border border-white/15 ring-1 ring-cyan-500/30 w-full max-w-md overflow-hidden flex flex-col my-8 transition-all duration-300">
+    <div
+      onPointerMove={handlePointerMove}
+      onMouseMove={handlePointerMove}
+      className="relative flex-1 min-h-0 w-full h-full flex flex-col justify-center items-center p-4 overflow-y-auto overflow-x-hidden bg-slate-950 select-none py-8 sm:py-12"
+    >
+      {/* Animated & Pointer-Reactive Background Mesh & Glow Orbs (Identik dengan Student Portal) */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Ambient Base Cyber Grid */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] opacity-20" />
+
+        {/* Dynamic Pointer-Illuminated Spotlight Grid */}
+        <div
+          className="absolute inset-0 bg-[linear-gradient(to_right,#38bdf8_1px,transparent_1px),linear-gradient(to_bottom,#38bdf8_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] opacity-35 transition-opacity duration-300"
+          style={{
+            maskImage: `radial-gradient(circle 500px at ${spotlightX} ${spotlightY}, #000 20%, transparent 80%)`,
+            WebkitMaskImage: `radial-gradient(circle 500px at ${spotlightX} ${spotlightY}, #000 20%, transparent 80%)`
+          }}
+        />
+
+        {/* Pointer Cursor Following Spotlight Aura */}
+        {rawMouse.x !== null && rawMouse.y !== null && (
+          <div
+            className="absolute w-[38rem] h-[38rem] rounded-full bg-cyan-500/18 blur-[110px] pointer-events-none transition-transform duration-100 ease-out will-change-transform"
+            style={{
+              left: `${rawMouse.x}px`,
+              top: `${rawMouse.y}px`,
+              transform: 'translate(-50%, -50%)',
+            }}
+          />
+        )}
+
+        {/* Parallax Floating Orb 1: Cyan / Blue Glow (Top Left) */}
+        <div
+          className="absolute -top-20 -left-20 w-[30rem] h-[30rem] rounded-full bg-gradient-to-br from-blue-600/40 via-cyan-500/30 to-transparent blur-[95px] pointer-events-none transition-transform duration-300 ease-out will-change-transform"
+          style={{
+            transform: `translate(${(mousePos.x - 0.5) * -70}px, ${(mousePos.y - 0.5) * -70}px)`,
+          }}
+        />
+
+        {/* Parallax Floating Orb 2: Indigo / Purple Glow (Bottom Right) */}
+        <div
+          className="absolute -bottom-24 -right-24 w-[34rem] h-[34rem] rounded-full bg-gradient-to-tl from-indigo-600/35 via-purple-600/25 to-transparent blur-[110px] pointer-events-none transition-transform duration-300 ease-out will-change-transform"
+          style={{
+            transform: `translate(${(mousePos.x - 0.5) * 80}px, ${(mousePos.y - 0.5) * 80}px)`,
+          }}
+        />
+
+        {/* Pulsing Central Deep Blue Glow with subtle Parallax */}
+        <div
+          className="absolute top-1/2 left-1/2 w-[36rem] h-[36rem] rounded-full bg-blue-500/15 blur-[130px] pointer-events-none transition-transform duration-500 ease-out will-change-transform"
+          style={{
+            transform: `translate(calc(-50% + ${(mousePos.x - 0.5) * 35}px), calc(-50% + ${(mousePos.y - 0.5) * 35}px))`,
+          }}
+        />
+
+        {/* Floating Micro-sparkle Accents moving with pointer */}
+        <div
+          className="absolute w-2 h-2 rounded-full bg-cyan-400/80 blur-[0.5px] animate-ping pointer-events-none transition-transform duration-300 ease-out"
+          style={{
+            top: '25%',
+            left: '22%',
+            animationDuration: '3s',
+            transform: `translate(${(mousePos.x - 0.5) * -35}px, ${(mousePos.y - 0.5) * -35}px)`
+          }}
+        />
+        <div
+          className="absolute w-2.5 h-2.5 rounded-full bg-blue-400/70 blur-[0.5px] animate-pulse pointer-events-none transition-transform duration-300 ease-out"
+          style={{
+            bottom: '28%',
+            right: '25%',
+            animationDuration: '4s',
+            transform: `translate(${(mousePos.x - 0.5) * 45}px, ${(mousePos.y - 0.5) * 45}px)`
+          }}
+        />
+        <div
+          className="absolute w-2 h-2 rounded-full bg-indigo-400/70 blur-[0.5px] animate-ping pointer-events-none transition-transform duration-300 ease-out"
+          style={{
+            top: '68%',
+            left: '28%',
+            animationDuration: '5s',
+            transform: `translate(${(mousePos.x - 0.5) * -25}px, ${(mousePos.y - 0.5) * -25}px)`
+          }}
+        />
+      </div>
+
+      {/* Login Gate Frame with subtle 3D tilt reaction */}
+      <div
+        className="relative z-10 w-full flex items-center justify-center transition-transform duration-200 ease-out will-change-transform my-auto"
+        style={{
+          transform: `perspective(1000px) rotateY(${(mousePos.x - 0.5) * 4}deg) rotateX(${(mousePos.y - 0.5) * -4}deg)`,
+        }}
+      >
+        {/* Glassmorphism Dark Card */}
+        <div className="relative backdrop-blur-3xl bg-slate-900/65 rounded-[2.25rem] shadow-[0_25px_70px_-15px_rgba(0,0,0,0.85),0_0_50px_rgba(56,189,248,0.2)] border border-white/15 ring-1 ring-cyan-500/30 w-full max-w-md overflow-hidden flex flex-col transition-all duration-300">
           
           {/* Top Glass Specular Reflection Highlight */}
           <div className="absolute top-0 left-0 right-0 h-36 bg-gradient-to-b from-white/15 via-cyan-500/5 to-transparent pointer-events-none rounded-t-[2.25rem]" />
@@ -136,29 +224,25 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
           <div className="absolute -top-24 -right-24 w-52 h-52 rounded-full bg-cyan-500/15 blur-3xl pointer-events-none" />
           <div className="absolute -bottom-24 -left-24 w-52 h-52 rounded-full bg-blue-600/15 blur-3xl pointer-events-none" />
 
-          {/* Close Button */}
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute right-5 top-5 text-slate-400 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-colors z-20 cursor-pointer"
-            title="Tutup"
-          >
-            <X className="w-5 h-5" />
-          </button>
-
-          {/* Header */}
-          <div className="p-6 sm:p-8 text-white text-center relative z-10 pb-0">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center mx-auto mb-3.5 shadow-xl shadow-cyan-500/25 ring-2 ring-white/20">
-              <GraduationCap className="w-7 h-7 text-white" />
-            </div>
-            <h2 className="text-xl font-black tracking-tight text-white">Portal Praktik Poliwako</h2>
-            <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-[11px] font-bold text-cyan-300 mx-auto mt-1.5 shadow-xs">
-              <Sparkles className="w-3 h-3 text-cyan-400" />
-              <span>Akses Khusus Instruktur & Dosen</span>
+          {/* Body Area */}
+          <div className="p-7 sm:p-9 flex-1 flex flex-col relative z-10">
+            
+            {/* Header / Brand Icon */}
+            <div className="text-center mb-5">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 text-white flex items-center justify-center mx-auto mb-3.5 shadow-xl shadow-cyan-500/25 ring-2 ring-white/20">
+                <ShieldCheck className="w-7 h-7" />
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                Portal Praktik Instruktur
+              </h2>
+              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-[11px] font-bold text-cyan-300 mx-auto mt-1.5 shadow-xs">
+                <Sparkles className="w-3 h-3 text-cyan-400" />
+                <span>Politeknik Sorowako • Dosen & Instruktur</span>
+              </div>
             </div>
 
-            {/* Tab Navigation */}
-            <div className="mt-4 flex bg-slate-950/70 backdrop-blur-md p-1 rounded-xl border border-slate-700/60 max-w-xs mx-auto w-full">
+            {/* Dual Tabs: Masuk / Daftar Akun */}
+            <div className="mb-5 flex bg-slate-950/70 backdrop-blur-md p-1 rounded-xl border border-slate-700/60 max-w-xs mx-auto w-full">
               <button
                 type="button"
                 onClick={() => {
@@ -190,19 +274,16 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
                 <span>Daftar Akun</span>
               </button>
             </div>
-          </div>
 
-          {/* Form Body */}
-          <div className="p-6 sm:p-8 relative z-10 flex-1">
-            {/* Error Banner */}
+            {/* Error Alert Box */}
             {errorMsg && (
               <div className="mb-4 p-3.5 bg-rose-950/70 backdrop-blur-md border border-rose-500/50 rounded-2xl flex items-start gap-3 text-rose-200 text-xs animate-shake shadow-xs">
                 <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                <span className="leading-relaxed">{errorMsg}</span>
+                <div className="flex-1 font-medium">{errorMsg}</div>
               </div>
             )}
 
-            {/* TAB: LOGIN */}
+            {/* TAB 1: LOGIN FORM */}
             {activeTab === 'LOGIN' && (
               <form onSubmit={handleLoginSubmit} className="space-y-4">
                 <div>
@@ -228,13 +309,13 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
                   </div>
                   <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
                     <span className="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                    <span>Domain @politekniksorowako.ac.id</span>
+                    <span>Domain wajib: <strong>@politekniksorowako.ac.id</strong></span>
                   </p>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-                    Password
+                    Kata Sandi (Password)
                   </label>
                   <div className="relative group">
                     <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-cyan-400 transition-colors">
@@ -247,7 +328,7 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
                         setLoginPassword(e.target.value);
                         if (errorMsg) setErrorMsg(null);
                       }}
-                      placeholder="Masukkan password..."
+                      placeholder="Masukkan kata sandi..."
                       required
                       className="w-full pl-10 pr-11 py-3 bg-slate-950/60 backdrop-blur-xl border border-slate-700/80 focus:border-cyan-400 focus:bg-slate-900/90 rounded-2xl text-sm font-semibold text-white focus:outline-none focus:ring-4 focus:ring-cyan-500/20 transition-all placeholder:text-slate-500 placeholder:font-normal shadow-inner"
                     />
@@ -261,35 +342,30 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
                   </div>
                 </div>
 
-                {/* Quick Testing Preset Buttons */}
+                {/* Quick Preset Buttons */}
                 <div className="pt-1">
                   <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1.5">
-                    Akun Instruktur Terdaftar:
+                    Akun Pengajar Cepat:
                   </span>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setPresetEmail('rezaf@politekniksorowako.ac.id', '732401#Jhe')}
-                      className="p-2.5 text-left bg-slate-950/50 hover:bg-slate-800/80 border border-cyan-500/30 rounded-xl text-slate-200 transition-colors cursor-pointer"
-                    >
-                      <p className="font-bold text-[11px] text-white">Reza Febriadi Rauf</p>
-                      <p className="text-[10px] text-cyan-400 truncate">rezaf@politekniksorowako.ac.id</p>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPresetEmail('dosen.tpm@politekniksorowako.ac.id', 'password123')}
-                      className="p-2.5 text-left bg-slate-950/50 hover:bg-slate-800/80 border border-slate-700 rounded-xl text-slate-300 transition-colors cursor-pointer"
-                    >
-                      <p className="font-bold text-[11px] text-white">Dosen Rekayasa</p>
-                      <p className="text-[10px] text-slate-400 truncate">dosen.tpm@...</p>
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPresetEmail('rezaf@politekniksorowako.ac.id', '732401#Jhe')}
+                    className="w-full p-2.5 text-left bg-slate-950/50 hover:bg-slate-800/80 border border-cyan-500/30 hover:border-cyan-400 rounded-xl text-slate-200 transition-all flex items-center justify-between group cursor-pointer"
+                  >
+                    <div>
+                      <p className="font-bold text-xs text-white group-hover:text-cyan-300 transition-colors">Reza Febriadi Rauf</p>
+                      <p className="text-[11px] text-slate-400 font-mono">rezaf@politekniksorowako.ac.id</p>
+                    </div>
+                    <span className="text-[10px] font-bold text-cyan-400 bg-cyan-950/80 border border-cyan-800/60 px-2 py-0.5 rounded-md">
+                      Isi Otomatis
+                    </span>
+                  </button>
                 </div>
 
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-3.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:via-indigo-500 hover:to-cyan-500 text-white font-bold text-sm rounded-2xl transition-all shadow-lg shadow-blue-600/30 hover:shadow-cyan-500/30 flex items-center justify-center gap-2 mt-2 disabled:opacity-70 cursor-pointer"
+                  className="w-full py-3.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:via-indigo-500 hover:to-cyan-500 text-white font-bold text-sm rounded-2xl transition-all shadow-lg shadow-blue-600/30 hover:shadow-cyan-500/30 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 group cursor-pointer disabled:opacity-70 mt-2"
                 >
                   {isLoading ? (
                     <>
@@ -298,28 +374,15 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
                     </>
                   ) : (
                     <>
-                      <span>Masuk sebagai Instruktur</span>
-                      <ArrowRight className="w-4 h-4" />
+                      <span>Masuk ke Command Center</span>
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </>
                   )}
                 </button>
-
-                <div className="text-center pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab('SIGNUP');
-                      setErrorMsg(null);
-                    }}
-                    className="text-xs text-cyan-400 hover:text-cyan-300 font-semibold cursor-pointer"
-                  >
-                    Belum punya akun? <span className="underline">Daftar akun instruktur baru</span>
-                  </button>
-                </div>
               </form>
             )}
 
-            {/* TAB: SIGNUP */}
+            {/* TAB 2: SIGNUP FORM */}
             {activeTab === 'SIGNUP' && (
               <form onSubmit={handleSignupSubmit} className="space-y-3.5">
                 <div>
@@ -336,7 +399,7 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
                       onChange={e => setSignupName(e.target.value)}
                       placeholder="Contoh: Ir. Budi Santoso, S.T., M.T."
                       required
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-950/60 backdrop-blur-xl border border-slate-700/80 focus:border-cyan-400 focus:bg-slate-900/90 rounded-2xl text-xs font-semibold text-white focus:outline-none focus:ring-4 focus:ring-cyan-500/20 transition-all placeholder:text-slate-500 shadow-inner"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-950/60 backdrop-blur-xl border border-slate-700/80 focus:border-cyan-400 focus:bg-slate-900/90 rounded-2xl text-xs font-semibold text-white focus:outline-none focus:ring-4 focus:ring-cyan-500/20 transition-all placeholder:text-slate-500 placeholder:font-normal shadow-inner"
                     />
                   </div>
                 </div>
@@ -355,13 +418,9 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
                       onChange={e => setSignupEmail(e.target.value)}
                       placeholder="nama@politekniksorowako.ac.id"
                       required
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-950/60 backdrop-blur-xl border border-slate-700/80 focus:border-cyan-400 focus:bg-slate-900/90 rounded-2xl text-xs font-semibold text-white focus:outline-none focus:ring-4 focus:ring-cyan-500/20 transition-all placeholder:text-slate-500 shadow-inner"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-950/60 backdrop-blur-xl border border-slate-700/80 focus:border-cyan-400 focus:bg-slate-900/90 rounded-2xl text-xs font-semibold text-white focus:outline-none focus:ring-4 focus:ring-cyan-500/20 transition-all placeholder:text-slate-500 placeholder:font-normal shadow-inner"
                     />
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                    <span>Wajib @politekniksorowako.ac.id</span>
-                  </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -389,14 +448,14 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
                       value={signupNip}
                       onChange={e => setSignupNip(e.target.value)}
                       placeholder="1987..."
-                      className="w-full px-3 py-2.5 bg-slate-950/60 border border-slate-700/80 focus:border-cyan-400 focus:bg-slate-900/90 rounded-2xl text-xs font-semibold text-white focus:outline-none focus:ring-4 focus:ring-cyan-500/20 transition-all placeholder:text-slate-500 shadow-inner"
+                      className="w-full px-3 py-2.5 bg-slate-950/60 border border-slate-700/80 focus:border-cyan-400 focus:bg-slate-900/90 rounded-2xl text-xs font-semibold text-white focus:outline-none focus:ring-4 focus:ring-cyan-500/20 transition-all placeholder:text-slate-500 placeholder:font-normal shadow-inner"
                     />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">
-                    Password (Minimal 6 Karakter)
+                    Password (Min. 6 Karakter)
                   </label>
                   <div className="relative group">
                     <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-cyan-400 transition-colors">
@@ -453,25 +512,24 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
                     </>
                   )}
                 </button>
-
-                <div className="text-center pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab('LOGIN');
-                      setErrorMsg(null);
-                    }}
-                    className="text-xs text-cyan-400 hover:text-cyan-300 font-semibold cursor-pointer"
-                  >
-                    Sudah memiliki akun? <span className="underline">Masuk di sini</span>
-                  </button>
-                </div>
               </form>
             )}
-          </div>
 
+            {/* Back to Student Portal Link */}
+            <div className="mt-5 pt-4 border-t border-slate-800/80 text-center">
+              <button
+                type="button"
+                onClick={() => setRole('STUDENT')}
+                className="text-xs text-slate-400 hover:text-cyan-400 transition-colors inline-flex items-center gap-1.5 font-medium cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Kembali ke Portal Praktik Mahasiswa</span>
+              </button>
+            </div>
+
+          </div>
         </div>
       </div>
-    </ModalPortal>
+    </div>
   );
 };

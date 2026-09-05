@@ -1,16 +1,14 @@
-// Main Application Component for Portal Praktik Poliwako
-
 import React, { useState, useEffect } from 'react';
 import { useApp } from './context/AppContext';
 import { Navbar } from './components/common/Navbar';
-import { Lock } from 'lucide-react';
+import { Lock, ArrowLeft } from 'lucide-react';
 import { ToastContainer } from './components/common/ToastContainer';
 import { AuthLoginModal } from './components/instructor/AuthLoginModal';
 import { InstructorCommandCenter } from './components/instructor/InstructorCommandCenter';
 import { StudentPortal } from './components/student/StudentPortal';
 
 export const App: React.FC = () => {
-  const { role, setRole, activeCourse, studentSession, currentStudent } = useApp();
+  const { role, setRole, activeCourse, studentSession, currentStudent, isInstructorLoggedIn } = useApp();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isCourseWizardOpen, setIsCourseWizardOpen] = useState(false);
 
@@ -25,19 +23,19 @@ export const App: React.FC = () => {
 
   return (
     <div className={`selection:bg-blue-600 selection:text-white ${
-      role === 'STUDENT'
+      (role === 'STUDENT' || !isInstructorLoggedIn)
         ? 'h-screen w-screen overflow-hidden flex flex-col bg-slate-900'
         : 'min-h-screen bg-slate-100 flex flex-col'
     }`}>
       
-      {/* Student Mode Header: Hanya tampil di halaman login */}
-      {role === 'STUDENT' && (!studentSession || !currentStudent) && (
+      {/* Student Mode Header: Hanya tampil jika mahasiswa sudah login */}
+      {role === 'STUDENT' && studentSession && currentStudent && (
         <Navbar onOpenInstructorLogin={() => setIsLoginModalOpen(true)} />
       )}
 
 
       {/* Main Content Area */}
-      <div className={role === 'STUDENT' ? 'flex-1 min-h-0 overflow-hidden flex flex-col' : 'flex-1'}>
+      <div className={(role === 'STUDENT' || !isInstructorLoggedIn) ? 'flex-1 min-h-0 overflow-hidden flex flex-col' : 'flex-1'}>
         {role === 'INSTRUCTOR' ? (
           <InstructorCommandCenter
             onOpenLoginModal={() => setIsLoginModalOpen(true)}
@@ -58,9 +56,9 @@ export const App: React.FC = () => {
         onClose={() => setIsLoginModalOpen(false)}
       />
 
-      {/* Student View Footer - Product by dev-byreza (Hanya aktif di halaman login) */}
-      {role === 'STUDENT' && (!studentSession || !currentStudent) && (
-        <footer className="bg-slate-900 border-t border-slate-800/80 py-3 shrink-0 text-xs relative">
+      {/* Shared View Footer - Product by dev-byreza (Aktif di halaman login mahasiswa & instruktur) */}
+      {((role === 'STUDENT' && (!studentSession || !currentStudent)) || (role === 'INSTRUCTOR' && !isInstructorLoggedIn)) && (
+        <footer className="bg-slate-900 border-t border-slate-800/80 py-3 shrink-0 text-xs relative z-20">
           <div className="max-w-7xl mx-auto px-4 flex items-center justify-center gap-3">
             <span className="text-slate-400 text-xs font-normal">Product by</span>
             
@@ -102,14 +100,25 @@ export const App: React.FC = () => {
             </a>
           </div>
 
-          {/* Discreet Instructor Access Switch */}
-          <button
-            onClick={() => setRole('INSTRUCTOR')}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 opacity-25 hover:opacity-100 transition-all p-1.5 rounded-lg hover:bg-slate-800"
-            title="Akses Instruktur"
-          >
-            <Lock className="w-3.5 h-3.5" />
-          </button>
+          {/* Discreet Access / Role Switch */}
+          {role === 'INSTRUCTOR' ? (
+            <button
+              onClick={() => setRole('STUDENT')}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-all px-2.5 py-1 rounded-lg hover:bg-slate-800 text-xs font-medium flex items-center gap-1.5 cursor-pointer"
+              title="Kembali ke Portal Mahasiswa"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Portal Mahasiswa</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setRole('INSTRUCTOR')}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 opacity-25 hover:opacity-100 transition-all p-1.5 rounded-lg hover:bg-slate-800 cursor-pointer"
+              title="Akses Instruktur"
+            >
+              <Lock className="w-3.5 h-3.5" />
+            </button>
+          )}
         </footer>
       )}
 
