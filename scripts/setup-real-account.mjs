@@ -2,7 +2,6 @@
 // Usage: node scripts/setup-real-account.mjs
 
 import { createClient } from '@supabase/supabase-js';
-import * as dotenv from 'dotenv';
 import { readFileSync, existsSync } from 'fs';
 
 if (existsSync('.env')) {

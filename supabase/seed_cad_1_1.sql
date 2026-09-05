@@ -196,5 +196,30 @@ BEGIN
       AND s.nim IN ('22603002', '22603019', '22603023', '22603033')
     ON CONFLICT (period_id, student_id) DO NOTHING;
 
-    RAISE NOTICE 'Seed CAD 1.1 Berhasil: Course, 36 Mahasiswa Kelas 1C, dan 4 Gelombang Periode Telah Didaftarkan!';
+    -- ====================================================================
+    -- 7. INSERT 5 UNIT PEMBELAJARAN & PENUGASAN CAD 1.1 (Gelombang 2 Active)
+    -- ====================================================================
+    INSERT INTO public.learning_units (id, period_id, unit_number, title, description)
+    VALUES
+        ('c1b2c3d4-cad1-4000-8000-000000000301'::UUID, v_per2_id, 1, 'Modul 1: Antarmuka CAD & 2D Sketching Parametrik', 'Pengenalan UI/UX software CAD, origin, planes, constraint dimensi dan geometri dasar.'),
+        ('c1b2c3d4-cad1-4000-8000-000000000302'::UUID, v_per2_id, 2, 'Modul 2: Fitur 3D Solid Dasar (Extrude & Revolve)', 'Pembuatan part solid 3D dasar, cut extrude, fillet, chamfer, dan shell feature.'),
+        ('c1b2c3d4-cad1-4000-8000-000000000303'::UUID, v_per2_id, 3, 'Modul 3: Pemodelan Kompleks (Sweep, Loft & Pattern)', 'Pemodelan kontur berulang, helical sweep, draft angle, dan circular/linear pattern.'),
+        ('c1b2c3d4-cad1-4000-8000-000000000304'::UUID, v_per2_id, 4, 'Modul 4: Assembly Modeling & Standard Fasteners', 'Perakitan komponen multi-part, mate constraints (coincident, concentric, distance), bill of materials.'),
+        ('c1b2c3d4-cad1-4000-8000-000000000305'::UUID, v_per2_id, 5, 'Modul 5: 2D Technical Drafting & GD&T ISO', 'Penyusunan etiket gambar, proyeksi orthogonal Amerika/Eropa, section view, dan toleransi geometri ISO.')
+    ON CONFLICT (id) DO UPDATE SET
+        title = EXCLUDED.title,
+        description = EXCLUDED.description;
+
+    -- Penugasan Modul
+    INSERT INTO public.assignments (period_id, unit_id, title, description, deadline, max_score, allowed_file_type)
+    VALUES
+        (v_per2_id, 'c1b2c3d4-cad1-4000-8000-000000000301'::UUID, 'Tugas Modul 1: Lembar Latihan 2D Sketching', 'Kumpulkan lembar gambar kerja 2D sketching berdimensi presisi dalam format PDF.', NOW() + INTERVAL '7 days', 100, 'PDF'),
+        (v_per2_id, 'c1b2c3d4-cad1-4000-8000-000000000302'::UUID, 'Tugas Modul 2: Pemodelan Part Flange & Shaft', 'Upload laporan hasil pemodelan 3D solid part beserta drawing views PDF.', NOW() + INTERVAL '10 days', 100, 'PDF'),
+        (v_per2_id, 'c1b2c3d4-cad1-4000-8000-000000000303'::UUID, 'Tugas Modul 3: Pemodelan Rotor Impeller', 'Laporan langkah kerja fitur sweep dan pattern pada komponen rotor.', NOW() + INTERVAL '14 days', 100, 'PDF'),
+        (v_per2_id, 'c1b2c3d4-cad1-4000-8000-000000000304'::UUID, 'Tugas Modul 4: Evaluasi Perakitan Gearbox', 'Laporan assembly, cek interferensi part, dan bill of materials (BOM).', NOW() + INTERVAL '18 days', 100, 'PDF'),
+        (v_per2_id, 'c1b2c3d4-cad1-4000-8000-000000000305'::UUID, 'Tugas Modul 5: Gambar Kerja Lengkap Etiket & Toleransi ISO', 'Karya akhir gambar kerja 2D standar industri manufaktur dalam format PDF.', NOW() + INTERVAL '21 days', 100, 'PDF')
+    ON CONFLICT DO NOTHING;
+
+    RAISE NOTICE 'Seed CAD 1.1 Berhasil: Course, 36 Mahasiswa Kelas 1C, 4 Gelombang Periode, dan 5 Unit Modul Telah Didaftarkan!';
 END $$;
+
