@@ -6,7 +6,6 @@ import {
   AlertCircle,
   Lock,
   ArrowRight,
-  ArrowLeft,
   Sparkles,
   Eye,
   EyeOff,
@@ -19,7 +18,7 @@ import {
 } from 'lucide-react';
 
 export const InstructorLoginGate: React.FC = () => {
-  const { loginInstructor, signUpInstructor, setRole } = useApp();
+  const { loginInstructor, signUpInstructor } = useApp();
   const [activeTab, setActiveTab] = useState<'LOGIN' | 'SIGNUP'>('LOGIN');
 
   // Login State
@@ -487,21 +486,6 @@ export const InstructorLoginGate: React.FC = () => {
                 </button>
               </form>
             )}
-
-            {/* Back to Student Portal Link */}
-            <div className="mt-5 pt-4 border-t border-slate-800/80 text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setRole('STUDENT');
-                  window.history.pushState(null, '', '/mahasiswa');
-                }}
-                className="text-xs text-slate-400 hover:text-cyan-400 transition-colors inline-flex items-center gap-1.5 font-medium cursor-pointer"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Kembali ke Portal Praktik Mahasiswa</span>
-              </button>
-            </div>
 
           </div>
         </div>

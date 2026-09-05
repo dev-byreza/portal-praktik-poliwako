@@ -278,16 +278,6 @@ export const App: React.FC = () => {
             </>
           )}
 
-          {(activeRoute === 'ROOT_SELECTOR' || activeRoute === 'NOT_FOUND') && (
-            <button
-              onClick={() => navigateTo('/')}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-all px-2.5 py-1 rounded-lg hover:bg-slate-800 text-xs font-medium flex items-center gap-1.5 cursor-pointer"
-              title="Beranda Portal"
-            >
-              <Home className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Beranda</span>
-            </button>
-          )}
         </footer>
       )}
 
