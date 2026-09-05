@@ -48,9 +48,9 @@ const STORAGE_KEYS = {
   ACTIVE_COURSE_ID: 'poliwako_active_course_id'
 };
 
-const CLEAN_VERSION_KEY = 'poliwako_clean_real_v1';
+const CLEAN_VERSION_KEY = 'poliwako_real_cad1_1_v2';
 
-// Auto-purge old dummy data if clean version flag is missing
+// Auto-seed real CAD 1.1 course and students if new version flag is missing
 if (typeof window !== 'undefined' && !localStorage.getItem(CLEAN_VERSION_KEY)) {
   localStorage.clear();
   localStorage.setItem(CLEAN_VERSION_KEY, 'true');
@@ -66,6 +66,7 @@ if (typeof window !== 'undefined' && !localStorage.getItem(CLEAN_VERSION_KEY)) {
   localStorage.setItem(STORAGE_KEYS.ASSESSMENTS, JSON.stringify(INITIAL_ASSESSMENTS));
   localStorage.setItem(STORAGE_KEYS.REMEDIALS, JSON.stringify(INITIAL_REMEDIALS));
   localStorage.setItem(STORAGE_KEYS.FEEDBACK_RULES, JSON.stringify(INITIAL_FEEDBACK_RULES));
+  localStorage.setItem(STORAGE_KEYS.ACTIVE_COURSE_ID, 'course-cad-1-1');
 }
 
 function getItem<T>(key: string, fallback: T): T {
