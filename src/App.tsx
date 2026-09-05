@@ -31,7 +31,10 @@ export const App: React.FC = () => {
     }`}>
       
       {/* Student Mode Header: Hanya tampil di halaman login */}
-      {role === 'STUDENT' && (!studentSession || !currentStudent) && <Navbar />}
+      {role === 'STUDENT' && (!studentSession || !currentStudent) && (
+        <Navbar onOpenInstructorLogin={() => setIsLoginModalOpen(true)} />
+      )}
+
 
       {/* Main Content Area */}
       <div className={role === 'STUDENT' ? 'flex-1 min-h-0 overflow-hidden flex flex-col' : 'flex-1'}>

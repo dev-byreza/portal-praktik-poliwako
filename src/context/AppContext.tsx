@@ -137,8 +137,8 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const isLiveBackend = useMemo(() => isSupabaseConfigured(), []);
-  const [role, setRole] = useState<UserRole>('INSTRUCTOR');
-  const [isInstructorLoggedIn, setIsInstructorLoggedIn] = useState<boolean>(true);
+  const [isInstructorLoggedIn, setIsInstructorLoggedIn] = useState<boolean>(() => StorageService.isInstructorLoggedIn());
+  const [role, setRole] = useState<UserRole>(() => (StorageService.isInstructorLoggedIn() ? 'INSTRUCTOR' : 'STUDENT'));
   const [instructor, setInstructor] = useState<InstructorProfile>(StorageService.getInstructor());
   const [courses, setCourses] = useState<Course[]>(StorageService.getCourses());
   const [activeCourseId, setActiveCourseIdState] = useState<string>(StorageService.getActiveCourseId());
@@ -267,6 +267,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
     setInstructor(updated);
     StorageService.saveInstructor(updated);
+    StorageService.setInstructorLoggedIn(true);
     setIsInstructorLoggedIn(true);
     setRole('INSTRUCTOR');
     showToast('Login Berhasil', `Selamat datang, ${updated.name}`, 'success');
@@ -318,6 +319,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       setInstructor(newProfile);
       StorageService.saveInstructor(newProfile);
+      StorageService.setInstructorLoggedIn(true);
       setIsInstructorLoggedIn(true);
       setRole('INSTRUCTOR');
       showToast('Pendaftaran Berhasil', `Selamat datang, ${newProfile.name}! Akun Anda telah aktif.`, 'success');
@@ -331,8 +333,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const logoutInstructor = () => {
     setIsInstructorLoggedIn(false);
+    StorageService.setInstructorLoggedIn(false);
+    setRole('STUDENT');
     showToast('Logout', 'Anda telah keluar dari Portal Instruktur.', 'info');
   };
+
 
   // Student Authentication & Identity Handlers
   const verifyStudentNim = (nim: string, courseSlug?: string, periodId?: string) => {

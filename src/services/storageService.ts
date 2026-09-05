@@ -45,10 +45,11 @@ const STORAGE_KEYS = {
   REMEDIALS: 'poliwako_remedials',
   FEEDBACK_RULES: 'poliwako_feedback_rules',
   CURRENT_STUDENT_SESSION: 'poliwako_student_session',
-  ACTIVE_COURSE_ID: 'poliwako_active_course_id'
+  ACTIVE_COURSE_ID: 'poliwako_active_course_id',
+  INSTRUCTOR_LOGGED_IN: 'poliwako_instructor_logged_in'
 };
 
-const CLEAN_VERSION_KEY = 'poliwako_real_cad1_1_v2';
+const CLEAN_VERSION_KEY = 'poliwako_security_v3';
 
 // Auto-seed real CAD 1.1 course and students if new version flag is missing
 if (typeof window !== 'undefined' && !localStorage.getItem(CLEAN_VERSION_KEY)) {
@@ -67,7 +68,9 @@ if (typeof window !== 'undefined' && !localStorage.getItem(CLEAN_VERSION_KEY)) {
   localStorage.setItem(STORAGE_KEYS.REMEDIALS, JSON.stringify(INITIAL_REMEDIALS));
   localStorage.setItem(STORAGE_KEYS.FEEDBACK_RULES, JSON.stringify(INITIAL_FEEDBACK_RULES));
   localStorage.setItem(STORAGE_KEYS.ACTIVE_COURSE_ID, 'course-cad-1-1');
+  localStorage.removeItem(STORAGE_KEYS.INSTRUCTOR_LOGGED_IN);
 }
+
 
 function getItem<T>(key: string, fallback: T): T {
   try {
@@ -113,6 +116,21 @@ export class StorageService {
   static saveInstructor(instructor: InstructorProfile): void {
     setItem(STORAGE_KEYS.INSTRUCTOR, instructor);
   }
+
+  static isInstructorLoggedIn(): boolean {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(STORAGE_KEYS.INSTRUCTOR_LOGGED_IN) === 'true';
+  }
+
+  static setInstructorLoggedIn(loggedIn: boolean): void {
+    if (typeof window === 'undefined') return;
+    if (loggedIn) {
+      localStorage.setItem(STORAGE_KEYS.INSTRUCTOR_LOGGED_IN, 'true');
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.INSTRUCTOR_LOGGED_IN);
+    }
+  }
+
 
   static getStudents(): Student[] {
     return getItem<Student[]>(STORAGE_KEYS.STUDENTS, INITIAL_STUDENTS);

@@ -4,8 +4,23 @@ import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { Lock } from 'lucide-react';
 
-export const Navbar: React.FC = () => {
-  const { setRole } = useApp();
+interface NavbarProps {
+  onOpenInstructorLogin?: () => void;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({ onOpenInstructorLogin }) => {
+  const { setRole, isInstructorLoggedIn } = useApp();
+
+  const handleInstructorAccess = () => {
+    if (isInstructorLoggedIn) {
+      setRole('INSTRUCTOR');
+    } else {
+      if (onOpenInstructorLogin) {
+        onOpenInstructorLogin();
+      }
+      setRole('INSTRUCTOR');
+    }
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-slate-900 border-b border-slate-800 text-slate-400 text-xs shadow-md">
@@ -29,9 +44,9 @@ export const Navbar: React.FC = () => {
             </span>
             <span className="text-slate-700">•</span>
             <button
-              onClick={() => setRole('INSTRUCTOR')}
-              className="hover:text-slate-200 transition-colors inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-slate-300"
-              title="Beralih ke Command Center Instruktur"
+              onClick={handleInstructorAccess}
+              className="hover:text-slate-200 transition-colors inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-slate-300 cursor-pointer"
+              title="Akses Portal Instruktur (Perlu Autentikasi)"
             >
               <Lock className="w-3 h-3 text-slate-400" />
               <span>Akses Instruktur</span>
@@ -43,3 +58,4 @@ export const Navbar: React.FC = () => {
     </header>
   );
 };
+
