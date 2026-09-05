@@ -8,18 +8,94 @@ import { InstructorCommandCenter } from './components/instructor/InstructorComma
 import { StudentPortal } from './components/student/StudentPortal';
 
 export const App: React.FC = () => {
-  const { role, setRole, activeCourse, studentSession, currentStudent, isInstructorLoggedIn } = useApp();
+  const {
+    role,
+    setRole,
+    activeCourse,
+    courses,
+    setActiveCourseId,
+    studentSession,
+    currentStudent,
+    isInstructorLoggedIn
+  } = useApp();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isCourseWizardOpen, setIsCourseWizardOpen] = useState(false);
 
-  // Check URL path simulation for student slug (e.g. /pemesinan-cnc)
-  const [currentSlug, setCurrentSlug] = useState<string>(activeCourse?.slug || 'pemesinan-cnc');
+  // Check URL path simulation for student slug (default cad-1-1 or activeCourse)
+  const [currentSlug, setCurrentSlug] = useState<string>(activeCourse?.slug || 'cad-1-1');
+
+  // Handle URL Path & Query Parameters Routing
+  useEffect(() => {
+    const handleUrlRouting = () => {
+      const path = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
+      const params = new URLSearchParams(window.location.search);
+      const roleParam = params.get('role')?.toLowerCase();
+      const courseParam = params.get('course')?.toLowerCase();
+
+      // Priority 1: Match course slug in URL path (e.g. /cad-1-1 or /pemesinan-cnc)
+      const matchedCourse = courses.find(
+        c => c.slug.toLowerCase() === path || c.slug.toLowerCase() === courseParam
+      );
+
+      if (matchedCourse) {
+        setRole('STUDENT');
+        setActiveCourseId(matchedCourse.id);
+        setCurrentSlug(matchedCourse.slug);
+        return;
+      }
+
+      // Priority 2: Match student portal routes (e.g. /mahasiswa, /portal-mahasiswa, /student)
+      if (
+        path === 'mahasiswa' ||
+        path === 'portal-mahasiswa' ||
+        path === 'student' ||
+        roleParam === 'student' ||
+        roleParam === 'mahasiswa'
+      ) {
+        setRole('STUDENT');
+        return;
+      }
+
+      // Priority 3: Match instructor portal routes (e.g. /instruktur, /instructor, /dosen)
+      if (
+        path === 'instruktur' ||
+        path === 'instructor' ||
+        path === 'dosen' ||
+        roleParam === 'instructor' ||
+        roleParam === 'instruktur'
+      ) {
+        setRole('INSTRUCTOR');
+        return;
+      }
+
+      // Priority 4: Root path (/) default
+      if (!path) {
+        if (!isInstructorLoggedIn) {
+          setRole('STUDENT');
+        }
+      }
+    };
+
+    handleUrlRouting();
+    window.addEventListener('popstate', handleUrlRouting);
+    return () => window.removeEventListener('popstate', handleUrlRouting);
+  }, [courses, isInstructorLoggedIn]);
 
   useEffect(() => {
     if (activeCourse) {
       setCurrentSlug(activeCourse.slug);
     }
   }, [activeCourse]);
+
+  const handleSwitchToStudent = () => {
+    setRole('STUDENT');
+    window.history.pushState(null, '', '/mahasiswa');
+  };
+
+  const handleSwitchToInstructor = () => {
+    setRole('INSTRUCTOR');
+    window.history.pushState(null, '', '/instruktur');
+  };
 
   return (
     <div className={`selection:bg-blue-600 selection:text-white ${
@@ -103,7 +179,7 @@ export const App: React.FC = () => {
           {/* Discreet Access / Role Switch */}
           {role === 'INSTRUCTOR' ? (
             <button
-              onClick={() => setRole('STUDENT')}
+              onClick={handleSwitchToStudent}
               className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-all px-2.5 py-1 rounded-lg hover:bg-slate-800 text-xs font-medium flex items-center gap-1.5 cursor-pointer"
               title="Kembali ke Portal Mahasiswa"
             >
@@ -112,7 +188,7 @@ export const App: React.FC = () => {
             </button>
           ) : (
             <button
-              onClick={() => setRole('INSTRUCTOR')}
+              onClick={handleSwitchToInstructor}
               className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 opacity-25 hover:opacity-100 transition-all p-1.5 rounded-lg hover:bg-slate-800 cursor-pointer"
               title="Akses Instruktur"
             >

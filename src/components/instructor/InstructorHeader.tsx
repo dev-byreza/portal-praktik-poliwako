@@ -1,6 +1,4 @@
-// Instructor Top Header Bar (Breadcrumbs, WITA clock, Role Switcher)
-
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   Clock,
@@ -10,9 +8,11 @@ import {
   ShieldCheck,
   Sparkles,
   ChevronRight,
-  Database
+  Database,
+  Share2
 } from 'lucide-react';
 import { formatIndonesianDate, getWitaDateString } from '../../utils/dateUtils';
+import { SharePortalModal } from './SharePortalModal';
 
 interface InstructorHeaderProps {
   activeTab: string;
@@ -24,6 +24,7 @@ export const InstructorHeader: React.FC<InstructorHeaderProps> = ({
   onOpenCopyCourse
 }) => {
   const { role, setRole, activeCourse, resetToDefaultData, isLiveBackend } = useApp();
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const tabTitleMap: Record<string, string> = {
     DASHBOARD: 'Dashboard Command Center',
@@ -77,10 +78,20 @@ export const InstructorHeader: React.FC<InstructorHeaderProps> = ({
           <span>{formatIndonesianDate(todayWita)} (WITA)</span>
         </div>
 
+        {/* Bagikan Link Portal ke Mahasiswa */}
+        <button
+          onClick={() => setIsShareModalOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-xl shadow-sm shadow-cyan-600/25 hover:shadow-cyan-600/40 transition-all cursor-pointer"
+          title="Bagikan link portal ke mahasiswa"
+        >
+          <Share2 className="w-3.5 h-3.5" />
+          <span>Bagikan ke Mahasiswa</span>
+        </button>
+
         {/* Copy Course Shortcut */}
         <button
           onClick={onOpenCopyCourse}
-          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 transition-colors"
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 transition-colors cursor-pointer"
           title="Salin mata kuliah ke semester baru"
         >
           <Copy className="w-3.5 h-3.5" />
@@ -91,7 +102,7 @@ export const InstructorHeader: React.FC<InstructorHeaderProps> = ({
         <button
           onClick={resetToDefaultData}
           title="Reset data demo ke awal"
-          className="p-2 text-slate-400 hover:text-amber-500 hover:bg-slate-50 rounded-xl transition-colors"
+          className="p-2 text-slate-400 hover:text-amber-500 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
         >
           <RotateCcw className="w-4 h-4" />
         </button>
@@ -100,7 +111,7 @@ export const InstructorHeader: React.FC<InstructorHeaderProps> = ({
         <div className="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200">
           <button
             onClick={() => setRole('INSTRUCTOR')}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               role === 'INSTRUCTOR'
                 ? 'bg-blue-600 text-white shadow-sm'
                 : 'text-slate-500 hover:text-slate-800'
@@ -111,7 +122,7 @@ export const InstructorHeader: React.FC<InstructorHeaderProps> = ({
           </button>
           <button
             onClick={() => setRole('STUDENT')}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               role === 'STUDENT'
                 ? 'bg-teal-600 text-white shadow-sm'
                 : 'text-slate-500 hover:text-slate-800'
@@ -123,6 +134,12 @@ export const InstructorHeader: React.FC<InstructorHeaderProps> = ({
         </div>
 
       </div>
+
+      {/* Share Portal Modal */}
+      <SharePortalModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+      />
 
     </header>
   );

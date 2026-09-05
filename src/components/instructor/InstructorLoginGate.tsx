@@ -493,7 +493,10 @@ export const InstructorLoginGate: React.FC = () => {
             <div className="mt-5 pt-4 border-t border-slate-800/80 text-center">
               <button
                 type="button"
-                onClick={() => setRole('STUDENT')}
+                onClick={() => {
+                  setRole('STUDENT');
+                  window.history.pushState(null, '', '/mahasiswa');
+                }}
                 className="text-xs text-slate-400 hover:text-cyan-400 transition-colors inline-flex items-center gap-1.5 font-medium cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
