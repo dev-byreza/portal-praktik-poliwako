@@ -145,8 +145,8 @@ export const App: React.FC = () => {
         : 'min-h-screen bg-slate-100 flex flex-col'
     }`}>
       
-      {/* Header Utama: Aktif untuk halaman login Mahasiswa & Instruktur */}
-      {(activeRoute === 'STUDENT' || (activeRoute === 'INSTRUCTOR' && !isInstructorLoggedIn)) && (
+      {/* Header Utama: Hanya aktif untuk portal instruktur sebelum login (halaman mahasiswa dimatikan sesuai permintaan) */}
+      {activeRoute === 'INSTRUCTOR' && !isInstructorLoggedIn && (
         <Navbar
           activeRoute={activeRoute}
           onNavigate={navigateTo}

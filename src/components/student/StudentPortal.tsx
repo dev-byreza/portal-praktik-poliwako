@@ -367,24 +367,31 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
         <div className="w-full px-4 sm:px-6 lg:px-8 py-2.5">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2.5">
             
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded">
-                  Learning Workspace
-                </span>
-                <span className="text-[11px] text-slate-400 truncate">
-                  {currentCourse?.code} • {currentCourse?.semester} {currentCourse?.academicYear}
-                </span>
+            <div className="flex items-center gap-3 min-w-0">
+              {/* Logo Institusi Poliwako */}
+              <div className="w-10 h-10 rounded-xl bg-white/10 p-1.5 flex items-center justify-center shadow-md shadow-cyan-500/10 ring-1 ring-white/20 shrink-0">
+                <img src="/logo-poliwako.webp" alt="Logo Poliwako" className="w-full h-full object-contain" />
               </div>
-              <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 mt-0.5">
-                <h1 className="text-base sm:text-lg font-bold tracking-tight text-white truncate">
-                  {currentCourse?.name}
-                </h1>
-                {activePeriod && (
-                  <span className="text-[11px] text-slate-400">
-                    Praktik: <strong className="text-cyan-300 font-medium">{activePeriod.name}</strong> ({formatPeriodRange(activePeriod.startDate, activePeriod.endDate)})
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded">
+                    Learning Workspace
                   </span>
-                )}
+                  <span className="text-[11px] text-slate-400 truncate">
+                    {currentCourse?.code} • {currentCourse?.semester} {currentCourse?.academicYear}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 mt-0.5">
+                  <h1 className="text-base sm:text-lg font-bold tracking-tight text-white truncate">
+                    {currentCourse?.name}
+                  </h1>
+                  {activePeriod && (
+                    <span className="text-[11px] text-slate-400">
+                      Praktik: <strong className="text-cyan-300 font-medium">{activePeriod.name}</strong> ({formatPeriodRange(activePeriod.startDate, activePeriod.endDate)})
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 

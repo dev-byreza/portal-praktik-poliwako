@@ -84,8 +84,19 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
 
       {/* Student Session Bar (Aligned Full Width) */}
       <div className="relative z-10 sticky top-0 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 shadow-md shrink-0">
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-2.5 sm:py-3 flex items-center justify-end gap-3">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-2.5 sm:py-3 flex items-center justify-between gap-3">
           
+          {/* Logo Institusi Poliwako */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/10 p-1.5 flex items-center justify-center shadow-md shadow-cyan-500/10 ring-1 ring-white/20 shrink-0">
+              <img src="/logo-poliwako.webp" alt="Logo Poliwako" className="w-full h-full object-contain" />
+            </div>
+            <div>
+              <p className="font-bold text-white text-xs sm:text-sm tracking-tight">Portal Praktik Poliwako</p>
+              <p className="text-[10px] text-slate-400 font-medium hidden sm:block">Politeknik Sorowako • Outcome-Based Education (OBE)</p>
+            </div>
+          </div>
+
           {/* Student Profile Card & Logout */}
           <div className="flex items-center gap-3">
             {currentStudent && (
