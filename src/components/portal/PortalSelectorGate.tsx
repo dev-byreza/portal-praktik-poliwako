@@ -5,11 +5,7 @@ import {
   GraduationCap,
   ArrowRight,
   Sparkles,
-  BookOpen,
-  Lock,
-  Layers,
-  CheckCircle2,
-  Users
+  Lock
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -94,13 +90,13 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
 
       {/* Main Content Container with Subtle 3D Tilt Reaction */}
       <div
-        className="relative z-10 w-full max-w-4xl flex flex-col items-center my-auto transition-transform duration-200 ease-out will-change-transform px-2"
+        className="relative z-10 w-full max-w-5xl flex flex-col items-center my-auto transition-transform duration-200 ease-out will-change-transform px-2"
         style={{
           transform: `perspective(1000px) rotateY(${(mousePos.x - 0.5) * 3}deg) rotateX(${(mousePos.y - 0.5) * -3}deg)`,
         }}
       >
         {/* Brand Header */}
-        <div className="text-center mb-8 sm:mb-12 flex flex-col items-center">
+        <div className="text-center mb-8 sm:mb-10 flex flex-col items-center">
           <div className="w-16 h-16 sm:w-20 sm:h-20 mb-3.5 p-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-xl shadow-cyan-500/15 hover:scale-105 transition-transform shrink-0">
             <img src="/logo-poliwako.webp" alt="Logo Politeknik Sorowako" className="w-full h-full object-contain" />
           </div>
@@ -116,54 +112,42 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
           </p>
         </div>
 
-        {/* Interactive Choice Cards (Grid 2 Kolom) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 w-full max-w-3xl">
+        {/* Interactive Choice Cards (Grid 2 Kolom dengan Rasio 4:3 yang Memanjang Kesamping) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-5xl">
           
           {/* CARD 1: PORTAL MAHASISWA */}
           <div
             onClick={() => onSelectRole('STUDENT', '/mahasiswa')}
-            className="group relative backdrop-blur-2xl bg-slate-900/75 hover:bg-slate-900/95 rounded-3xl p-6 sm:p-7 border border-white/15 hover:border-cyan-400/60 ring-1 ring-cyan-500/20 hover:ring-2 hover:ring-cyan-400/40 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] hover:shadow-[0_25px_60px_-15px_rgba(56,189,248,0.25)] transition-all duration-300 cursor-pointer flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden"
+            className="group relative backdrop-blur-2xl bg-slate-900/75 hover:bg-slate-900/95 rounded-3xl p-7 sm:p-8 border border-white/15 hover:border-cyan-400/60 ring-1 ring-cyan-500/20 hover:ring-2 hover:ring-cyan-400/40 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] hover:shadow-[0_25px_60px_-15px_rgba(56,189,248,0.25)] transition-all duration-300 cursor-pointer flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden md:aspect-[4/3] min-h-[310px]"
           >
             {/* Top Specular Glow */}
-            <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-cyan-500/10 via-transparent to-transparent pointer-events-none rounded-t-3xl" />
+            <div className="absolute top-0 left-0 right-0 h-28 bg-gradient-to-b from-cyan-500/10 via-transparent to-transparent pointer-events-none rounded-t-3xl" />
 
             <div>
               {/* Top Row: Icon & Badge */}
-              <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center justify-between mb-4">
                 <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30 ring-2 ring-white/20 group-hover:scale-105 transition-transform">
                   <GraduationCap className="w-7 h-7" />
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                <span className="px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                   Untuk Mahasiswa
                 </span>
               </div>
 
               {/* Title & Description */}
-              <h3 className="text-lg sm:text-xl font-black text-white group-hover:text-cyan-300 transition-colors tracking-tight">
+              <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-white group-hover:text-cyan-300 transition-colors tracking-tight leading-tight mt-3 mb-2">
                 Portal Praktik Mahasiswa
               </h3>
-              <p className="text-xs sm:text-sm text-slate-400 mt-2 leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
                 Akses modul materi, presensi praktik harian (WITA), penugasan, instruksi kerja, dan upload laporan menggunakan <strong>NIM</strong>.
               </p>
-
-              {/* Feature Highlights */}
-              <div className="mt-4 pt-3 border-t border-slate-800/80 space-y-1.5 text-xs text-slate-300">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                  <span>Login cepat menggunakan Nomor Induk Mahasiswa (NIM)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                  <span>Akses modul materi, penugasan & presensi harian WITA</span>
-                </div>
-              </div>
             </div>
 
             {/* Action CTA Button */}
             <div className="mt-6 pt-2">
-              <div className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 group-hover:from-blue-500 group-hover:to-cyan-500 text-white font-bold text-xs rounded-2xl transition-all shadow-md shadow-blue-600/30 flex items-center justify-center gap-2">
+              <div className="w-full py-3.5 px-5 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 group-hover:from-blue-500 group-hover:to-cyan-500 text-white font-bold text-xs sm:text-sm rounded-2xl transition-all shadow-md shadow-blue-600/30 flex items-center justify-center gap-2">
                 <span>Masuk ke Portal Mahasiswa</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
               </div>
             </div>
           </div>
@@ -171,49 +155,37 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
           {/* CARD 2: PORTAL INSTRUKTUR */}
           <div
             onClick={() => onSelectRole('INSTRUCTOR', '/instruktur')}
-            className="group relative backdrop-blur-2xl bg-slate-900/75 hover:bg-slate-900/95 rounded-3xl p-6 sm:p-7 border border-white/15 hover:border-indigo-400/60 ring-1 ring-indigo-500/20 hover:ring-2 hover:ring-indigo-400/40 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] hover:shadow-[0_25px_60px_-15px_rgba(99,102,241,0.25)] transition-all duration-300 cursor-pointer flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden"
+            className="group relative backdrop-blur-2xl bg-slate-900/75 hover:bg-slate-900/95 rounded-3xl p-7 sm:p-8 border border-white/15 hover:border-indigo-400/60 ring-1 ring-indigo-500/20 hover:ring-2 hover:ring-indigo-400/40 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] hover:shadow-[0_25px_60px_-15px_rgba(99,102,241,0.25)] transition-all duration-300 cursor-pointer flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden md:aspect-[4/3] min-h-[310px]"
           >
             {/* Top Specular Glow */}
-            <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-indigo-500/10 via-transparent to-transparent pointer-events-none rounded-t-3xl" />
+            <div className="absolute top-0 left-0 right-0 h-28 bg-gradient-to-b from-indigo-500/10 via-transparent to-transparent pointer-events-none rounded-t-3xl" />
 
             <div>
               {/* Top Row: Icon & Badge */}
-              <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center justify-between mb-4">
                 <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-blue-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 ring-2 ring-white/20 group-hover:scale-105 transition-transform">
                   <ShieldCheck className="w-7 h-7" />
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                <span className="px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                   Dosen & Instruktur
                 </span>
               </div>
 
               {/* Title & Description */}
-              <h3 className="text-lg sm:text-xl font-black text-white group-hover:text-indigo-300 transition-colors tracking-tight">
+              <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-white group-hover:text-indigo-300 transition-colors tracking-tight leading-tight mt-3 mb-2">
                 Portal Instruktur & Dosen
               </h3>
-              <p className="text-xs sm:text-sm text-slate-400 mt-2 leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
                 Kelola kurikulum praktik, input nilai OBE, rekap export Excel, pemantauan presensi, dan manajemen database mahasiswa.
               </p>
-
-              {/* Feature Highlights */}
-              <div className="mt-4 pt-3 border-t border-slate-800/80 space-y-1.5 text-xs text-slate-300">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                  <span>Autentikasi resmi domain <strong>@politekniksorowako.ac.id</strong></span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                  <span>Status: <strong>{isInstructorLoggedIn ? 'Sesi Aktif' : 'Perlu Login'}</strong></span>
-                </div>
-              </div>
             </div>
 
             {/* Action CTA Button */}
             <div className="mt-6 pt-2">
-              <div className="w-full py-3 px-4 bg-slate-800 group-hover:bg-indigo-600 text-white font-bold text-xs rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 border border-slate-700 group-hover:border-indigo-500">
-                <Lock className="w-3.5 h-3.5 text-indigo-400 group-hover:text-white" />
+              <div className="w-full py-3.5 px-5 bg-slate-800 group-hover:bg-indigo-600 text-white font-bold text-xs sm:text-sm rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 border border-slate-700 group-hover:border-indigo-500">
+                <Lock className="w-4 h-4 text-indigo-400 group-hover:text-white" />
                 <span>{isInstructorLoggedIn ? 'Buka Command Center' : 'Masuk sebagai Instruktur'}</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
               </div>
             </div>
           </div>
