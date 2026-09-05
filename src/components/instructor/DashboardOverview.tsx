@@ -43,6 +43,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
 
   const [selectedPeriodFilter, setSelectedPeriodFilter] = useState<string>('ALL');
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('ALL');
+  const [chartViewMode, setChartViewMode] = useState<'DAILY' | 'CATEGORY'>('DAILY');
 
   // Periods belonging to active course
   const coursePeriods = useMemo(() => {
@@ -142,14 +143,155 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     return { activePeriodScores, overallScores };
   }, [activePeriod, participants, courseParticipants, assessments, periods]);
 
-  // Daily Score Trend Simulation (PRD Section 14 & 65)
-  const dailyPerformance = [
-    { day: 'Senin (Day 1)', label: 'SOP & Pengenalan', avgScore: 78, submissions: 12 },
-    { day: 'Selasa (Day 2)', label: 'Program G-Code', avgScore: 82, submissions: 11 },
-    { day: 'Rabu (Day 3)', label: 'Zero Point & Datum', avgScore: 85, submissions: 10 },
-    { day: 'Kamis (Day 4)', label: 'Eksekusi Milling', avgScore: 89, submissions: 12 },
-    { day: 'Jumat (Day 5)', label: 'Quality Control', avgScore: 92, submissions: 12 },
-  ];
+  // Real Rekap Nilai & Daily Student Performance Calculation
+  const rekapPerformance = useMemo(() => {
+    // Collect all valid assessments for the currently filtered participants
+    const studentAssessments = filteredParticipants
+      .map(p => assessments.find(a => a.periodId === p.periodId && a.studentId === p.studentId))
+      .filter((a): a is NonNullable<typeof a> => !!a && typeof a.finalScore === 'number' && a.finalScore > 0);
+
+    const totalAssessed = studentAssessments.length;
+
+    if (totalAssessed === 0) {
+      return {
+        hasData: false,
+        overallAvg: '0.0',
+        assessedCount: 0,
+        totalParticipants: filteredParticipants.length,
+        dailyItems: [],
+        categoryItems: []
+      };
+    }
+
+    // 1. Averages for Rekap Nilai Components
+    const qualitySum = studentAssessments.reduce((acc, a) => acc + (a.qualityScore || 0), 0);
+    const attitudeSum = studentAssessments.reduce((acc, a) => acc + (a.attitudeScore || 0), 0);
+    const creativitySum = studentAssessments.reduce((acc, a) => acc + (a.creativityScore || 0), 0);
+    const reportSum = studentAssessments.reduce((acc, a) => acc + (a.reportScore || 0), 0);
+    const finalSum = studentAssessments.reduce((acc, a) => acc + (a.finalScore || 0), 0);
+
+    const qualityAvg = Math.round((qualitySum / totalAssessed) * 10) / 10;
+    const attitudeAvg = Math.round((attitudeSum / totalAssessed) * 10) / 10;
+    const creativityAvg = Math.round((creativitySum / totalAssessed) * 10) / 10;
+    const reportAvg = Math.round((reportSum / totalAssessed) * 10) / 10;
+    const overallAvg = (finalSum / totalAssessed).toFixed(1);
+
+    // Sub-components of Quality (if stored, otherwise derived from quality)
+    const entrySum = studentAssessments.reduce((acc, a) => acc + (a.entryBehaviorScore ?? a.qualityScore), 0);
+    const practiceSum = studentAssessments.reduce((acc, a) => acc + (a.subCpmkPracticeScore ?? a.qualityScore), 0);
+    const assignmentSum = studentAssessments.reduce((acc, a) => acc + (a.assignmentScore ?? a.qualityScore), 0);
+    const postTestSum = studentAssessments.reduce((acc, a) => acc + (a.postTestScore ?? a.qualityScore), 0);
+
+    const entryAvg = Math.round((entrySum / totalAssessed) * 10) / 10;
+    const practiceAvg = Math.round((practiceSum / totalAssessed) * 10) / 10;
+    const assignmentAvg = Math.round((assignmentSum / totalAssessed) * 10) / 10;
+    const postTestAvg = Math.round((postTestSum / totalAssessed) * 10) / 10;
+
+    // Look up learning unit titles if available for the active period
+    const targetPeriodId = selectedPeriodFilter !== 'ALL' ? selectedPeriodFilter : activePeriod?.id;
+    const periodUnits = learningUnits.filter(u => u.periodId === targetPeriodId);
+    const u1 = periodUnits.find(u => u.unitNumber === 1);
+    const u2 = periodUnits.find(u => u.unitNumber === 2);
+    const u3 = periodUnits.find(u => u.unitNumber === 3);
+    const u4 = periodUnits.find(u => u.unitNumber === 4);
+    const u5 = periodUnits.find(u => u.unitNumber === 5);
+
+    // Submissions count
+    const studentIds = new Set(filteredParticipants.map(p => p.studentId));
+    const relevantSubmissions = submissions.filter(s => studentIds.has(s.studentId));
+
+    // Daily progression synchronized with 5-day practice stages & rekap
+    const dailyItems = [
+      {
+        day: 'Hari 1 (Senin)',
+        label: u1?.title || 'Kesiapan & Entry Behavior',
+        component: 'Entry Behavior (10%)',
+        avgScore: entryAvg,
+        submissions: totalAssessed,
+        color: 'from-blue-500 to-indigo-600'
+      },
+      {
+        day: 'Hari 2 (Selasa)',
+        label: u2?.title || 'Ketercapaian Praktik Sub-CPMK',
+        component: 'Praktik Inti (50%)',
+        avgScore: practiceAvg,
+        submissions: totalAssessed,
+        color: 'from-blue-600 to-cyan-600'
+      },
+      {
+        day: 'Hari 3 (Rabu)',
+        label: u3?.title || 'Tugas Modul & Lembar Kerja',
+        component: 'Tugas Modul (15%)',
+        avgScore: assignmentAvg,
+        submissions: relevantSubmissions.length > 0 ? relevantSubmissions.length : totalAssessed,
+        color: 'from-teal-500 to-emerald-600'
+      },
+      {
+        day: 'Hari 4 (Kamis)',
+        label: u4?.title || 'Sikap Kerja & Uji Post-Test',
+        component: 'Sikap (10%) + Post-Test (25%)',
+        avgScore: Math.round(((attitudeAvg + postTestAvg) / 2) * 10) / 10,
+        submissions: totalAssessed,
+        color: 'from-amber-500 to-orange-600'
+      },
+      {
+        day: 'Hari 5 (Jumat)',
+        label: u5?.title || 'Laporan Kerja & Nilai Akhir OBE',
+        component: 'Laporan (15%) & Nilai OBE',
+        avgScore: Math.round(Number(overallAvg) * 10) / 10,
+        submissions: totalAssessed,
+        color: 'from-indigo-600 to-purple-600'
+      },
+    ];
+
+    // Direct Category Breakdown from Rekap Nilai
+    const categoryItems = [
+      {
+        name: 'Nilai Kualitas',
+        weight: '70%',
+        avgScore: qualityAvg,
+        count: totalAssessed,
+        color: 'from-blue-500 to-indigo-600'
+      },
+      {
+        name: 'Sikap Kerja & K3',
+        weight: '10%',
+        avgScore: attitudeAvg,
+        count: totalAssessed,
+        color: 'from-indigo-500 to-blue-600'
+      },
+      {
+        name: 'Kreativitas & Inisiatif',
+        weight: '5%',
+        avgScore: creativityAvg,
+        count: totalAssessed,
+        color: 'from-teal-500 to-emerald-600'
+      },
+      {
+        name: 'Laporan Kerja Praktik',
+        weight: '15%',
+        avgScore: reportAvg,
+        count: totalAssessed,
+        color: 'from-amber-500 to-orange-600'
+      },
+      {
+        name: 'Nilai Akhir Kumulatif',
+        weight: '100%',
+        avgScore: Math.round(Number(overallAvg) * 10) / 10,
+        count: totalAssessed,
+        color: 'from-indigo-600 to-purple-600'
+      },
+    ];
+
+    return {
+      hasData: true,
+      overallAvg,
+      assessedCount: totalAssessed,
+      totalParticipants: filteredParticipants.length,
+      dailyItems,
+      categoryItems
+    };
+  }, [filteredParticipants, assessments, submissions, learningUnits, activePeriod, selectedPeriodFilter]);
 
   return (
     <div className="space-y-8">
@@ -472,55 +614,139 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
           </div>
         </div>
 
-        {/* Right 5 cols: Daily Performance Chart */}
+        {/* Right 5 cols: Performance Chart Synchronized to Rekap Nilai */}
         <div className="lg:col-span-5 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   <BarChart3 className="w-4 h-4 text-blue-600" />
-                  <span>Grafik Perkembangan Nilai Harian</span>
+                  <span>Grafik Perkembangan Mahasiswa</span>
                 </h3>
-                <p className="text-xs text-slate-500">Pergerakan 5 Hari Praktik</p>
+                <p className="text-xs text-slate-500">Sinkronisasi Real-Time Rekap Nilai</p>
               </div>
-              <span className="text-xs font-semibold px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg">
-                Rata2: 85.2
-              </span>
+
+              <div className="flex items-center gap-2">
+                {/* View Mode Toggle: Harian vs Komponen Rekap */}
+                <div className="flex items-center bg-slate-100 p-0.5 rounded-xl text-[11px] font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setChartViewMode('DAILY')}
+                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                      chartViewMode === 'DAILY'
+                        ? 'bg-white text-blue-700 shadow-xs font-bold'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Harian
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChartViewMode('CATEGORY')}
+                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                      chartViewMode === 'CATEGORY'
+                        ? 'bg-white text-blue-700 shadow-xs font-bold'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Komponen
+                  </button>
+                </div>
+
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg ${
+                  rekapPerformance.hasData ? 'bg-blue-50 text-blue-700 font-mono font-bold' : 'bg-slate-100 text-slate-500'
+                }`}>
+                  {rekapPerformance.hasData ? `Rata2: ${rekapPerformance.overallAvg}` : 'Belum Dinilai'}
+                </span>
+              </div>
             </div>
 
-            {/* Custom Interactive SVG Chart */}
-            <div className="mt-6 space-y-4">
-              {dailyPerformance.map((item, index) => (
-                <div key={index} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="font-semibold text-slate-800">
-                      <span>{item.day}</span>
-                      <span className="text-slate-400 font-normal ml-1.5 text-[11px]">• {item.label}</span>
+            {/* Content: Real Synchronized Rekap Nilai Chart or Zero State */}
+            {rekapPerformance.hasData ? (
+              <div className="mt-5 space-y-3.5">
+                {chartViewMode === 'DAILY' ? (
+                  rekapPerformance.dailyItems.map((item, index) => (
+                    <div key={index} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="font-semibold text-slate-800 flex items-center gap-1.5 min-w-0">
+                          <span className="shrink-0">{item.day}</span>
+                          <span className="text-slate-400 font-normal text-[10px] truncate max-w-[130px] sm:max-w-xs">
+                            • {item.label}
+                          </span>
+                        </div>
+                        <div className="font-mono font-bold text-blue-700 shrink-0">
+                          {item.avgScore} <span className="text-[10px] text-slate-400 font-normal">({item.submissions} Mhs)</span>
+                        </div>
+                      </div>
+                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                        <div
+                          className={`bg-gradient-to-r ${item.color} h-full rounded-full transition-all duration-700 ease-out`}
+                          style={{ width: `${Math.min(100, Math.max(0, item.avgScore))}%` }}
+                        ></div>
+                      </div>
                     </div>
-                    <div className="font-mono font-bold text-blue-700">
-                      {item.avgScore} <span className="text-[10px] text-slate-400 font-normal">({item.submissions})</span>
+                  ))
+                ) : (
+                  rekapPerformance.categoryItems.map((cat, index) => (
+                    <div key={index} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="font-semibold text-slate-800 flex items-center gap-1.5">
+                          <span>{cat.name}</span>
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-100 text-slate-600 font-mono">
+                            {cat.weight}
+                          </span>
+                        </div>
+                        <div className="font-mono font-bold text-indigo-700 shrink-0">
+                          {cat.avgScore} <span className="text-[10px] text-slate-400 font-normal">({cat.count} Mhs)</span>
+                        </div>
+                      </div>
+                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                        <div
+                          className={`bg-gradient-to-r ${cat.color} h-full rounded-full transition-all duration-700 ease-out`}
+                          style={{ width: `${Math.min(100, Math.max(0, cat.avgScore))}%` }}
+                        ></div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                    <div
-                      className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full rounded-full transition-all duration-700 ease-out"
-                      style={{ width: `${item.avgScore}%` }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  ))
+                )}
+              </div>
+            ) : (
+              <div className="py-9 text-center text-slate-400 border border-dashed border-slate-200 rounded-2xl my-3">
+                <BarChart3 className="w-10 h-10 mx-auto mb-2 opacity-30 text-slate-400" />
+                <p className="text-xs font-semibold text-slate-700">Belum Ada Rekap Nilai Mahasiswa</p>
+                <p className="text-[11px] text-slate-400 mt-0.5 max-w-xs mx-auto">
+                  Grafik perkembangan akan otomatis tersinkronisasi saat instruktur menginput nilai mahasiswa di Grading Workspace.
+                </p>
+                <button
+                  onClick={() => onNavigateTab('GRADING')}
+                  className="mt-3.5 px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-xl border border-blue-200 transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>Mulai Menilai di Grading Workspace</span>
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
             <span>SKM Kelulusan: 75.0</span>
-            <button
-              onClick={() => onNavigateTab('ANALYTICS')}
-              className="text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1"
-            >
-              <span>Detail Analitik</span>
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onNavigateTab('REKAP')}
+                className="text-slate-600 hover:text-emerald-700 font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Buka Rekap Nilai</span>
+              </button>
+              <span>•</span>
+              <button
+                onClick={() => onNavigateTab('ANALYTICS')}
+                className="text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1 cursor-pointer"
+              >
+                <span>Detail Analitik</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
 

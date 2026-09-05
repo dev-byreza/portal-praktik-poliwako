@@ -80,9 +80,34 @@ export const AnalyticsView: React.FC = () => {
       avgPred,
       maxPred,
       minPred,
-      assessedTotal: studentAssessments.length
+      assessedTotal: studentAssessments.length,
+      subCpmkAchievements: (activeCourse?.subCpmks || []).map(cpmk => {
+        if (studentAssessments.length === 0) {
+          return { ...cpmk, avg: 0, hasData: false };
+        }
+        const linkedRubricIds = (activeCourse?.qualityRubrics || [])
+          .filter(r => r.subCpmkId === cpmk.id)
+          .map(r => r.id);
+        const cpmkScores: number[] = [];
+        studentAssessments.forEach(a => {
+          const matching = (a.qualityScores || []).find(
+            q => q.criterionId === cpmk.id || linkedRubricIds.includes(q.criterionId)
+          );
+          if (matching && typeof matching.score === 'number') {
+            cpmkScores.push(matching.score);
+          } else if (typeof a.subCpmkPracticeScore === 'number' && a.subCpmkPracticeScore > 0) {
+            cpmkScores.push(a.subCpmkPracticeScore);
+          } else if (typeof a.qualityScore === 'number' && a.qualityScore > 0) {
+            cpmkScores.push(a.qualityScore);
+          }
+        });
+        const avg = cpmkScores.length > 0
+          ? Math.round((cpmkScores.reduce((acc, curr) => acc + curr, 0) / cpmkScores.length) * 10) / 10
+          : (scores.length > 0 ? Math.round(Number(avgScore) * 10) / 10 : 0);
+        return { ...cpmk, avg, hasData: cpmkScores.length > 0 || studentAssessments.length > 0 };
+      })
     };
-  }, [filteredParticipants, assessments]);
+  }, [filteredParticipants, assessments, activeCourse]);
 
   return (
     <div className="space-y-6">
@@ -296,18 +321,29 @@ export const AnalyticsView: React.FC = () => {
           </h3>
 
           <div className="space-y-3 pt-2">
-            {activeCourse?.subCpmks.map(cpmk => (
-              <div key={cpmk.id} className="p-3 bg-slate-50 border border-slate-200 rounded-2xl">
-                <div className="flex justify-between text-xs font-bold text-slate-900 mb-1">
-                  <span>{cpmk.code}</span>
-                  <span className="text-emerald-600 font-mono">87.5% Capaian</span>
+            {metrics.subCpmkAchievements.length > 0 ? (
+              metrics.subCpmkAchievements.map(cpmk => (
+                <div key={cpmk.id} className="p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <div className="flex justify-between text-xs font-bold text-slate-900 mb-1">
+                    <span>{cpmk.code}</span>
+                    <span className={`${cpmk.hasData ? 'text-emerald-600' : 'text-slate-400'} font-mono font-bold`}>
+                      {cpmk.hasData ? `${cpmk.avg}% Capaian` : 'Belum Dinilai'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600">{cpmk.description}</p>
+                  <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden mt-2">
+                    <div
+                      className="bg-emerald-500 h-full rounded-full transition-all duration-700 ease-out"
+                      style={{ width: `${Math.min(100, Math.max(0, cpmk.avg))}%` }}
+                    ></div>
+                  </div>
                 </div>
-                <p className="text-[11px] text-slate-600">{cpmk.description}</p>
-                <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden mt-2">
-                  <div className="bg-emerald-500 h-full rounded-full w-[87.5%]"></div>
-                </div>
+              ))
+            ) : (
+              <div className="py-6 text-center text-slate-400 border border-dashed rounded-2xl">
+                <p className="text-xs text-slate-500">Belum ada Sub-CPMK terkonfigurasi pada mata kuliah ini.</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
