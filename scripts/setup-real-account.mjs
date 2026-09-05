@@ -44,7 +44,7 @@ async function main() {
       password,
       email_confirm: true,
       user_metadata: {
-        name: 'M. Reza Firmansyah',
+        name: 'Reza Febriadi Rauf',
         department: 'Teknik Mesin',
       },
     });

@@ -21,7 +21,7 @@ import {
 export const INITIAL_INSTRUCTOR: InstructorProfile = {
   id: 'inst-rezaf',
   email: 'rezaf@politekniksorowako.ac.id',
-  name: 'M. Reza Firmansyah',
+  name: 'Reza Febriadi Rauf',
   nip: '198709122015041002',
   avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
   department: 'Rekayasa Perancangan Mekanik'

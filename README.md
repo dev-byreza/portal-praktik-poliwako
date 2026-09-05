@@ -193,14 +193,6 @@ npm run build
 
 ---
 
-## 🔐 Kredensial Akun Instruktur Real
-
-Sistem telah diinisialisasi dalam kondisi bersih (*Clean State*, tanpa data dummy):
-- **Email**: `rezaf@politekniksorowako.ac.id`
-- **Password**: `732401#Jhe`
-- **Nama**: M. Reza Firmansyah
-- **Departemen**: Teknik Mesin
-
 ---
 
 ## 🗄️ Menyiapkan Supabase & Storage PDF

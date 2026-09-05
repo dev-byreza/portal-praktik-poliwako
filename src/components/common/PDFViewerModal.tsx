@@ -277,7 +277,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                     </div>
                     <div>
                       <p className="text-slate-500 mb-14">Instruktur Praktik Penguji,</p>
-                      <p className="font-bold text-slate-900 underline">Ir. M. Reza Firmansyah, S.T., M.T.</p>
+                      <p className="font-bold text-slate-900 underline">Reza Febriadi Rauf</p>
                       <p className="text-slate-500">NIP. 198709122015041002</p>
                     </div>
                   </div>

@@ -236,8 +236,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ...instructor,
       email: cleanEmail,
       name: cleanEmail === 'rezaf@politekniksorowako.ac.id'
-        ? 'M. Reza Firmansyah'
-        : (cleanEmail.includes('reza') ? 'Ir. M. Reza Firmansyah, S.T., M.T.' : 'Instruktur Politeknik Sorowako')
+        ? 'Reza Febriadi Rauf'
+        : (cleanEmail.includes('reza') ? 'Reza Febriadi Rauf' : 'Instruktur Politeknik Sorowako')
     };
     setInstructor(updated);
     StorageService.saveInstructor(updated);

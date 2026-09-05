@@ -560,7 +560,7 @@ USING (bucket_id = 'materials');
 
 -- ====================================================================
 -- SEED SCRIPT: Mata Kuliah CAD 1.1 & 36 Mahasiswa Real Kelas 1C
--- Instruktur: rezaf@politekniksorowako.ac.id (M. Reza Firmansyah)
+-- Instruktur: rezaf@politekniksorowako.ac.id (Reza Febriadi Rauf)
 -- Program Studi: Rekayasa Perancangan Mekanik
 -- Politeknik Sorowako - Semester Gasal 2026/2027
 -- ====================================================================
@@ -599,7 +599,7 @@ BEGIN
                 v_instructor_id, '00000000-0000-0000-0000-000000000000', 'rezaf@politekniksorowako.ac.id',
                 crypt('732401#Jhe', gen_salt('bf')), NOW(),
                 '{"provider":"email","providers":["email"]}'::jsonb,
-                '{"name":"M. Reza Firmansyah","department":"Rekayasa Perancangan Mekanik"}'::jsonb,
+                '{"name":"Reza Febriadi Rauf","department":"Rekayasa Perancangan Mekanik"}'::jsonb,
                 'authenticated', 'authenticated', NOW(), NOW()
             );
         END IF;
@@ -609,7 +609,7 @@ BEGIN
         VALUES (
             v_instructor_id,
             'rezaf@politekniksorowako.ac.id',
-            'M. Reza Firmansyah',
+            'Reza Febriadi Rauf',
             '198709122015041002',
             'Rekayasa Perancangan Mekanik',
             NOW(), NOW()
@@ -619,9 +619,11 @@ BEGIN
             department = EXCLUDED.department;
     ELSE
         UPDATE public.profiles
-        SET department = 'Rekayasa Perancangan Mekanik'
+        SET name = 'Reza Febriadi Rauf',
+            department = 'Rekayasa Perancangan Mekanik'
         WHERE id = v_instructor_id;
     END IF;
+
 
     -- ====================================================================
     -- 2. INSERT 36 MAHASISWA REAL KELAS 1C
