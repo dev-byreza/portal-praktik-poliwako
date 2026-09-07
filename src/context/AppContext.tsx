@@ -22,6 +22,7 @@ import { isSupabaseConfigured } from '../services/supabaseClient';
 import { ApiService } from '../services/apiService';
 import { computeAttendanceStats, calculateWeightedFinalScore, getFeedbackForScore } from '../utils/gradeCalculators';
 import { computePeriodEndDate, computePeriodStatus, getWitaDateString } from '../utils/dateUtils';
+import { getRealtimeWitaDateString, fetchInternetNetworkTime } from '../services/networkTimeService';
 
 interface ToastInfo {
   id: string;
@@ -103,6 +104,7 @@ interface AppContextType {
   duplicatePeriod: (sourcePeriodId: string, newName: string, startDate: string) => PracticePeriod;
   updatePeriod: (period: PracticePeriod) => void;
   deletePeriod: (periodId: string) => void;
+  syncAllPeriodsStatus: () => Promise<{ changedCount: number; todayStr: string }>;
 
   addParticipantsBulk: (periodId: string, nims: string[]) => { added: number; duplicates: number; notFound: string[] };
   removeParticipant: (participantId: string) => void;
@@ -155,12 +157,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [studentSession, setStudentSessionState] = useState(StorageService.getStudentSession());
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
 
-  // Synchronize live data from Supabase backend on mount
+  // Synchronize live data from Supabase backend & reconcile period statuses with realtime internet time
   useEffect(() => {
-    if (!isLiveBackend) return;
     let isMounted = true;
     const syncBackendData = async () => {
       try {
+        // Kick off authoritative internet time fetch
+        fetchInternetNetworkTime().catch(() => {});
+
+        if (!isLiveBackend) return;
         const [liveCourses, liveStudents, livePeriods, liveParticipants, liveUnits] = await Promise.all([
           ApiService.getCourses(),
           ApiService.getStudents(),
@@ -171,7 +176,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!isMounted) return;
         if (liveCourses && liveCourses.length > 0) setCourses(liveCourses);
         if (liveStudents && liveStudents.length > 0) setStudents(liveStudents);
-        if (livePeriods && livePeriods.length > 0) setPeriods(livePeriods);
+
+        if (livePeriods && livePeriods.length > 0) {
+          const todayStr = getRealtimeWitaDateString();
+          let needsUpdate = false;
+          const reconciledPeriods = livePeriods.map(p => {
+            if (p.autoStatus !== false) {
+              const expectedStatus = computePeriodStatus(p.startDate, p.endDate, todayStr);
+              if (p.status !== expectedStatus) {
+                needsUpdate = true;
+                return { ...p, status: expectedStatus, autoStatus: true };
+              }
+            }
+            return p;
+          });
+          setPeriods(reconciledPeriods);
+          if (needsUpdate) {
+            ApiService.savePeriodsBulk(reconciledPeriods);
+          }
+        }
+
         if (liveParticipants && liveParticipants.length > 0) setParticipants(liveParticipants);
         if (liveUnits && liveUnits.length > 0) setLearningUnits(liveUnits);
       } catch (e) {
@@ -772,11 +796,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       startDate,
       endDate,
       status,
+      autoStatus: periodData.autoStatus ?? true,
       finalProjectDriveUrl: periodData.finalProjectDriveUrl || 'https://drive.google.com/drive/folders/poliwako-sample',
       createdAt: getWitaDateString()
     };
 
-    setPeriods(prev => [...prev, newPeriod]);
+    setPeriods(prev => {
+      const next = [...prev, newPeriod];
+      ApiService.savePeriod(newPeriod);
+      return next;
+    });
 
     // Copy learning units from the template or previous period if available
     const templateUnits = learningUnits.filter(u => u.periodId === existing[0]?.id);
@@ -791,7 +820,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setLearningUnits(prev => [...prev, ...copiedUnits]);
     }
 
-    showToast('Periode Dibuat', `Periode "${newPeriod.name}" berhasil dibuat (${newPeriod.startDate} s/d ${newPeriod.endDate}).`, 'success');
+    showToast('Periode Dibuat', `Periode "${newPeriod.name}" berhasil dibuat (${newPeriod.startDate} s/d ${newPeriod.endDate}) [Status: ${newPeriod.status}].`, 'success');
     return newPeriod;
   };
 
@@ -808,6 +837,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       startDate,
       endDate,
       status,
+      autoStatus: true,
       createdAt: getWitaDateString()
     };
 
@@ -821,29 +851,73 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       assignment: u.assignment ? { ...u.assignment, id: `assign-${Date.now()}-${Math.random()}`, periodId: newPeriod.id } : undefined
     }));
 
-    setPeriods(prev => [...prev, newPeriod]);
+    setPeriods(prev => {
+      const next = [...prev, newPeriod];
+      ApiService.savePeriod(newPeriod);
+      return next;
+    });
     setLearningUnits(prev => [...prev, ...duplicatedUnits]);
     showToast('Periode Diduplikasi', `Struktur materi dan tugas dari "${source.name}" berhasil disalin ke periode baru.`, 'success');
     return newPeriod;
   };
 
   const updatePeriod = (updated: PracticePeriod) => {
-    const status = updated.status || computePeriodStatus(updated.startDate, updated.endDate);
-    const finalUpdated = { ...updated, status };
+    const isAuto = updated.autoStatus !== false;
+    const status = isAuto
+      ? computePeriodStatus(updated.startDate, updated.endDate)
+      : (updated.status || computePeriodStatus(updated.startDate, updated.endDate));
+    const finalUpdated = { ...updated, status, autoStatus: isAuto };
 
     setPeriods(prev => {
+      let nextList: PracticePeriod[];
       if (finalUpdated.status === 'ACTIVE') {
-        return prev.map(p => {
+        nextList = prev.map(p => {
           if (p.id === finalUpdated.id) return finalUpdated;
           if (p.courseId === finalUpdated.courseId && p.status === 'ACTIVE') {
             return { ...p, status: 'UPCOMING' };
           }
           return p;
         });
+      } else {
+        nextList = prev.map(p => p.id === finalUpdated.id ? finalUpdated : p);
       }
-      return prev.map(p => p.id === finalUpdated.id ? finalUpdated : p);
+      ApiService.savePeriodsBulk(nextList);
+      return nextList;
     });
-    showToast('Periode Diperbarui', `Periode "${finalUpdated.name}" berhasil diperbarui (${finalUpdated.startDate} s/d ${finalUpdated.endDate}).`, 'success');
+    showToast('Periode Diperbarui', `Periode "${finalUpdated.name}" berhasil diperbarui (${finalUpdated.startDate} s/d ${finalUpdated.endDate}) [Status: ${finalUpdated.status}].`, 'success');
+  };
+
+  const syncAllPeriodsStatus = async (): Promise<{ changedCount: number; todayStr: string }> => {
+    const netInfo = await fetchInternetNetworkTime(true).catch(() => null);
+    const todayStr = netInfo?.dateString || getRealtimeWitaDateString();
+    let changedCount = 0;
+
+    const nextPeriods = periods.map(p => {
+      const autoComputed = computePeriodStatus(p.startDate, p.endDate, todayStr);
+      if (p.status !== autoComputed) {
+        changedCount++;
+        return { ...p, status: autoComputed, autoStatus: true };
+      }
+      return p;
+    });
+
+    if (changedCount > 0) {
+      setPeriods(nextPeriods);
+      await ApiService.savePeriodsBulk(nextPeriods);
+      showToast(
+        'Sinkronisasi Realtime Internet Berhasil',
+        `${changedCount} status gelombang otomatis diperbarui sesuai tanggal hari ini (${todayStr} WITA).`,
+        'success'
+      );
+    } else {
+      showToast(
+        'Status Gelombang Sudah Akurat',
+        `Semua status gelombang telah tersinkronisasi dengan waktu internet realtime (${todayStr} WITA).`,
+        'info'
+      );
+    }
+
+    return { changedCount, todayStr };
   };
 
   const deletePeriod = (periodId: string) => {
@@ -1254,6 +1328,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         duplicatePeriod,
         updatePeriod,
         deletePeriod,
+        syncAllPeriodsStatus,
         addParticipantsBulk,
         removeParticipant,
         addStudent,

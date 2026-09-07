@@ -316,7 +316,8 @@ export const INITIAL_PERIODS: PracticePeriod[] = [
     periodNumber: 3,
     startDate: '2026-09-14',
     endDate: '2026-09-18',
-    status: 'ACTIVE',
+    status: 'UPCOMING',
+    autoStatus: true,
     finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad1-g3',
     createdAt: '2026-08-10T08:00:00.000Z'
   },
@@ -329,6 +330,7 @@ export const INITIAL_PERIODS: PracticePeriod[] = [
     startDate: '2026-08-17',
     endDate: '2026-08-21',
     status: 'COMPLETED',
+    autoStatus: true,
     finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad2-g1',
     createdAt: '2026-08-15T08:00:00.000Z'
   },
@@ -340,6 +342,7 @@ export const INITIAL_PERIODS: PracticePeriod[] = [
     startDate: '2026-08-31',
     endDate: '2026-09-04',
     status: 'COMPLETED',
+    autoStatus: true,
     finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad2-g2',
     createdAt: '2026-08-25T08:00:00.000Z'
   },
@@ -350,7 +353,8 @@ export const INITIAL_PERIODS: PracticePeriod[] = [
     periodNumber: 3,
     startDate: '2026-09-14',
     endDate: '2026-09-18',
-    status: 'ACTIVE',
+    status: 'UPCOMING',
+    autoStatus: true,
     finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad2-g3',
     createdAt: '2026-09-01T08:00:00.000Z'
   },

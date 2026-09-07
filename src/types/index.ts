@@ -77,6 +77,7 @@ export interface PracticePeriod {
   startDate: string; // YYYY-MM-DD (Asia/Makassar WITA)
   endDate: string; // YYYY-MM-DD (5 days by default)
   status: PeriodStatus;
+  autoStatus?: boolean; // If true (or undefined), status is automatically calculated based on internet realtime date
   finalProjectDriveUrl?: string;
   createdAt: string;
 }

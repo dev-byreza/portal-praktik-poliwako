@@ -1,7 +1,15 @@
 // WITA (Asia/Makassar, UTC+8) Date and Time Utilities
+// Integrated with authoritative internet realtime time synchronization
 
-export function getWitaDateString(date: Date = new Date()): string {
-  // Format as YYYY-MM-DD in UTC+8
+import { getRealtimeWitaDateString } from '../services/networkTimeService';
+import { PeriodStatus } from '../types';
+
+export function getWitaDateString(date?: Date): string {
+  if (!date) {
+    // Default to authoritative realtime internet date
+    return getRealtimeWitaDateString();
+  }
+  // Format specific date as YYYY-MM-DD in UTC+8
   const witaOffset = 8 * 60; // in minutes
   const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
   const witaDate = new Date(utc + (witaOffset * 60000));
@@ -71,8 +79,16 @@ export function computePeriodEndDate(startDateStr: string, durationDays: number 
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export function computePeriodStatus(startDateStr: string, endDateStr: string): 'UPCOMING' | 'ACTIVE' | 'COMPLETED' {
-  const todayStr = getWitaDateString();
+/**
+ * Automatically determine period status based on real-time internet date (WITA)
+ */
+export function computePeriodStatus(
+  startDateStr: string,
+  endDateStr: string,
+  referenceDateStr?: string
+): PeriodStatus {
+  const todayStr = referenceDateStr || getRealtimeWitaDateString();
+  if (!startDateStr || !endDateStr) return 'UPCOMING';
   if (todayStr < startDateStr) {
     return 'UPCOMING';
   }
@@ -80,4 +96,74 @@ export function computePeriodStatus(startDateStr: string, endDateStr: string): '
     return 'COMPLETED';
   }
   return 'ACTIVE';
+}
+
+export interface PeriodAutoStatusInfo {
+  status: PeriodStatus;
+  label: string;
+  badgeLabel: string;
+  description: string;
+  daysDiff: number;
+  relativeNotice: string;
+}
+
+/**
+ * Detailed real-time status evaluation with days remaining and explanation
+ */
+export function getPeriodStatusAutoInfo(
+  startDateStr: string,
+  endDateStr: string,
+  referenceDateStr?: string
+): PeriodAutoStatusInfo {
+  const todayStr = referenceDateStr || getRealtimeWitaDateString();
+  const status = computePeriodStatus(startDateStr, endDateStr, todayStr);
+
+  const parseDays = (dStr: string) => {
+    const [y, m, d] = dStr.split('-').map(Number);
+    return Math.floor(Date.UTC(y, m - 1, d) / (1000 * 60 * 60 * 24));
+  };
+
+  const todayDays = parseDays(todayStr);
+  const startDays = parseDays(startDateStr);
+  const endDays = parseDays(endDateStr);
+
+  if (status === 'UPCOMING') {
+    const daysUntilStart = startDays - todayDays;
+    return {
+      status: 'UPCOMING',
+      label: 'Akan Datang (Terjadwal)',
+      badgeLabel: '🟡 Akan Datang',
+      description: `Gelombang terjadwal mulai pada ${formatIndonesianDate(startDateStr)}.`,
+      daysDiff: daysUntilStart,
+      relativeNotice: daysUntilStart === 1
+        ? 'Mulai besok'
+        : `Mulai dalam ${daysUntilStart} hari lagi`
+    };
+  }
+
+  if (status === 'ACTIVE') {
+    const dayProgress = todayDays - startDays + 1;
+    const daysRemaining = endDays - todayDays;
+    return {
+      status: 'ACTIVE',
+      label: 'Aktif (Sedang Berjalan)',
+      badgeLabel: '🟢 Aktif',
+      description: `Sedang berlangsung hingga ${formatIndonesianDate(endDateStr)}.`,
+      daysDiff: daysRemaining,
+      relativeNotice: `Hari ke-${Math.max(1, dayProgress)} dari 5 hari kerja (sisa ${daysRemaining} hari)`
+    };
+  }
+
+  // COMPLETED
+  const daysSinceEnd = todayDays - endDays;
+  return {
+    status: 'COMPLETED',
+    label: 'Selesai (Arsip Periode)',
+    badgeLabel: '⚪ Selesai',
+    description: `Periode telah selesai pada ${formatIndonesianDate(endDateStr)}.`,
+    daysDiff: daysSinceEnd,
+    relativeNotice: daysSinceEnd === 1
+      ? 'Berakhir kemarin'
+      : `Selesai ${daysSinceEnd} hari yang lalu`
+  };
 }

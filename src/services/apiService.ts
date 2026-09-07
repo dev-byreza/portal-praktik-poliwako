@@ -256,6 +256,29 @@ export class ApiService {
     }
   }
 
+  static async savePeriodsBulk(periodsList: PracticePeriod[]): Promise<void> {
+    StorageService.savePeriods(periodsList);
+
+    if (this.isLiveBackend() && supabase && periodsList.length > 0) {
+      try {
+        const rows = periodsList.map((p) => ({
+          id: p.id,
+          course_id: p.courseId,
+          name: p.name,
+          period_number: p.periodNumber,
+          start_date: p.startDate,
+          end_date: p.endDate,
+          status: p.status,
+          final_project_drive_url: p.finalProjectDriveUrl,
+          updated_at: new Date().toISOString(),
+        }));
+        await supabase.from('practice_periods').upsert(rows);
+      } catch (err) {
+        console.error('Error batch syncing periods to Supabase:', err);
+      }
+    }
+  }
+
   // ====================================================================
   // PRACTICE PARTICIPANTS
   // ====================================================================
