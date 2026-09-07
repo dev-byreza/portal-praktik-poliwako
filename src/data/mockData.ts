@@ -305,30 +305,19 @@ export const INITIAL_PERIODS: PracticePeriod[] = [
     periodNumber: 2,
     startDate: '2026-08-31',
     endDate: '2026-09-04',
-    status: 'ACTIVE',
+    status: 'COMPLETED',
     finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad1-g2',
     createdAt: '2026-08-10T08:00:00.000Z'
   },
   {
     id: 'per-cad1-1-g3',
     courseId: 'course-cad-1-1',
-    name: 'Gelombang 3 (Minggu 37)',
+    name: 'Gelombang 3 (Minggu 38)',
     periodNumber: 3,
-    startDate: '2026-09-07',
-    endDate: '2026-09-11',
-    status: 'UPCOMING',
-    finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad1-g3',
-    createdAt: '2026-08-10T08:00:00.000Z'
-  },
-  {
-    id: 'per-cad1-1-g4',
-    courseId: 'course-cad-1-1',
-    name: 'Gelombang 4 (Minggu 38)',
-    periodNumber: 4,
     startDate: '2026-09-14',
     endDate: '2026-09-18',
-    status: 'UPCOMING',
-    finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad1-g4',
+    status: 'ACTIVE',
+    finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad1-g3',
     createdAt: '2026-08-10T08:00:00.000Z'
   },
   // 6 Gelombang Periode Praktik CAD 2 (Prodi TRPF - Kelas 2D)
@@ -719,42 +708,42 @@ export const INITIAL_PARTICIPANTS: PracticeParticipant[] = [
     finalProjectConfirmed: false
   },
 
-  // --- Gelombang 4 (Minggu 38: 14-18 September 2026) ---
+  // --- Tambahan Peserta Gelombang 3 (Minggu 38: 14-18 September 2026) ---
   {
-    id: 'part-g4-01',
-    periodId: 'per-cad1-1-g4',
+    id: 'part-g3-10',
+    periodId: 'per-cad1-1-g3',
     studentId: 'std-22603002',
     student: INITIAL_STUDENTS[1], // Ade Meilan Alifia Sulaeman
-    enrolledAt: '2026-09-10T08:00:00.000Z',
-    progressStatus: 'NOT_STARTED',
-    finalProjectConfirmed: false
+    enrolledAt: '2026-09-14T08:00:00.000Z',
+    progressStatus: 'IN_PROGRESS',
+    finalProjectConfirmed: true
   },
   {
-    id: 'part-g4-02',
-    periodId: 'per-cad1-1-g4',
+    id: 'part-g3-11',
+    periodId: 'per-cad1-1-g3',
     studentId: 'std-22603019',
     student: INITIAL_STUDENTS[18], // Muh. Fakhrul Al Farezy Rozadin
-    enrolledAt: '2026-09-10T08:00:00.000Z',
-    progressStatus: 'NOT_STARTED',
-    finalProjectConfirmed: false
+    enrolledAt: '2026-09-14T08:00:00.000Z',
+    progressStatus: 'IN_PROGRESS',
+    finalProjectConfirmed: true
   },
   {
-    id: 'part-g4-03',
-    periodId: 'per-cad1-1-g4',
+    id: 'part-g3-12',
+    periodId: 'per-cad1-1-g3',
     studentId: 'std-22603023',
     student: INITIAL_STUDENTS[22], // Muhammad Aidil Ahmadi
-    enrolledAt: '2026-09-10T08:00:00.000Z',
-    progressStatus: 'NOT_STARTED',
-    finalProjectConfirmed: false
+    enrolledAt: '2026-09-14T08:00:00.000Z',
+    progressStatus: 'IN_PROGRESS',
+    finalProjectConfirmed: true
   },
   {
-    id: 'part-g4-04',
-    periodId: 'per-cad1-1-g4',
+    id: 'part-g3-13',
+    periodId: 'per-cad1-1-g3',
     studentId: 'std-22603033',
     student: INITIAL_STUDENTS[32], // Wahidatul Hasanah
-    enrolledAt: '2026-09-10T08:00:00.000Z',
-    progressStatus: 'NOT_STARTED',
-    finalProjectConfirmed: false
+    enrolledAt: '2026-09-14T08:00:00.000Z',
+    progressStatus: 'IN_PROGRESS',
+    finalProjectConfirmed: true
   },
   // Participant Tester di Gelombang Aktif CAD 1.1
   {
