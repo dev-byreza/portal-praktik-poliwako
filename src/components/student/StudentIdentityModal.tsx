@@ -19,6 +19,7 @@ import {
   X
 } from 'lucide-react';
 import { ModalPortal } from '../common/ModalPortal';
+import { getProdiFromClass } from '../../utils/academicUtils';
 
 interface StudentIdentityModalProps {
   isOpen?: boolean;
@@ -272,6 +273,9 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
                   <p className="text-xs text-slate-400 font-mono">
                     NIM: {targetStudent.nim} • Kelas {targetStudent.className}
                   </p>
+                  <p className="text-[11px] text-amber-300 font-sans mt-0.5">
+                    Prodi: {getProdiFromClass(targetStudent.className).name}
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -393,6 +397,9 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
                   <h4 className="text-sm font-bold text-white">{targetStudent.name}</h4>
                   <p className="text-xs text-slate-400 font-mono">
                     NIM: {targetStudent.nim} • Kelas {targetStudent.className}
+                  </p>
+                  <p className="text-[11px] text-cyan-300 font-sans mt-0.5">
+                    Prodi: {getProdiFromClass(targetStudent.className).name}
                   </p>
                 </div>
                 <button

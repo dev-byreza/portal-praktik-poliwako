@@ -20,6 +20,7 @@ import {
   KeyRound
 } from 'lucide-react';
 import { ModalPortal } from '../common/ModalPortal';
+import { getProdiFromClass } from '../../utils/academicUtils';
 
 export const MasterStudentManager: React.FC = () => {
   const { students, addStudent, updateStudent, deleteStudent, importStudentsCSV, resetStudentPassword, showToast } = useApp();
@@ -258,7 +259,7 @@ export const MasterStudentManager: React.FC = () => {
           >
             <option value="ALL">Semua Kelas ({students.length})</option>
             {availableClasses.map(cls => (
-              <option key={cls} value={cls}>Kelas {cls}</option>
+              <option key={cls} value={cls}>Kelas {cls} ({getProdiFromClass(cls).code})</option>
             ))}
           </select>
         </div>
@@ -274,29 +275,45 @@ export const MasterStudentManager: React.FC = () => {
                 <th className="py-3.5 px-6">NIM</th>
                 <th className="py-3.5 px-6">Nama Mahasiswa</th>
                 <th className="py-3.5 px-6">Kelas</th>
-                <th className="py-3.5 px-6">Email Institusi</th>
+                <th className="py-3.5 px-6">Program Studi</th>
                 <th className="py-3.5 px-6">Status Akun</th>
                 <th className="py-3.5 px-6 text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {filteredStudents.length > 0 ? (
-                filteredStudents.map(std => (
-                  <tr key={std.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3.5 px-6 font-mono font-bold text-slate-900">{std.nim}</td>
-                    <td className="py-3.5 px-6 font-semibold text-slate-900 flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
-                        {std.name.charAt(0)}
-                      </div>
-                      <span>{std.name}</span>
-                    </td>
-                    <td className="py-3.5 px-6">
-                      <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md font-semibold font-mono text-[11px] border border-slate-200">
-                        {std.className}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-6 text-slate-500 font-mono text-[11px]">{std.email}</td>
-                    <td className="py-3.5 px-6">
+                filteredStudents.map(std => {
+                  const prodi = getProdiFromClass(std.className, (std as any).department || (std as any).prodi);
+                  return (
+                    <tr key={std.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3.5 px-6 font-mono font-bold text-slate-900">{std.nim}</td>
+                      <td className="py-3.5 px-6 font-semibold text-slate-900 flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
+                          {std.name.charAt(0)}
+                        </div>
+                        <span>{std.name}</span>
+                      </td>
+                      <td className="py-3.5 px-6">
+                        <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md font-semibold font-mono text-[11px] border border-slate-200">
+                          {std.className}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-6">
+                        <div className="flex flex-col gap-0.5">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border ${prodi.badgeClass}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${prodi.dotColor}`}></span>
+                            <span className="font-bold font-mono text-[10px] uppercase">{prodi.code}</span>
+                            <span className="text-slate-400">•</span>
+                            <span className="truncate max-w-[260px]">{prodi.name}</span>
+                          </span>
+                          {std.email && (
+                            <span className="text-[10px] text-slate-400 font-mono pl-1 truncate max-w-[260px]">
+                              {std.email}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-6">
                       {std.hasCreatedPassword ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           <CheckCircle2 className="w-3 h-3 text-emerald-600" />
@@ -345,7 +362,8 @@ export const MasterStudentManager: React.FC = () => {
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400">
@@ -412,23 +430,33 @@ export const MasterStudentManager: React.FC = () => {
                     type="text"
                     value={formClass}
                     onChange={e => setFormClass(e.target.value)}
-                    placeholder="2A, 2B, dsb."
+                    placeholder="Contoh: 2A, 1C, 2D"
                     required
                     className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                    Email Mahasiswa (Opsional)
+                    Program Studi (Auto)
                   </label>
-                  <input
-                    type="email"
-                    value={formEmail}
-                    onChange={e => setFormEmail(e.target.value)}
-                    placeholder="Auto generate NIM"
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
+                  <div className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 truncate flex items-center gap-1.5">
+                    <span className={`w-1.5 h-1.5 rounded-full ${getProdiFromClass(formClass).dotColor}`}></span>
+                    <span className="truncate">{getProdiFromClass(formClass).name}</span>
+                  </div>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Email Mahasiswa (Opsional)
+                </label>
+                <input
+                  type="email"
+                  value={formEmail}
+                  onChange={e => setFormEmail(e.target.value)}
+                  placeholder="Auto generate NIM@student.politekniksorowako.ac.id"
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
               </div>
 
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
@@ -535,31 +563,38 @@ export const MasterStudentManager: React.FC = () => {
                           <th className="p-2">NIM</th>
                           <th className="p-2">Nama</th>
                           <th className="p-2">Kelas</th>
+                          <th className="p-2">Prodi</th>
                           <th className="p-2">Keterangan</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
-                        {parsedRows.map((row, idx) => (
-                          <tr key={idx} className={row.isValid ? 'bg-emerald-50/30' : 'bg-rose-50/50'}>
-                            <td className="p-2">
-                              {row.isValid ? (
-                                <span className="text-emerald-600 font-bold flex items-center gap-1">
-                                  <CheckCircle2 className="w-3.5 h-3.5" /> OK
-                                </span>
-                              ) : (
-                                <span className="text-rose-600 font-bold flex items-center gap-1">
-                                  <AlertTriangle className="w-3.5 h-3.5" /> Gagal
-                                </span>
-                              )}
-                            </td>
-                            <td className="p-2 font-bold text-slate-900">{row.nim || '-'}</td>
-                            <td className="p-2 text-slate-800">{row.name || '-'}</td>
-                            <td className="p-2">{row.className || '-'}</td>
-                            <td className={`p-2 text-[10px] ${row.isValid ? 'text-emerald-700' : 'text-rose-700 font-bold'}`}>
-                              {row.isValid ? 'Siap diimpor' : row.error}
-                            </td>
-                          </tr>
-                        ))}
+                        {parsedRows.map((row, idx) => {
+                          const prodi = getProdiFromClass(row.className);
+                          return (
+                            <tr key={idx} className={row.isValid ? 'bg-emerald-50/30' : 'bg-rose-50/50'}>
+                              <td className="p-2">
+                                {row.isValid ? (
+                                  <span className="text-emerald-600 font-bold flex items-center gap-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> OK
+                                  </span>
+                                ) : (
+                                  <span className="text-rose-600 font-bold flex items-center gap-1">
+                                    <AlertTriangle className="w-3.5 h-3.5" /> Gagal
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-2 font-bold text-slate-900">{row.nim || '-'}</td>
+                              <td className="p-2 text-slate-800">{row.name || '-'}</td>
+                              <td className="p-2">{row.className || '-'}</td>
+                              <td className="p-2 font-sans text-[10px] text-slate-600 truncate max-w-[150px]">
+                                {prodi.name}
+                              </td>
+                              <td className={`p-2 text-[10px] ${row.isValid ? 'text-emerald-700' : 'text-rose-700 font-bold'}`}>
+                                {row.isValid ? 'Siap diimpor' : row.error}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
