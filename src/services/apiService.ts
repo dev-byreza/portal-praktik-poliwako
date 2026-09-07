@@ -433,4 +433,94 @@ export class ApiService {
       }
     }
   }
+
+  // ====================================================================
+  // ATTENDANCE RECORDS (Presensi 5 Hari)
+  // ====================================================================
+  static async getAttendance(periodId?: string): Promise<AttendanceRecord[]> {
+    if (!this.isLiveBackend() || !supabase) {
+      return StorageService.getAttendance();
+    }
+    try {
+      let query = supabase.from('attendance_records').select('*');
+      if (periodId) {
+        query = query.eq('period_id', periodId);
+      }
+      const { data, error } = await query;
+      if (error || !data || data.length === 0) return StorageService.getAttendance();
+
+      return data.map((a: any) => ({
+        id: a.id,
+        periodId: a.period_id,
+        studentId: a.student_id,
+        day1: a.day1,
+        day2: a.day2,
+        day3: a.day3,
+        day4: a.day4,
+        day5: a.day5,
+        percentage: Number(a.percentage || 100),
+        isEligible: Boolean(a.is_eligible ?? true),
+        updatedAt: a.updated_at,
+      }));
+    } catch {
+      return StorageService.getAttendance();
+    }
+  }
+
+  static async saveAttendanceRecord(record: AttendanceRecord): Promise<void> {
+    const list = StorageService.getAttendance().filter(
+      (a) => !(a.periodId === record.periodId && a.studentId === record.studentId)
+    );
+    StorageService.saveAttendance([...list, record]);
+
+    if (this.isLiveBackend() && supabase) {
+      try {
+        await supabase.from('attendance_records').upsert({
+          period_id: record.periodId,
+          student_id: record.studentId,
+          day1: record.day1,
+          day2: record.day2,
+          day3: record.day3,
+          day4: record.day4,
+          day5: record.day5,
+          percentage: record.percentage,
+          is_eligible: record.isEligible,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'period_id,student_id' });
+      } catch (err) {
+        console.error('Error syncing attendance to Supabase:', err);
+      }
+    }
+  }
+
+  static async saveAttendanceBulk(records: AttendanceRecord[]): Promise<void> {
+    if (records.length === 0) return;
+    const existing = StorageService.getAttendance();
+    const updatedMap = new Map<string, AttendanceRecord>(records.map(r => [`${r.periodId}_${r.studentId}`, r]));
+    const merged = [
+      ...existing.filter(e => !updatedMap.has(`${e.periodId}_${e.studentId}`)),
+      ...records
+    ];
+    StorageService.saveAttendance(merged);
+
+    if (this.isLiveBackend() && supabase) {
+      try {
+        const rows = records.map((r) => ({
+          period_id: r.periodId,
+          student_id: r.studentId,
+          day1: r.day1,
+          day2: r.day2,
+          day3: r.day3,
+          day4: r.day4,
+          day5: r.day5,
+          percentage: r.percentage,
+          is_eligible: r.isEligible,
+          updated_at: new Date().toISOString(),
+        }));
+        await supabase.from('attendance_records').upsert(rows, { onConflict: 'period_id,student_id' });
+      } catch (err) {
+        console.error('Error batch syncing attendance to Supabase:', err);
+      }
+    }
+  }
 }

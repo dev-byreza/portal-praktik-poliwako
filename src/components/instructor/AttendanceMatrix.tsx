@@ -1,6 +1,6 @@
 // Attendance Matrix & Remedial Management (PRD Section 53-58, 91, 101, 102)
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AttendanceStatus, RemedialAssignment } from '../../types';
 import {
@@ -14,10 +14,13 @@ import {
   Eye,
   Check,
   X,
-  Sparkles
+  Sparkles,
+  Zap,
+  RotateCcw
 } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { formatPeriodRange } from '../../utils/dateUtils';
+import { getRealtimeWitaDateString } from '../../services/networkTimeService';
 import { PDFViewerModal } from '../common/PDFViewerModal';
 import { ModalPortal } from '../common/ModalPortal';
 
@@ -30,6 +33,8 @@ export const AttendanceMatrix: React.FC = () => {
     attendance,
     remedials,
     updateAttendanceCell,
+    autoInitializeAttendanceForPeriod,
+    setAllPeriodAttendanceStatus,
     createRemedialTask,
     gradeRemedialTask,
     showToast
@@ -51,13 +56,48 @@ export const AttendanceMatrix: React.FC = () => {
     return periods.filter(p => p.courseId === activeCourseId);
   }, [periods, activeCourseId]);
 
-  const activeSelectedPeriod = coursePeriods.find(p => p.id === selectedPeriodId) || coursePeriods[0];
+  // Smart default period: Automatically select active period or closest upcoming period according to realtime internet date
+  const defaultPeriod = useMemo(() => {
+    if (coursePeriods.length === 0) return undefined;
+    // 1. Check if any period is currently marked 'ACTIVE'
+    const active = coursePeriods.find(p => p.status === 'ACTIVE');
+    if (active) return active;
+
+    // 2. Check if today's date falls inside any period
+    const todayStr = getRealtimeWitaDateString();
+    const current = coursePeriods.find(p => p.startDate <= todayStr && todayStr <= p.endDate);
+    if (current) return current;
+
+    // 3. Or find the nearest upcoming period
+    const upcoming = coursePeriods
+      .filter(p => p.startDate >= todayStr)
+      .sort((a, b) => a.startDate.localeCompare(b.startDate));
+    if (upcoming.length > 0) return upcoming[0];
+
+    // 4. Fallback to latest or first
+    return coursePeriods[coursePeriods.length - 1] || coursePeriods[0];
+  }, [coursePeriods]);
+
+  const activeSelectedPeriod = useMemo(() => {
+    if (selectedPeriodId) {
+      const found = coursePeriods.find(p => p.id === selectedPeriodId);
+      if (found) return found;
+    }
+    return defaultPeriod;
+  }, [coursePeriods, selectedPeriodId, defaultPeriod]);
 
   // Participants of selected period
   const periodParticipants = useMemo(() => {
     if (!activeSelectedPeriod) return [];
     return participants.filter(p => p.periodId === activeSelectedPeriod.id);
   }, [participants, activeSelectedPeriod]);
+
+  // Automatically initialize 100% attendance for all participants in the active/selected period
+  useEffect(() => {
+    if (activeSelectedPeriod && periodParticipants.length > 0) {
+      autoInitializeAttendanceForPeriod(activeSelectedPeriod.id);
+    }
+  }, [activeSelectedPeriod?.id, periodParticipants.length]);
 
   // Attendance Records mapped to students
   const studentAttendanceData = useMemo(() => {
@@ -74,7 +114,7 @@ export const AttendanceMatrix: React.FC = () => {
         day5: 'HADIR' as AttendanceStatus,
         percentage: 100,
         isEligible: true,
-        updatedAt: '2026-09-11'
+        updatedAt: getRealtimeWitaDateString()
       };
 
       const studentRemedials = remedials.filter(
@@ -167,19 +207,77 @@ export const AttendanceMatrix: React.FC = () => {
           </p>
         </div>
 
-        {/* Period Selector */}
-        <div className="flex items-center gap-2 text-xs w-full md:w-auto">
-          <span className="text-slate-500 font-medium">Periode:</span>
-          <select
-            value={activeSelectedPeriod?.id || ''}
-            onChange={e => setSelectedPeriodId(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-          >
-            {coursePeriods.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
+        {/* Period Selector with Smart Active Week Highlighting */}
+        <div className="flex flex-wrap items-center gap-3 text-xs w-full md:w-auto">
+          {activeSelectedPeriod && (
+            <div className="flex items-center gap-1.5 px-3 py-2 bg-blue-50/90 border border-blue-200 rounded-xl">
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <div className="flex flex-col">
+                <span className="text-[9px] text-blue-800 font-bold uppercase tracking-wider">
+                  {activeSelectedPeriod.status === 'ACTIVE' || activeSelectedPeriod.id === defaultPeriod?.id ? 'Pekan Aktif Terpilih' : 'Periode Terpilih'}
+                </span>
+                <span className="text-xs font-bold text-blue-950 truncate max-w-[180px]">
+                  {activeSelectedPeriod.name}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500 font-medium">Periode:</span>
+            <select
+              value={activeSelectedPeriod?.id || ''}
+              onChange={e => setSelectedPeriodId(e.target.value)}
+              className="px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-xs"
+            >
+              {coursePeriods.map(p => {
+                const isPekanAktif = p.id === defaultPeriod?.id || p.status === 'ACTIVE';
+                return (
+                  <option key={p.id} value={p.id}>
+                    {p.name} {isPekanAktif ? '🟢 [Pekan Aktif Saat Ini]' : p.status === 'COMPLETED' ? '⚪ [Selesai]' : '🟡 [Terjadwal]'}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
         </div>
+      </div>
+
+      {/* Automatic Attendance Active Notice Banner */}
+      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-emerald-950 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center border border-emerald-300/80 shrink-0">
+            <Zap className="w-5 h-5 text-emerald-600 fill-emerald-600" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-emerald-950 text-sm">Presensi Otomatis Aktif (Default 100% Hadir)</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-200 text-emerald-900 border border-emerald-300">
+                Pekan Aktif
+              </span>
+            </div>
+            <p className="text-[11px] text-emerald-800 mt-0.5 leading-relaxed">
+              Seluruh {periodParticipants.length} mahasiswa peserta pada gelombang ini otomatis tersimpan <strong>100% Hadir</strong> di database. Instruktur cukup mengeklik kotak presensi pada hari di mana mahasiswa berhalangan (Hadir &rarr; Izin &rarr; Sakit &rarr; Alpa).
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (activeSelectedPeriod) {
+              setAllPeriodAttendanceStatus(activeSelectedPeriod.id, 'HADIR');
+            }
+          }}
+          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-2 shrink-0 cursor-pointer"
+          title="Reset presensi seluruh mahasiswa di gelombang ini kembali ke 100% Hadir"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          <span>Reset Semua Hadir (100%)</span>
+        </button>
       </div>
 
       {/* Rules Notice Box (PRD Section 55 & 56) */}
@@ -196,6 +294,8 @@ export const AttendanceMatrix: React.FC = () => {
 
         <div className="flex items-center gap-2 font-mono text-[11px] shrink-0 font-semibold">
           <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded">H = Hadir (20%)</span>
+          <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded">I = Izin</span>
+          <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded">S = Sakit</span>
           <span className="px-2 py-0.5 bg-rose-100 text-rose-800 rounded">A = Alpa (0%)</span>
         </div>
       </div>

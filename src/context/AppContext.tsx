@@ -119,6 +119,8 @@ interface AppContextType {
   deleteLearningUnit: (unitId: string) => void;
 
   updateAttendanceCell: (periodId: string, studentId: string, day: 'day1' | 'day2' | 'day3' | 'day4' | 'day5', status: AttendanceStatus) => void;
+  autoInitializeAttendanceForPeriod: (periodId: string) => Promise<void>;
+  setAllPeriodAttendanceStatus: (periodId: string, status?: AttendanceStatus) => Promise<void>;
   saveAssessment: (assessment: Assessment) => void;
   publishPeriodGrades: (periodId: string) => { publishedCount: number; blockedCount: number };
   unpublishPeriodGrades: (periodId: string) => void;
@@ -166,12 +168,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         fetchInternetNetworkTime().catch(() => {});
 
         if (!isLiveBackend) return;
-        const [liveCourses, liveStudents, livePeriods, liveParticipants, liveUnits] = await Promise.all([
+        const [liveCourses, liveStudents, livePeriods, liveParticipants, liveUnits, liveAttendance] = await Promise.all([
           ApiService.getCourses(),
           ApiService.getStudents(),
           ApiService.getPeriods(),
           ApiService.getParticipants(),
           ApiService.getLearningUnits(),
+          ApiService.getAttendance(),
         ]);
         if (!isMounted) return;
         if (liveCourses && liveCourses.length > 0) setCourses(liveCourses);
@@ -198,6 +201,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         if (liveParticipants && liveParticipants.length > 0) setParticipants(liveParticipants);
         if (liveUnits && liveUnits.length > 0) setLearningUnits(liveUnits);
+        if (liveAttendance && liveAttendance.length > 0) setAttendance(liveAttendance);
       } catch (e) {
         console.warn('Sync from Supabase notice:', e);
       }
@@ -1080,7 +1084,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast('Unit Dihapus', 'Unit pembelajaran telah dihapus.', 'info');
   };
 
-  // Attendance Matrix Update
+  // Attendance Matrix Update & Realtime Sync
   const updateAttendanceCell = (periodId: string, studentId: string, day: 'day1' | 'day2' | 'day3' | 'day4' | 'day5', status: AttendanceStatus) => {
     setAttendance(prev => {
       const existing = prev.find(a => a.periodId === periodId && a.studentId === studentId);
@@ -1095,7 +1099,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         day5: 'HADIR',
         percentage: 100,
         isEligible: true,
-        updatedAt: getWitaDateString()
+        updatedAt: getRealtimeWitaDateString()
       };
 
       const updatedRecord = { ...base, [day]: status };
@@ -1104,12 +1108,105 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ...updatedRecord,
         percentage: stats.percentage,
         isEligible: stats.isEligible,
-        updatedAt: getWitaDateString()
+        updatedAt: getRealtimeWitaDateString()
       };
 
+      ApiService.saveAttendanceRecord(finalRecord);
       const filtered = prev.filter(a => !(a.periodId === periodId && a.studentId === studentId));
       return [...filtered, finalRecord];
     });
+  };
+
+  // Auto-initialize 100% attendance for all participants in a period if not yet created
+  const autoInitializeAttendanceForPeriod = async (periodId: string) => {
+    const periodParts = participants.filter(p => p.periodId === periodId);
+    if (periodParts.length === 0) return;
+
+    const todayStr = getRealtimeWitaDateString();
+    let addedCount = 0;
+    const newRecords: AttendanceRecord[] = [];
+
+    setAttendance(prev => {
+      const currentList = [...prev];
+      for (const part of periodParts) {
+        const exists = currentList.find(a => a.periodId === periodId && a.studentId === part.studentId);
+        if (!exists) {
+          const rec: AttendanceRecord = {
+            id: `att-${Date.now()}-${Math.random()}`,
+            periodId,
+            studentId: part.studentId,
+            day1: 'HADIR',
+            day2: 'HADIR',
+            day3: 'HADIR',
+            day4: 'HADIR',
+            day5: 'HADIR',
+            percentage: 100,
+            isEligible: true,
+            updatedAt: todayStr
+          };
+          currentList.push(rec);
+          newRecords.push(rec);
+          addedCount++;
+        }
+      }
+      return currentList;
+    });
+
+    if (newRecords.length > 0) {
+      await ApiService.saveAttendanceBulk(newRecords);
+    }
+  };
+
+  // Set or reset all participants of a period to a specific status (e.g. 100% HADIR)
+  const setAllPeriodAttendanceStatus = async (periodId: string, status: AttendanceStatus = 'HADIR') => {
+    const periodParts = participants.filter(p => p.periodId === periodId);
+    if (periodParts.length === 0) return;
+
+    const todayStr = getRealtimeWitaDateString();
+    const updatedRecords: AttendanceRecord[] = periodParts.map(part => {
+      const existing = attendance.find(a => a.periodId === periodId && a.studentId === part.studentId);
+      const base = existing || {
+        id: `att-${Date.now()}-${Math.random()}`,
+        periodId,
+        studentId: part.studentId,
+        day1: status,
+        day2: status,
+        day3: status,
+        day4: status,
+        day5: status,
+        percentage: status === 'HADIR' ? 100 : 0,
+        isEligible: status === 'HADIR',
+        updatedAt: todayStr
+      };
+
+      const updated = {
+        ...base,
+        day1: status,
+        day2: status,
+        day3: status,
+        day4: status,
+        day5: status,
+      };
+      const stats = computeAttendanceStats(updated);
+      return {
+        ...updated,
+        percentage: stats.percentage,
+        isEligible: stats.isEligible,
+        updatedAt: todayStr
+      };
+    });
+
+    setAttendance(prev => {
+      const filtered = prev.filter(a => a.periodId !== periodId);
+      return [...filtered, ...updatedRecords];
+    });
+
+    await ApiService.saveAttendanceBulk(updatedRecords);
+    showToast(
+      'Presensi Berhasil Direset',
+      `Presensi seluruh peserta (${periodParts.length} mahasiswa) disetel ke 100% Hadir secara otomatis.`,
+      'success'
+    );
   };
 
   // Assessment & Grading
@@ -1339,6 +1436,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         updateLearningUnit,
         deleteLearningUnit,
         updateAttendanceCell,
+        autoInitializeAttendanceForPeriod,
+        setAllPeriodAttendanceStatus,
         saveAssessment,
         publishPeriodGrades,
         unpublishPeriodGrades,

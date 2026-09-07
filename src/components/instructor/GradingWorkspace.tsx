@@ -76,7 +76,15 @@ export const GradingWorkspace: React.FC = () => {
     return periods.filter(p => p.courseId === activeCourseId);
   }, [periods, activeCourseId]);
 
-  const activeSelectedPeriod = coursePeriods.find(p => p.id === selectedPeriodId) || coursePeriods[0];
+  const activeSelectedPeriod = useMemo(() => {
+    if (selectedPeriodId) {
+      const found = coursePeriods.find(p => p.id === selectedPeriodId);
+      if (found) return found;
+    }
+    const active = coursePeriods.find(p => p.status === 'ACTIVE');
+    if (active) return active;
+    return coursePeriods[coursePeriods.length - 1] || coursePeriods[0];
+  }, [coursePeriods, selectedPeriodId]);
 
   // Participants
   const periodParticipants = useMemo(() => {

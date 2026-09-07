@@ -49,7 +49,7 @@ const STORAGE_KEYS = {
   INSTRUCTOR_LOGGED_IN: 'poliwako_instructor_logged_in'
 };
 
-const CLEAN_VERSION_KEY = 'poliwako_security_v6_auto_wave_sync';
+const CLEAN_VERSION_KEY = 'poliwako_security_v7_auto_attendance';
 
 // Auto-seed real CAD 1.1 course and students if new version flag is missing
 if (typeof window !== 'undefined' && !localStorage.getItem(CLEAN_VERSION_KEY)) {
