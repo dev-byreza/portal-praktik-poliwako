@@ -155,6 +155,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [studentSession, setStudentSessionState] = useState(StorageService.getStudentSession());
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
 
+  // Synchronize live data from Supabase backend on mount
+  useEffect(() => {
+    if (!isLiveBackend) return;
+    let isMounted = true;
+    const syncBackendData = async () => {
+      try {
+        const [liveCourses, liveStudents, livePeriods, liveParticipants, liveUnits] = await Promise.all([
+          ApiService.getCourses(),
+          ApiService.getStudents(),
+          ApiService.getPeriods(),
+          ApiService.getParticipants(),
+          ApiService.getLearningUnits(),
+        ]);
+        if (!isMounted) return;
+        if (liveCourses && liveCourses.length > 0) setCourses(liveCourses);
+        if (liveStudents && liveStudents.length > 0) setStudents(liveStudents);
+        if (livePeriods && livePeriods.length > 0) setPeriods(livePeriods);
+        if (liveParticipants && liveParticipants.length > 0) setParticipants(liveParticipants);
+        if (liveUnits && liveUnits.length > 0) setLearningUnits(liveUnits);
+      } catch (e) {
+        console.warn('Sync from Supabase notice:', e);
+      }
+    };
+    syncBackendData();
+    return () => {
+      isMounted = false;
+    };
+  }, [isLiveBackend]);
+
   // Sync to LocalStorage on changes
   useEffect(() => {
     StorageService.saveCourses(courses);

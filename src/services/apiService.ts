@@ -257,6 +257,96 @@ export class ApiService {
   }
 
   // ====================================================================
+  // PRACTICE PARTICIPANTS
+  // ====================================================================
+  static async getParticipants(periodId?: string): Promise<PracticeParticipant[]> {
+    if (!this.isLiveBackend() || !supabase) {
+      return StorageService.getParticipants();
+    }
+    try {
+      let query = supabase.from('practice_participants').select('*, students(*)');
+      if (periodId) {
+        query = query.eq('period_id', periodId);
+      }
+      const { data, error } = await query;
+      if (error || !data || data.length === 0) return StorageService.getParticipants();
+
+      return data.map((p: any) => ({
+        id: p.id,
+        periodId: p.period_id,
+        studentId: p.student_id,
+        student: {
+          id: p.students?.id || p.student_id,
+          nim: p.students?.nim || '',
+          name: p.students?.name || '',
+          className: p.students?.class_name || '',
+          email: p.students?.email || undefined,
+          password: p.students?.password_hash || undefined,
+          hasCreatedPassword: Boolean(p.students?.password_hash),
+          createdAt: p.students?.created_at || new Date().toISOString(),
+        },
+        enrolledAt: p.enrolled_at,
+        progressStatus: p.progress_status,
+        finalProjectSubmittedAt: p.final_project_submitted_at || undefined,
+        finalProjectConfirmed: p.final_project_confirmed || false,
+      }));
+    } catch {
+      return StorageService.getParticipants();
+    }
+  }
+
+  // ====================================================================
+  // LEARNING UNITS & MATERIALS
+  // ====================================================================
+  static async getLearningUnits(periodId?: string): Promise<LearningUnit[]> {
+    if (!this.isLiveBackend() || !supabase) {
+      return StorageService.getLearningUnits();
+    }
+    try {
+      let query = supabase
+        .from('learning_units')
+        .select('*, learning_materials(*), assignments(*)')
+        .order('unit_number', { ascending: true });
+      if (periodId) {
+        query = query.eq('period_id', periodId);
+      }
+      const { data, error } = await query;
+      if (error || !data || data.length === 0) return StorageService.getLearningUnits();
+
+      return data.map((u: any) => ({
+        id: u.id,
+        periodId: u.period_id,
+        unitNumber: u.unit_number,
+        title: u.title,
+        description: u.description || '',
+        materials: (u.learning_materials || []).map((m: any) => ({
+          id: m.id,
+          unitId: m.unit_id,
+          title: m.title,
+          type: m.type,
+          contentUrl: m.content_url || undefined,
+          contentText: m.content_text || undefined,
+          fileSize: m.file_size || undefined,
+        })),
+        assignment: u.assignments?.[0]
+          ? {
+              id: u.assignments[0].id,
+              unitId: u.assignments[0].unit_id,
+              periodId: u.assignments[0].period_id,
+              title: u.assignments[0].title,
+              description: u.assignments[0].description,
+              deadline: u.assignments[0].deadline,
+              maxScore: u.assignments[0].max_score,
+              allowedFileType: u.assignments[0].allowed_file_type,
+            }
+          : undefined,
+      }));
+    } catch {
+      return StorageService.getLearningUnits();
+    }
+  }
+
+  // ====================================================================
   // SUBMISSIONS & ASSESSMENTS
   // ====================================================================
   static async saveSubmission(submission: Submission): Promise<void> {
