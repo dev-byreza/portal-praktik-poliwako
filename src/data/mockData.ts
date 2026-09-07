@@ -335,40 +335,40 @@ export const INITIAL_PERIODS: PracticePeriod[] = [
   {
     id: 'c2b2c3d4-cad2-4000-8000-000000000201',
     courseId: 'b2c3d4e5-cad2-4000-8000-000000000001',
-    name: 'Gelombang 1 (Blok Praktik 1)',
+    name: 'Gelombang 1 (Minggu 34)',
     periodNumber: 1,
-    startDate: '2026-09-07',
-    endDate: '2026-09-11',
-    status: 'ACTIVE',
+    startDate: '2026-08-17',
+    endDate: '2026-08-21',
+    status: 'COMPLETED',
     finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad2-g1',
-    createdAt: '2026-09-01T08:00:00.000Z'
+    createdAt: '2026-08-15T08:00:00.000Z'
   },
   {
     id: 'c2b2c3d4-cad2-4000-8000-000000000202',
     courseId: 'b2c3d4e5-cad2-4000-8000-000000000001',
-    name: 'Gelombang 2 (Blok Praktik 2)',
+    name: 'Gelombang 2 (Minggu 36)',
     periodNumber: 2,
-    startDate: '2026-09-14',
-    endDate: '2026-09-18',
-    status: 'UPCOMING',
+    startDate: '2026-08-31',
+    endDate: '2026-09-04',
+    status: 'COMPLETED',
     finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad2-g2',
-    createdAt: '2026-09-01T08:00:00.000Z'
+    createdAt: '2026-08-25T08:00:00.000Z'
   },
   {
     id: 'c2b2c3d4-cad2-4000-8000-000000000203',
     courseId: 'b2c3d4e5-cad2-4000-8000-000000000001',
-    name: 'Gelombang 3 (Blok Praktik 3)',
+    name: 'Gelombang 3 (Minggu 38)',
     periodNumber: 3,
-    startDate: '2026-09-21',
-    endDate: '2026-09-25',
-    status: 'UPCOMING',
+    startDate: '2026-09-14',
+    endDate: '2026-09-18',
+    status: 'ACTIVE',
     finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad2-g3',
     createdAt: '2026-09-01T08:00:00.000Z'
   },
   {
     id: 'c2b2c3d4-cad2-4000-8000-000000000204',
     courseId: 'b2c3d4e5-cad2-4000-8000-000000000001',
-    name: 'Gelombang 4 (Blok Praktik 4)',
+    name: 'Gelombang 4 (Minggu 40)',
     periodNumber: 4,
     startDate: '2026-09-28',
     endDate: '2026-10-02',
@@ -379,10 +379,10 @@ export const INITIAL_PERIODS: PracticePeriod[] = [
   {
     id: 'c2b2c3d4-cad2-4000-8000-000000000205',
     courseId: 'b2c3d4e5-cad2-4000-8000-000000000001',
-    name: 'Gelombang 5 (Blok Praktik 5)',
+    name: 'Gelombang 5 (Minggu 43)',
     periodNumber: 5,
-    startDate: '2026-10-05',
-    endDate: '2026-10-09',
+    startDate: '2026-10-19',
+    endDate: '2026-10-23',
     status: 'UPCOMING',
     finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad2-g5',
     createdAt: '2026-09-01T08:00:00.000Z'
@@ -390,14 +390,14 @@ export const INITIAL_PERIODS: PracticePeriod[] = [
   {
     id: 'c2b2c3d4-cad2-4000-8000-000000000206',
     courseId: 'b2c3d4e5-cad2-4000-8000-000000000001',
-    name: 'Gelombang 6 (Blok Praktik 6)',
+    name: 'Gelombang 6 (Minggu 45)',
     periodNumber: 6,
-    startDate: '2026-10-12',
-    endDate: '2026-10-16',
+    startDate: '2026-11-02',
+    endDate: '2026-11-06',
     status: 'UPCOMING',
     finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad2-g6',
     createdAt: '2026-09-01T08:00:00.000Z'
-  }
+  },
 ];
 
 // Distribusi Peserta Real CAD 1.1 Berdasarkan Jadwal Resmi Kelas 1C

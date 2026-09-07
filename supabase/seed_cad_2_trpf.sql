@@ -119,7 +119,7 @@ BEGIN
         'CAD 2',
         'CAD2',
         '2026/2027',
-        'Genap',
+        'Ganjil',
         'cad-2-trpf',
         'Praktik perancangan konstruksi berbantuan komputer tingkat lanjut (CAD 2) Program Studi Teknologi Rekayasa Pengelasan dan Fabrikasi (TRPF) Politeknik Sorowako. Meliputi pemodelan rangka konstruksi baja las (weldments/structural steel), desain lembaran logam (sheet metal design & unfolding), pemodelan bejana tekan dan piping spool, perakitan struktur fabrikasi & BOM, serta penyusunan gambar kerja fabrikasi 2D standar ISO dengan simbol pengelasan AWS A2.4 / ISO 2553.',
         'Teknologi Rekayasa Pengelasan dan Fabrikasi',
@@ -151,12 +151,12 @@ BEGIN
     -- ====================================================================
     INSERT INTO public.practice_periods (id, course_id, name, period_number, start_date, end_date, status)
     VALUES
-        (v_per1_id, v_course_id, 'Gelombang 1 (Blok Praktik 1)', 1, '2026-09-07', '2026-09-11', 'ACTIVE'),
-        (v_per2_id, v_course_id, 'Gelombang 2 (Blok Praktik 2)', 2, '2026-09-14', '2026-09-18', 'UPCOMING'),
-        (v_per3_id, v_course_id, 'Gelombang 3 (Blok Praktik 3)', 3, '2026-09-21', '2026-09-25', 'UPCOMING'),
-        (v_per4_id, v_course_id, 'Gelombang 4 (Blok Praktik 4)', 4, '2026-09-28', '2026-10-02', 'UPCOMING'),
-        (v_per5_id, v_course_id, 'Gelombang 5 (Blok Praktik 5)', 5, '2026-10-05', '2026-10-09', 'UPCOMING'),
-        (v_per6_id, v_course_id, 'Gelombang 6 (Blok Praktik 6)', 6, '2026-10-12', '2026-10-16', 'UPCOMING')
+        (v_per1_id, v_course_id, 'Gelombang 1 (Minggu 34)', 1, '2026-08-17', '2026-08-21', 'COMPLETED'),
+        (v_per2_id, v_course_id, 'Gelombang 2 (Minggu 36)', 2, '2026-08-31', '2026-09-04', 'COMPLETED'),
+        (v_per3_id, v_course_id, 'Gelombang 3 (Minggu 38)', 3, '2026-09-14', '2026-09-18', 'ACTIVE'),
+        (v_per4_id, v_course_id, 'Gelombang 4 (Minggu 40)', 4, '2026-09-28', '2026-10-02', 'UPCOMING'),
+        (v_per5_id, v_course_id, 'Gelombang 5 (Minggu 43)', 5, '2026-10-19', '2026-10-23', 'UPCOMING'),
+        (v_per6_id, v_course_id, 'Gelombang 6 (Minggu 45)', 6, '2026-11-02', '2026-11-06', 'UPCOMING')
     ON CONFLICT (id) DO UPDATE SET
         name = EXCLUDED.name,
         start_date = EXCLUDED.start_date,
