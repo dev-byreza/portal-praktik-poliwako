@@ -231,53 +231,33 @@ export const AttendanceMatrix: React.FC = () => {
             <select
               value={activeSelectedPeriod?.id || ''}
               onChange={e => setSelectedPeriodId(e.target.value)}
-              className="px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-xs"
+              className="px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-xs"
             >
               {coursePeriods.map(p => {
-                const isPekanAktif = p.id === defaultPeriod?.id || p.status === 'ACTIVE';
+                const statusLabel = p.status === 'ACTIVE' ? 'Aktif' : p.status === 'COMPLETED' ? 'Selesai' : 'Akan Datang';
                 return (
                   <option key={p.id} value={p.id}>
-                    {p.name} {isPekanAktif ? '🟢 [Pekan Aktif Saat Ini]' : p.status === 'COMPLETED' ? '⚪ [Selesai]' : '🟡 [Terjadwal]'}
+                    {p.name} ({statusLabel})
                   </option>
                 );
               })}
             </select>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (activeSelectedPeriod) {
+                  setAllPeriodAttendanceStatus(activeSelectedPeriod.id, 'HADIR');
+                }
+              }}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+              title="Setel seluruh mahasiswa di periode ini menjadi 100% Hadir"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Set Semua Hadir</span>
+            </button>
           </div>
         </div>
-      </div>
-
-      {/* Automatic Attendance Active Notice Banner */}
-      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-emerald-950 shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center border border-emerald-300/80 shrink-0">
-            <Zap className="w-5 h-5 text-emerald-600 fill-emerald-600" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-emerald-950 text-sm">Presensi Otomatis Aktif (Default 100% Hadir)</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-200 text-emerald-900 border border-emerald-300">
-                Pekan Aktif
-              </span>
-            </div>
-            <p className="text-[11px] text-emerald-800 mt-0.5 leading-relaxed">
-              Seluruh {periodParticipants.length} mahasiswa peserta pada gelombang ini otomatis tersimpan <strong>100% Hadir</strong> di database. Instruktur cukup mengeklik kotak presensi pada hari di mana mahasiswa berhalangan (Hadir &rarr; Izin &rarr; Sakit &rarr; Alpa).
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => {
-            if (activeSelectedPeriod) {
-              setAllPeriodAttendanceStatus(activeSelectedPeriod.id, 'HADIR');
-            }
-          }}
-          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-2 shrink-0 cursor-pointer"
-          title="Reset presensi seluruh mahasiswa di gelombang ini kembali ke 100% Hadir"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Reset Semua Hadir (100%)</span>
-        </button>
       </div>
 
       {/* Rules Notice Box (PRD Section 55 & 56) */}
