@@ -414,37 +414,49 @@ export class ApiService {
     if (!this.isLiveBackend() || !supabase) {
       return StorageService.getParticipants();
     }
+
+    const mapParticipant = (p: any, includeStudent = true): PracticeParticipant => ({
+      id: p.id,
+      periodId: p.period_id,
+      studentId: p.student_id,
+      student: includeStudent ? {
+        id: p.students?.id || p.student_id,
+        nim: p.students?.nim || '',
+        name: p.students?.name || '',
+        className: p.students?.class_name || '',
+        email: p.students?.email || undefined,
+        password: p.students?.password_hash || undefined,
+        hasCreatedPassword: Boolean(p.students?.password_hash),
+        createdAt: p.students?.created_at || new Date().toISOString(),
+      } : {
+        id: p.student_id,
+        nim: '',
+        name: '',
+        className: '',
+        createdAt: new Date().toISOString(),
+      },
+      enrolledAt: p.enrolled_at || new Date().toISOString(),
+      progressStatus: p.progress_status || 'NOT_STARTED',
+      finalProjectSubmittedAt: p.final_project_submitted_at || undefined,
+      finalProjectConfirmed: p.final_project_confirmed || false,
+    });
+
     try {
       let query = supabase.from('practice_participants').select('*, students(*)');
-      if (periodId) {
-        query = query.eq('period_id', periodId);
-      }
+      if (periodId) query = query.eq('period_id', periodId);
       const { data, error } = await query;
-      if (error) {
-        console.error('Error loading participants from Supabase:', error);
+      if (!error && data && data.length > 0) return data.map(p => mapParticipant(p));
+
+      // Student sessions use the public anon key. Fall back to the minimal
+      // enrollment view so they can see only their registered course IDs.
+      let publicQuery = supabase.from('student_course_enrollments').select('id, period_id, student_id');
+      if (periodId) publicQuery = publicQuery.eq('period_id', periodId);
+      const { data: publicData, error: publicError } = await publicQuery;
+      if (publicError || !publicData) {
+        if (error) console.error('Error loading participants from Supabase:', error);
         return [];
       }
-      if (!data) return [];
-
-      return data.map((p: any) => ({
-        id: p.id,
-        periodId: p.period_id,
-        studentId: p.student_id,
-        student: {
-          id: p.students?.id || p.student_id,
-          nim: p.students?.nim || '',
-          name: p.students?.name || '',
-          className: p.students?.class_name || '',
-          email: p.students?.email || undefined,
-          password: p.students?.password_hash || undefined,
-          hasCreatedPassword: Boolean(p.students?.password_hash),
-          createdAt: p.students?.created_at || new Date().toISOString(),
-        },
-        enrolledAt: p.enrolled_at,
-        progressStatus: p.progress_status,
-        finalProjectSubmittedAt: p.final_project_submitted_at || undefined,
-        finalProjectConfirmed: p.final_project_confirmed || false,
-      }));
+      return publicData.map(p => mapParticipant(p, false));
     } catch (error) {
       console.error('Error loading participants from Supabase:', error);
       return [];

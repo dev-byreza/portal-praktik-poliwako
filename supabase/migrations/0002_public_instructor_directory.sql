@@ -8,3 +8,12 @@ FROM public.profiles;
 
 REVOKE ALL ON public.instructor_directory FROM PUBLIC;
 GRANT SELECT ON public.instructor_directory TO anon, authenticated;
+
+-- Minimal enrollment map for student course visibility. This view contains no names or grades.
+CREATE OR REPLACE VIEW public.student_course_enrollments
+WITH (security_invoker = false) AS
+SELECT id, period_id, student_id
+FROM public.practice_participants;
+
+REVOKE ALL ON public.student_course_enrollments FROM PUBLIC;
+GRANT SELECT ON public.student_course_enrollments TO anon, authenticated;
