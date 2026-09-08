@@ -407,6 +407,19 @@ export class ApiService {
     StorageService.saveParticipants(StorageService.getParticipants().filter(item => item.id !== participantId));
   }
 
+  static async deleteAttendanceRecord(periodId: string, studentId: string): Promise<void> {
+    if (this.isLiveBackend() && supabase) {
+      const { error } = await supabase.from('attendance_records')
+        .delete()
+        .eq('period_id', periodId)
+        .eq('student_id', studentId);
+      if (error) throw error;
+    }
+    StorageService.saveAttendance(StorageService.getAttendance().filter(
+      record => !(record.periodId === periodId && record.studentId === studentId)
+    ));
+  }
+
   // ====================================================================
   // PRACTICE PARTICIPANTS
   // ====================================================================
@@ -629,7 +642,7 @@ export class ApiService {
 
     if (this.isLiveBackend() && supabase) {
       try {
-        await supabase.from('attendance_records').upsert({
+        const { error } = await supabase.from('attendance_records').upsert({
           period_id: record.periodId,
           student_id: record.studentId,
           day1: record.day1,
@@ -641,8 +654,10 @@ export class ApiService {
           is_eligible: record.isEligible,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'period_id,student_id' });
+        if (error) throw error;
       } catch (err) {
         console.error('Error syncing attendance to Supabase:', err);
+        throw err;
       }
     }
   }
@@ -671,9 +686,11 @@ export class ApiService {
           is_eligible: r.isEligible,
           updated_at: new Date().toISOString(),
         }));
-        await supabase.from('attendance_records').upsert(rows, { onConflict: 'period_id,student_id' });
+        const { error } = await supabase.from('attendance_records').upsert(rows, { onConflict: 'period_id,student_id' });
+        if (error) throw error;
       } catch (err) {
         console.error('Error batch syncing attendance to Supabase:', err);
+        throw err;
       }
     }
   }

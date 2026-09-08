@@ -1055,10 +1055,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const removeParticipant = (participantId: string) => {
+    const participant = participants.find(p => p.id === participantId);
     setParticipants(prev => prev.filter(p => p.id !== participantId));
     void ApiService.deleteParticipant(participantId).catch(error => {
       showToast('Sinkronisasi Gagal', `Peserta hanya terhapus di layar: ${error.message}`, 'error');
     });
+    if (participant) {
+      setAttendance(prev => prev.filter(a => !(a.periodId === participant.periodId && a.studentId === participant.studentId)));
+      void ApiService.deleteAttendanceRecord(participant.periodId, participant.studentId).catch(error => {
+        showToast('Sinkronisasi Gagal', `Presensi peserta belum terhapus dari Supabase: ${error.message}`, 'error');
+      });
+    }
     showToast('Peserta Dihapus', 'Peserta telah dikeluarkan dari periode ini.', 'info');
   };
 
