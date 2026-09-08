@@ -22,7 +22,9 @@ import {
   FolderArchive,
   LogOut,
   List,
-  LayoutGrid
+  LayoutGrid,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { StudentIdentityModal } from './StudentIdentityModal';
 import { StudentAssignmentCard } from './StudentAssignmentCard';
@@ -56,7 +58,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
   const [selectedUnitId, setSelectedUnitId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'UNITS' | 'FINAL_PROJECT' | 'GRADE'>('UNITS');
   const [pdfModalDoc, setPdfModalDoc] = useState<{ isOpen: boolean; title: string; url?: string } | null>(null);
-  const [isOutlineOpen, setIsOutlineOpen] = useState<boolean>(true);
+  const [isOutlineOpen, setIsOutlineOpen] = useState<boolean>(() => (typeof window === 'undefined' ? true : window.innerWidth >= 1024));
 
   // Catalog view state (PRD Option B: Course Catalog & Switcher)
   const [isViewingCatalog, setIsViewingCatalog] = useState<boolean>(() => {
@@ -346,6 +348,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
             isEmbedded={true}
           />
         </div>
+        <footer className="sticky bottom-0 z-20 w-full shrink-0 border-t border-slate-700 bg-slate-950/95 px-4 py-3 text-center text-[10px] sm:text-xs text-slate-300 shadow-[0_-8px_24px_rgba(2,6,23,0.35)] backdrop-blur-md"><div className="flex flex-wrap items-center justify-center gap-2.5"><span className="text-slate-400 text-[10px] sm:text-xs">Product by</span><a href="https://github.com/dev-byreza" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-slate-700/80 bg-slate-800/90 px-3 py-1.5 text-white shadow-sm transition-all hover:bg-slate-700/90"><img src="https://github.com/dev-byreza.png" alt="dev-byreza" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/20" /><span className="text-xs font-semibold">dev-byreza</span><span className="text-[10px] text-slate-400">GitHub</span></a></div></footer>
       </div>
     );
   }
@@ -363,7 +366,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     <div className="h-full w-full flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-100">
       
       {/* Top Compact Banner & Header */}
-      <div className="bg-slate-900 text-white border-b border-slate-800 shadow-sm shrink-0">
+      <div className="sticky top-0 z-30 bg-slate-900 text-white border-b border-slate-800 shadow-sm shrink-0">
         <div className="w-full px-4 sm:px-6 lg:px-8 py-2.5">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2.5">
             
@@ -465,9 +468,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                   <Layers className="w-3.5 h-3.5 text-blue-600" />
                   <span>Course Outline</span>
                 </div>
-                <span className="text-[10px] font-semibold text-slate-400">
-                  {periodUnits.length} Unit
-                </span>
+                <div className="flex items-center gap-2"><span className="text-[10px] font-semibold text-slate-400">{periodUnits.length} Unit</span><button type="button" onClick={() => setIsOutlineOpen(false)} aria-label="Tutup Course Outline" className="md:hidden inline-flex items-center gap-1 rounded-lg bg-white px-2 py-1 text-[10px] font-bold text-slate-600 border border-slate-200 shadow-sm"><ChevronUp className="w-3.5 h-3.5" /> Tutup</button></div>
               </div>
 
               {/* Units List */}
@@ -605,8 +606,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                 }`}
                 title={isOutlineOpen ? 'Tutup sidebar Course Outline' : 'Buka sidebar Course Outline'}
               >
-                <List className="w-4 h-4 text-slate-700" />
-                <span>Course outline</span>
+                {isOutlineOpen ? <ChevronUp className="w-4 h-4 text-slate-700" /> : <ChevronDown className="w-4 h-4 text-slate-700" />}
+                <span className="hidden sm:inline">{isOutlineOpen ? 'Tutup Course Outline' : 'Buka Course Outline'}</span>
+                <span className="sm:hidden">{isOutlineOpen ? 'Tutup menu' : 'Buka menu'}</span>
               </button>
 
               <div className="flex items-center gap-3 text-xs sm:text-sm font-medium text-slate-600">
@@ -844,6 +846,8 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
         </div>
       </div>
+
+      <footer className="sticky bottom-0 z-20 shrink-0 border-t border-slate-700 bg-slate-950/95 px-4 py-3 text-center text-[10px] sm:text-xs text-slate-300 shadow-[0_-8px_24px_rgba(2,6,23,0.35)] backdrop-blur-md"><div className="flex flex-wrap items-center justify-center gap-2.5"><span className="text-slate-400 text-[10px] sm:text-xs">Product by</span><a href="https://github.com/dev-byreza" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-slate-700/80 bg-slate-800/90 px-3 py-1.5 text-white shadow-sm transition-all hover:bg-slate-700/90"><img src="https://github.com/dev-byreza.png" alt="dev-byreza" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/20" /><span className="text-xs font-semibold">dev-byreza</span><span className="text-[10px] text-slate-400">GitHub</span></a></div></footer>
 
       {/* Student Identity Modal */}
       <StudentIdentityModal
