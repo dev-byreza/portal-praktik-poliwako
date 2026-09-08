@@ -520,6 +520,9 @@ export class ApiService {
         unitNumber: u.unit_number,
         title: u.title,
         description: u.description || '',
+        countdownEnabled: Boolean(u.countdown_enabled),
+        countdownMinutes: Number(u.countdown_minutes) || undefined,
+        countdownStartedAt: u.countdown_started_at || undefined,
         materials: [...(u.learning_materials || [])]
           .sort((a: any, b: any) => {
             const aTime = Date.parse(a.created_at || '') || 0;
@@ -580,13 +583,25 @@ export class ApiService {
         id: await databaseId(unit.assignment.id, `assignment:${unit.id}`),
         unitId,
       } : undefined;
-      const { error: unitError } = await supabase.from('learning_units').upsert({
+      const unitPayload = {
         id: unitId,
         period_id: unit.periodId,
         unit_number: unit.unitNumber,
         title: unit.title,
         description: unit.description || '',
-      });
+        countdown_enabled: Boolean(unit.countdownEnabled),
+        countdown_minutes: unit.countdownEnabled ? Math.max(1, Number(unit.countdownMinutes) || 1) : 0,
+        countdown_started_at: unit.countdownEnabled ? (unit.countdownStartedAt || new Date().toISOString()) : null,
+      };
+      let { error: unitError } = await supabase.from('learning_units').upsert(unitPayload);
+      // Keep older databases usable until the unit countdown migration is applied.
+      if (unitError && /countdown_|column .* does not exist/i.test(unitError.message || '')) {
+        const legacyUnitPayload = { ...unitPayload };
+        delete (legacyUnitPayload as any).countdown_enabled;
+        delete (legacyUnitPayload as any).countdown_minutes;
+        delete (legacyUnitPayload as any).countdown_started_at;
+        ({ error: unitError } = await supabase.from('learning_units').upsert(legacyUnitPayload));
+      }
       if (unitError) throw unitError;
 
       const materialRows = savedMaterials.map(material => ({

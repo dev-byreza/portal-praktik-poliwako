@@ -138,6 +138,10 @@ export interface LearningUnit {
   description: string;
   materials: LearningMaterial[];
   assignment?: Assignment;
+  /** Optional unit-wide access countdown. When enabled, all unit content is gated together. */
+  countdownEnabled?: boolean;
+  countdownMinutes?: number;
+  countdownStartedAt?: string;
 }
 
 export interface UnitProgress {

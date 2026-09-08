@@ -1171,7 +1171,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       title: unitData.title || `Unit ${unitNumber}: Judul Materi Praktik`,
       description: unitData.description || '',
       materials: unitData.materials || [],
-      assignment: unitData.assignment
+      assignment: unitData.assignment,
+      countdownEnabled: unitData.countdownEnabled,
+      countdownMinutes: unitData.countdownMinutes,
+      countdownStartedAt: unitData.countdownStartedAt
     };
 
     setLearningUnits(prev => [...prev, newUnit]);
@@ -1258,7 +1261,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           title: srcUnit.title,
           description: srcUnit.description,
           materials: clonedMaterials,
-          assignment: clonedAssignment
+          assignment: clonedAssignment,
+          countdownEnabled: srcUnit.countdownEnabled,
+          countdownMinutes: srcUnit.countdownMinutes,
+          countdownStartedAt: srcUnit.countdownStartedAt
         });
       });
     });

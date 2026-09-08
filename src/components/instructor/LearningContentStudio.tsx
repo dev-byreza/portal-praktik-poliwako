@@ -112,11 +112,15 @@ export const LearningContentStudio: React.FC = () => {
   // Unit Form states
   const [unitTitleInput, setUnitTitleInput] = useState('');
   const [unitDescInput, setUnitDescInput] = useState('');
+  const [unitCountdownEnabled, setUnitCountdownEnabled] = useState(false);
+  const [unitCountdownMinutes, setUnitCountdownMinutes] = useState('5');
 
   const handleOpenCreateUnit = () => {
     setEditingUnit(null);
     setUnitTitleInput(`Unit ${periodUnits.length + 1}: Judul Modul Praktik`);
     setUnitDescInput('');
+    setUnitCountdownEnabled(false);
+    setUnitCountdownMinutes('5');
     setIsUnitModalOpen(true);
   };
 
@@ -124,6 +128,8 @@ export const LearningContentStudio: React.FC = () => {
     setEditingUnit(unit);
     setUnitTitleInput(unit.title);
     setUnitDescInput(unit.description);
+    setUnitCountdownEnabled(Boolean(unit.countdownEnabled));
+    setUnitCountdownMinutes(String(Math.max(1, unit.countdownMinutes || 5)));
     setIsUnitModalOpen(true);
   };
 
@@ -135,14 +141,22 @@ export const LearningContentStudio: React.FC = () => {
       updateLearningUnit({
         ...editingUnit,
         title: unitTitleInput.trim(),
-        description: unitDescInput.trim()
+        description: unitDescInput.trim(),
+        countdownEnabled: unitCountdownEnabled,
+        countdownMinutes: unitCountdownEnabled ? Math.max(1, Number(unitCountdownMinutes) || 1) : undefined,
+        countdownStartedAt: unitCountdownEnabled
+          ? (editingUnit.countdownStartedAt || new Date().toISOString())
+          : undefined
       });
     } else {
       createLearningUnit({
         periodId: activeSelectedPeriod.id,
         title: unitTitleInput.trim(),
         description: unitDescInput.trim(),
-        materials: []
+        materials: [],
+        countdownEnabled: unitCountdownEnabled,
+        countdownMinutes: unitCountdownEnabled ? Math.max(1, Number(unitCountdownMinutes) || 1) : undefined,
+        countdownStartedAt: unitCountdownEnabled ? new Date().toISOString() : undefined
       });
     }
     setIsUnitModalOpen(false);
@@ -223,11 +237,10 @@ export const LearningContentStudio: React.FC = () => {
       contentUrl: matUrl.trim() || undefined,
       contentText: matText.trim(),
       fileSize: editingMaterial?.fileSize,
-      countdownEnabled: matCountdownEnabled,
-      countdownMinutes: matCountdownEnabled ? Math.max(1, Number(matCountdownMinutes) || 1) : undefined,
-      countdownStartedAt: matCountdownEnabled
-        ? (editingMaterial?.countdownStartedAt || new Date().toISOString())
-        : undefined
+      // Countdown access is configured once at the unit level.
+      countdownEnabled: undefined,
+      countdownMinutes: undefined,
+      countdownStartedAt: undefined
     };
 
     const updatedMaterials = editingMaterial
@@ -297,11 +310,10 @@ export const LearningContentStudio: React.FC = () => {
       maxScore: 100,
       allowedFileType: 'PDF',
       submissionType: assignSubmissionType,
-      countdownEnabled: assignCountdownEnabled,
-      countdownMinutes: assignCountdownEnabled ? Math.max(1, Number(assignCountdownMinutes) || 1) : undefined,
-      countdownStartedAt: assignCountdownEnabled
-        ? (editingAssignment?.countdownStartedAt || new Date().toISOString())
-        : undefined
+      // Countdown access is configured once at the unit level.
+      countdownEnabled: undefined,
+      countdownMinutes: undefined,
+      countdownStartedAt: undefined
     };
 
     updateLearningUnit({
@@ -454,13 +466,20 @@ export const LearningContentStudio: React.FC = () => {
 
                 <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
                   <span>{unit.materials.length} Lampiran Materi</span>
-                  {unit.assignment ? (
-                    <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-[10px]">
-                      Tugas PDF Aktif
-                    </span>
-                  ) : (
-                    <span className="text-slate-400 text-[10px]">Materi Saja</span>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {unit.assignment ? (
+                      <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-[10px]">
+                        Tugas PDF Aktif
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 text-[10px]">Materi Saja</span>
+                    )}
+                    {unit.countdownEnabled && (
+                      <span className="text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 text-[10px]">
+                        Countdown Unit
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -480,6 +499,11 @@ export const LearningContentStudio: React.FC = () => {
                   </span>
                   <h3 className="text-lg font-bold text-slate-900 mt-1">{activeSelectedUnit.title}</h3>
                   <p className="text-xs text-slate-600 mt-1 leading-relaxed">{activeSelectedUnit.description}</p>
+                  {activeSelectedUnit.countdownEnabled && (
+                    <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[10px] font-bold text-indigo-700">
+                      Countdown unit aktif · {activeSelectedUnit.countdownMinutes || 5} menit
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
@@ -726,6 +750,34 @@ export const LearningContentStudio: React.FC = () => {
                 ></textarea>
               </div>
 
+              <div className="rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={unitCountdownEnabled}
+                    onChange={e => setUnitCountdownEnabled(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>
+                    <span className="block text-xs font-bold text-indigo-950">Aktifkan countdown akses unit</span>
+                    <span className="block text-[10px] leading-relaxed text-indigo-700 mt-0.5">Seluruh materi dan tugas pada unit ini disembunyikan sampai countdown selesai.</span>
+                  </span>
+                </label>
+                {unitCountdownEnabled && (
+                  <label className="mt-3 block text-[10px] font-bold uppercase tracking-wider text-indigo-800">
+                    Durasi countdown (menit)
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={unitCountdownMinutes}
+                      onChange={e => setUnitCountdownMinutes(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    />
+                  </label>
+                )}
+              </div>
+
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button
                   type="button"
@@ -848,35 +900,6 @@ export const LearningContentStudio: React.FC = () => {
                 </div>
               )}
 
-              <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-3">
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={matCountdownEnabled}
-                    onChange={e => setMatCountdownEnabled(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 accent-indigo-600"
-                  />
-                  <span>
-                    <span className="block text-xs font-bold text-indigo-900">Aktifkan countdown akses</span>
-                    <span className="block text-[10px] leading-relaxed text-indigo-700 mt-0.5">Mahasiswa melihat popup waktu dan isi materi/unduhan terbuka setelah waktu selesai.</span>
-                  </span>
-                </label>
-                {matCountdownEnabled && (
-                  <div className="mt-3 flex items-center gap-2">
-                    <label className="text-[11px] font-semibold text-indigo-900">Durasi</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={1440}
-                      value={matCountdownMinutes}
-                      onChange={e => setMatCountdownMinutes(e.target.value)}
-                      className="w-20 px-2.5 py-1.5 bg-white border border-indigo-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    />
-                    <span className="text-[11px] text-indigo-700">menit</span>
-                  </div>
-                )}
-              </div>
-
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button
                   type="button"
@@ -963,35 +986,6 @@ export const LearningContentStudio: React.FC = () => {
                   onChange={e => setAssignDeadline(e.target.value)}
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
-              </div>
-
-              <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-3">
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={assignCountdownEnabled}
-                    onChange={e => setAssignCountdownEnabled(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 accent-indigo-600"
-                  />
-                  <span>
-                    <span className="block text-xs font-bold text-indigo-900">Aktifkan countdown akses tugas</span>
-                    <span className="block text-[10px] leading-relaxed text-indigo-700 mt-0.5">Instruksi dan area pengumpulan disembunyikan sampai countdown selesai.</span>
-                  </span>
-                </label>
-                {assignCountdownEnabled && (
-                  <div className="mt-3 flex items-center gap-2">
-                    <label className="text-[11px] font-semibold text-indigo-900">Durasi</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={1440}
-                      value={assignCountdownMinutes}
-                      onChange={e => setAssignCountdownMinutes(e.target.value)}
-                      className="w-20 px-2.5 py-1.5 bg-white border border-indigo-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    />
-                    <span className="text-[11px] text-indigo-700">menit</span>
-                  </div>
-                )}
               </div>
 
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">

@@ -218,6 +218,9 @@ export const learningUnits = pgTable('learning_units', {
   unitNumber: integer('unit_number').notNull(),
   title: varchar('title', { length: 255 }).notNull(),
   description: text('description'),
+  countdownEnabled: boolean('countdown_enabled').notNull().default(false),
+  countdownMinutes: integer('countdown_minutes').notNull().default(0),
+  countdownStartedAt: timestamp('countdown_started_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   periodUnitIdx: index('unit_period_idx').on(table.periodId, table.unitNumber),

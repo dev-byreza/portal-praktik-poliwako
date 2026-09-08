@@ -73,6 +73,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
   const [pdfModalDoc, setPdfModalDoc] = useState<{ isOpen: boolean; title: string; url?: string } | null>(null);
   const [countdownNow, setCountdownNow] = useState(Date.now());
   const [countdownDialog, setCountdownDialog] = useState<{ title: string; endAt: number } | null>(null);
+  const autoOpenedUnitCountdown = React.useRef<string | null>(null);
   const [isOutlineOpen, setIsOutlineOpen] = useState<boolean>(() => (typeof window === 'undefined' ? true : window.innerWidth >= 1024));
 
   React.useEffect(() => {
@@ -185,6 +186,20 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
   // If no unit is selected, select the first available or in-progress unit
   const currentUnit = periodUnits.find(u => u.id === selectedUnitId) || periodUnits[0];
+  const currentUnitCountdownEndAt = getCountdownEndAt(currentUnit || {});
+  const currentUnitCountdownLocked = isCountdownLocked(currentUnit || {}, countdownNow);
+
+  // A countdown belongs to the unit, so open one large gate as soon as the
+  // selected unit becomes available in the workspace.
+  React.useEffect(() => {
+    if (!currentUnit || !currentUnitCountdownLocked || !currentUnitCountdownEndAt) return;
+    if (autoOpenedUnitCountdown.current === currentUnit.id) return;
+    autoOpenedUnitCountdown.current = currentUnit.id;
+    setCountdownDialog({
+      title: `Unit ${currentUnit.unitNumber}: ${currentUnit.title}`,
+      endAt: currentUnitCountdownEndAt,
+    });
+  }, [currentUnit?.id, currentUnit?.unitNumber, currentUnit?.title, currentUnitCountdownLocked, currentUnitCountdownEndAt]);
 
   // Progressive Locking logic for Student (PRD Section 34, 35, 36)
   const unitStatusMap = useMemo(() => {
@@ -607,6 +622,11 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                               Tugas PDF
                             </span>
                           )}
+                          {unit.countdownEnabled && (
+                            <span className="px-1.5 py-0.5 text-[8.5px] font-bold bg-indigo-100 text-indigo-800 rounded">
+                              Countdown
+                            </span>
+                          )}
                         </div>
                         <h4 className={`text-[11px] font-semibold mt-0.5 leading-tight ${isSelected ? 'text-blue-950 font-bold' : 'text-slate-800'}`}>
                           {unit.title}
@@ -789,6 +809,20 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                         </div>
                       </div>
 
+                      {currentUnitCountdownLocked ? (
+                        <CountdownLockedPanel
+                          title={`Unit ${currentUnit.unitNumber}: ${currentUnit.title}`}
+                          onOpen={() => {
+                            if (currentUnitCountdownEndAt) {
+                              setCountdownDialog({
+                                title: `Unit ${currentUnit.unitNumber}: ${currentUnit.title}`,
+                                endAt: currentUnitCountdownEndAt,
+                              });
+                            }
+                          }}
+                        />
+                      ) : (
+                        <>
                       <p className="text-xs sm:text-[13px] text-slate-600 leading-relaxed max-w-3xl">
                         {currentUnit.description}
                       </p>
@@ -803,16 +837,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                     {currentUnit.materials && currentUnit.materials.length > 0 ? (
                       currentUnit.materials.map(mat => (
                         <div key={mat.id} className="border border-slate-200 rounded-xl p-4 sm:p-5 bg-slate-50/60 shadow-xs">
-                          {isCountdownLocked(mat, countdownNow) ? (
-                            <CountdownLockedPanel
-                              title={mat.title}
-                              onOpen={() => {
-                                const endAt = getCountdownEndAt(mat);
-                                if (endAt) setCountdownDialog({ title: mat.title, endAt });
-                              }}
-                            />
-                          ) : (
-                            <>
+                          <>
                           {/* Rich Text Material */}
                           {mat.type === 'RICHTEXT' && (
                             <div>
@@ -897,14 +922,15 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                               </a>
                             </div>
                           )}
-                            </>
-                          )}
+                          </>
                         </div>
                       ))
                     ) : (
                       <p className="text-xs text-slate-400">Belum ada lampiran materi pada unit ini.</p>
                     )}
                   </div>
+                        </>
+                      )}
 
                   {countdownDialog && (
                     <CountdownModal
@@ -919,7 +945,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                 </div>
 
                 {/* Assignment Component if assigned to this unit */}
-                {currentUnit.assignment && (
+                {!currentUnitCountdownLocked && currentUnit.assignment && (
                   <StudentAssignmentCard
                     assignment={currentUnit.assignment}
                     submission={currentAssignmentSubmission}
