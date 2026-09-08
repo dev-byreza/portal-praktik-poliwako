@@ -1171,7 +1171,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     setLearningUnits(prev => [...prev, newUnit]);
-    ApiService.saveLearningUnit(newUnit).catch(error => {
+    ApiService.saveLearningUnit(newUnit).then(savedUnit => {
+      if (savedUnit.id !== newUnit.id) {
+        setLearningUnits(prev => prev.map(unit => unit.id === newUnit.id ? savedUnit : unit));
+      }
+    }).catch(error => {
       console.error('Error syncing learning unit:', error);
       showToast('Sinkronisasi Gagal', 'Unit belum tersimpan ke Supabase. Coba simpan kembali.', 'error');
     });
@@ -1181,7 +1185,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateLearningUnit = (updated: LearningUnit) => {
     setLearningUnits(prev => prev.map(u => u.id === updated.id ? updated : u));
-    ApiService.saveLearningUnit(updated).catch(error => {
+    ApiService.saveLearningUnit(updated).then(savedUnit => {
+      if (savedUnit.id !== updated.id) {
+        setLearningUnits(prev => prev.map(unit => unit.id === updated.id ? savedUnit : unit));
+      }
+    }).catch(error => {
       console.error('Error syncing learning unit:', error);
       showToast('Sinkronisasi Gagal', 'Perubahan tugas belum tersimpan ke Supabase. Coba simpan kembali.', 'error');
     });

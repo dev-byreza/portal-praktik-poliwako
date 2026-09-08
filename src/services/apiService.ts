@@ -27,6 +27,17 @@ import {
   PublicInstructorProfile,
 } from '../types';
 
+const isUuid = (value: string): boolean => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+const databaseId = async (id: string, kind: string): Promise<string> => {
+  if (isUuid(id)) return id;
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${kind}:${id}`));
+  const bytes = new Uint8Array(digest).slice(0, 16);
+  bytes[6] = (bytes[6] & 15) | 128;
+  bytes[8] = (bytes[8] & 63) | 128;
+  const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  return [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20)].join('-');
+};
+
 export class ApiService {
   static isLiveBackend(): boolean {
     return isSupabaseConfigured();
@@ -533,10 +544,21 @@ export class ApiService {
   }
 
   /** Persist a unit and its related materials/assignment for instructor edits. */
-  static async saveLearningUnit(unit: LearningUnit): Promise<void> {
+  static async saveLearningUnit(unit: LearningUnit): Promise<LearningUnit> {
     if (this.isLiveBackend() && supabase) {
+      const unitId = await databaseId(unit.id, 'learning-unit');
+      const savedMaterials = await Promise.all(unit.materials.map(async material => ({
+        ...material,
+        id: await databaseId(material.id, `learning-material:${unit.id}`),
+        unitId,
+      })));
+      const savedAssignment = unit.assignment ? {
+        ...unit.assignment,
+        id: await databaseId(unit.assignment.id, `assignment:${unit.id}`),
+        unitId,
+      } : undefined;
       const { error: unitError } = await supabase.from('learning_units').upsert({
-        id: unit.id,
+        id: unitId,
         period_id: unit.periodId,
         unit_number: unit.unitNumber,
         title: unit.title,
@@ -544,9 +566,9 @@ export class ApiService {
       });
       if (unitError) throw unitError;
 
-      const materialRows = unit.materials.map(material => ({
+      const materialRows = savedMaterials.map(material => ({
         id: material.id,
-        unit_id: unit.id,
+        unit_id: unitId,
         title: material.title,
         type: material.type,
         content_url: material.contentUrl || null,
@@ -554,7 +576,7 @@ export class ApiService {
         file_size: material.fileSize || null,
       }));
       const { data: existingMaterials, error: materialReadError } = await supabase
-        .from('learning_materials').select('id').eq('unit_id', unit.id);
+        .from('learning_materials').select('id').eq('unit_id', unitId);
       if (materialReadError) throw materialReadError;
       const retainedMaterialIds = new Set(materialRows.map(material => material.id));
       const removedMaterialIds = (existingMaterials || []).map((material: any) => material.id)
@@ -568,28 +590,33 @@ export class ApiService {
         if (error) throw error;
       }
 
-      if (unit.assignment) {
+      if (savedAssignment) {
         const { error } = await supabase.from('assignments').upsert({
-          id: unit.assignment.id,
-          unit_id: unit.id,
-          period_id: unit.assignment.periodId || unit.periodId,
-          title: unit.assignment.title,
-          description: unit.assignment.description || '',
-          deadline: unit.assignment.deadline,
-          max_score: unit.assignment.maxScore,
-          allowed_file_type: unit.assignment.allowedFileType || 'PDF',
-          submission_type: unit.assignment.submissionType || 'ASSIGNMENT',
+          id: savedAssignment.id,
+          unit_id: unitId,
+          period_id: savedAssignment.periodId || unit.periodId,
+          title: savedAssignment.title,
+          description: savedAssignment.description || '',
+          deadline: savedAssignment.deadline,
+          max_score: savedAssignment.maxScore,
+          allowed_file_type: savedAssignment.allowedFileType || 'PDF',
+          submission_type: savedAssignment.submissionType || 'ASSIGNMENT',
         });
         if (error) throw error;
       }
+      const savedUnit = { ...unit, id: unitId, materials: savedMaterials, assignment: savedAssignment };
+      const units = StorageService.getLearningUnits().filter(existing => existing.id !== unit.id && existing.id !== unitId);
+      StorageService.saveLearningUnits([...units, savedUnit]);
+      return savedUnit;
     }
     const units = StorageService.getLearningUnits().filter(existing => existing.id !== unit.id);
     StorageService.saveLearningUnits([...units, unit]);
+    return unit;
   }
 
   static async deleteLearningUnit(unitId: string): Promise<void> {
     if (this.isLiveBackend() && supabase) {
-      const { error } = await supabase.from('learning_units').delete().eq('id', unitId);
+      const { error } = await supabase.from('learning_units').delete().eq('id', await databaseId(unitId, 'learning-unit'));
       if (error) throw error;
     }
     StorageService.saveLearningUnits(StorageService.getLearningUnits().filter(unit => unit.id !== unitId));
