@@ -508,7 +508,7 @@ export class ApiService {
         .from('learning_units')
         .select('*, learning_materials(*), assignments(*)')
         .order('unit_number', { ascending: true })
-        .order('created_at', { foreignTable: 'learning_materials', ascending: true });
+        .order('created_at', { referencedTable: 'learning_materials', ascending: true });
       if (periodId) {
         query = query.eq('period_id', periodId);
       }
