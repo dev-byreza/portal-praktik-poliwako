@@ -171,9 +171,15 @@ export const GradingWorkspace: React.FC = () => {
         .filter(unit => /laporan|report/i.test(unit.assignment?.title || ''))
         .map(unit => unit.assignment!.id)
     );
-    return studentSubmissions.find(submission =>
+    const explicitReport = studentSubmissions.find(submission =>
       reportTaskIds.has(submission.assignmentId) || /laporan|report/i.test(submission.fileName)
     );
+    if (explicitReport) return explicitReport;
+
+    // When a course does not label its final assignment as a report, use the
+    // highest-numbered unit submission as the report document.
+    const finalAssignmentId = periodUnitsWithAssignments[periodUnitsWithAssignments.length - 1]?.assignment?.id;
+    return studentSubmissions.find(submission => submission.assignmentId === finalAssignmentId);
   }, [currentParticipant, activeSelectedPeriod, periodUnitsWithAssignments, studentSubmissions]);
 
   const postTestFileUrl = existingAssessment?.postTestFileUrl && /^https?:\/\//i.test(existingAssessment.postTestFileUrl)
