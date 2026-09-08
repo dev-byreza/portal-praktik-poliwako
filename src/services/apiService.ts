@@ -609,7 +609,11 @@ export class ApiService {
       }));
     } catch (error) {
       console.error('Unable to load learning units and assignments from Supabase:', error);
-      return [];
+      // Keep an instructor's just-saved work visible during a transient
+      // Supabase/Data API failure. A successful Supabase response always wins;
+      // this fallback only prevents an empty screen while the request retries.
+      const cached = StorageService.getLearningUnits();
+      return periodId ? cached.filter(unit => unit.periodId === periodId) : cached;
     }
   }
 
