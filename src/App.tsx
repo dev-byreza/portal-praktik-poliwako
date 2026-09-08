@@ -20,7 +20,8 @@ export const App: React.FC = () => {
     setActiveCourseId,
     studentSession,
     currentStudent,
-    isInstructorLoggedIn
+    isInstructorLoggedIn,
+    clearStudentIdentity
   } = useApp();
 
   const [activeRoute, setActiveRoute] = useState<ActiveRoute>('ROOT_SELECTOR');
@@ -72,6 +73,10 @@ export const App: React.FC = () => {
         roleParam === 'student' ||
         roleParam === 'mahasiswa'
       ) {
+        if (path === 'mahasiswa' || path === 'portal-mahasiswa' || path === 'student') {
+          sessionStorage.removeItem('poliwako_in_workspace');
+          clearStudentIdentity();
+        }{
         setActiveRoute('STUDENT');
         setRole('STUDENT');
         return;
@@ -111,7 +116,11 @@ export const App: React.FC = () => {
     const rawPath = targetPath.replace(/^\/+|\/+$/g, '');
     const path = rawPath.toLowerCase();
 
-    if (!path) {
+    if (!path) {      if (path === 'mahasiswa' || path === 'portal-mahasiswa' || path === 'student') {
+        sessionStorage.removeItem('poliwako_in_workspace');
+        clearStudentIdentity();
+      }
+
       setActiveRoute('ROOT_SELECTOR');
       return;
     }
