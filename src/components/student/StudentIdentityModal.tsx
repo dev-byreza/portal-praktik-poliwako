@@ -119,6 +119,8 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
 
       if (result.success) {
         sessionStorage.removeItem('poliwako_in_workspace');
+        window.history.pushState(null, '', '/mahasiswa/unit');
+        window.dispatchEvent(new PopStateEvent('popstate'));
         if (onClose) onClose();
       } else {
         setErrorMessage(result.message);
@@ -151,6 +153,8 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
 
       if (result.success) {
         sessionStorage.removeItem('poliwako_in_workspace');
+        window.history.pushState(null, '', '/mahasiswa/unit');
+        window.dispatchEvent(new PopStateEvent('popstate'));
         if (onClose) onClose();
       } else {
         setErrorMessage(result.message);
