@@ -863,7 +863,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       endDate,
       status,
       autoStatus: periodData.autoStatus ?? true,
-      finalProjectDriveUrl: periodData.finalProjectDriveUrl || 'https://drive.google.com/drive/folders/poliwako-sample',
+      finalProjectDriveUrl: periodData.finalProjectDriveUrl || undefined,
       createdAt: getWitaDateString()
     };
 

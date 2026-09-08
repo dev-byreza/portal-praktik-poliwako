@@ -45,6 +45,7 @@ export const LearningContentStudio: React.FC = () => {
     learningUnits,
     createLearningUnit,
     updateLearningUnit,
+    updatePeriod,
     deleteLearningUnit,
     copyLearningUnits,
     showToast
@@ -52,6 +53,8 @@ export const LearningContentStudio: React.FC = () => {
 
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
   const [selectedUnitId, setSelectedUnitId] = useState<string>('');
+  const [isProjectLinkModalOpen, setIsProjectLinkModalOpen] = useState(false);
+  const [projectDriveUrlInput, setProjectDriveUrlInput] = useState('');
 
   // Modals
   const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
@@ -109,6 +112,21 @@ export const LearningContentStudio: React.FC = () => {
   }, [learningUnits, activeSelectedPeriod]);
 
   const activeSelectedUnit = periodUnits.find(u => u.id === selectedUnitId) || periodUnits[0];
+
+  const handleOpenProjectLink = () => {
+    if (!activeSelectedPeriod) return;
+    setProjectDriveUrlInput(activeSelectedPeriod.finalProjectDriveUrl || '');
+    setIsProjectLinkModalOpen(true);
+  };
+
+  const handleSaveProjectLink = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeSelectedPeriod) return;
+    const url = projectDriveUrlInput.trim();
+    updatePeriod({ ...activeSelectedPeriod, finalProjectDriveUrl: url || undefined });
+    setIsProjectLinkModalOpen(false);
+    showToast('Project Akhir Diperbarui', 'Link Google Drive project akhir berhasil disinkronkan.', 'success');
+  };
 
   // Unit Form states
   const [unitTitleInput, setUnitTitleInput] = useState('');
@@ -409,6 +427,41 @@ export const LearningContentStudio: React.FC = () => {
           <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-500 px-1">
             <span>Daftar Unit Pembelajaran ({periodUnits.length})</span>
           </div>
+
+          {activeSelectedPeriod && (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Project Akhir
+                  </div>
+                  {activeSelectedPeriod.finalProjectDriveUrl ? (
+                    <a
+                      href={activeSelectedPeriod.finalProjectDriveUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      className="mt-1 block truncate text-[11px] font-semibold text-emerald-800 hover:underline"
+                      title={activeSelectedPeriod.finalProjectDriveUrl}
+                    >
+                      Buka folder Google Drive
+                    </a>
+                  ) : (
+                    <p className="mt-1 text-[11px] text-emerald-700">Link Drive belum diatur</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenProjectLink}
+                  className="shrink-0 rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 text-[10px] font-bold text-emerald-800 hover:bg-emerald-100"
+                >
+                  <Edit2 className="mr-1 inline-block h-3 w-3" />
+                  Ubah Link
+                </button>
+              </div>
+            </div>
+          )}
 
           {periodUnits.map(unit => {
             const isSelected = activeSelectedUnit?.id === unit.id;
@@ -713,6 +766,41 @@ export const LearningContentStudio: React.FC = () => {
       </div>
 
       {/* Modal Add/Edit Unit */}
+      {isProjectLinkModalOpen && activeSelectedPeriod && (
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+            <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 p-6 text-white">
+                <div>
+                  <h3 className="text-base font-bold">Link Project Akhir</h3>
+                  <p className="mt-1 text-[11px] text-slate-300">{activeSelectedPeriod.name}</p>
+                </div>
+                <button type="button" onClick={() => setIsProjectLinkModalOpen(false)} className="text-slate-400 hover:text-white">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <form onSubmit={handleSaveProjectLink} className="space-y-4 p-6">
+                <div>
+                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-700">Link Google Drive</label>
+                  <input
+                    type="url"
+                    value={projectDriveUrlInput}
+                    onChange={e => setProjectDriveUrlInput(e.target.value)}
+                    placeholder="https://drive.google.com/drive/folders/..."
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                  <p className="mt-1.5 text-[11px] text-slate-500">Kosongkan jika project akhir belum memiliki folder Drive.</p>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button type="button" onClick={() => setIsProjectLinkModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">Batal</button>
+                  <button type="submit" className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-500">Simpan Link</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
       {isUnitModalOpen && (
         <ModalPortal>
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-fadeIn">

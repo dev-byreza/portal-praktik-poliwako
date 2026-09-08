@@ -73,7 +73,7 @@ export const PracticePeriodManager: React.FC = () => {
   // Period Form states (Create)
   const [startDateInput, setStartDateInput] = useState<string>(getWitaDateString());
   const [periodNameInput, setPeriodNameInput] = useState<string>('');
-  const [driveUrlInput, setDriveUrlInput] = useState<string>('https://drive.google.com/drive/folders/poliwako-sample');
+  const [driveUrlInput, setDriveUrlInput] = useState<string>('');
 
   // Edit Period Form states
   const [editNameInput, setEditNameInput] = useState<string>('');
@@ -150,7 +150,7 @@ export const PracticePeriodManager: React.FC = () => {
 
     setStartDateInput(suggestedStartDate);
     setPeriodNameInput(`Minggu Praktik ke-${nextNum}`);
-    setDriveUrlInput('https://drive.google.com/drive/folders/poliwako-sample');
+    setDriveUrlInput('');
     setIsCreateModalOpen(true);
   };
 
