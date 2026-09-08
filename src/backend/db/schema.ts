@@ -244,6 +244,9 @@ export const learningMaterials = pgTable('learning_materials', {
   contentUrl: text('content_url'),
   contentText: text('content_text'),
   fileSize: varchar('file_size', { length: 50 }),
+  countdownEnabled: boolean('countdown_enabled').notNull().default(false),
+  countdownMinutes: integer('countdown_minutes').notNull().default(0),
+  countdownStartedAt: timestamp('countdown_started_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   materialUnitIdx: index('material_unit_idx').on(table.unitId),
@@ -299,6 +302,9 @@ export const assignments = pgTable('assignments', {
   maxScore: integer('max_score').notNull().default(100),
   allowedFileType: varchar('allowed_file_type', { length: 20 }).notNull().default('PDF'),
   submissionType: varchar('submission_type', { length: 20 }).notNull().default('ASSIGNMENT'),
+  countdownEnabled: boolean('countdown_enabled').notNull().default(false),
+  countdownMinutes: integer('countdown_minutes').notNull().default(0),
+  countdownStartedAt: timestamp('countdown_started_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   assignmentPeriodIdx: index('assignment_period_idx').on(table.periodId),

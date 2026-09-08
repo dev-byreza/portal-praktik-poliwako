@@ -110,6 +110,9 @@ export interface LearningMaterial {
   contentUrl?: string; // PDF link or YouTube or Google Drive
   contentText?: string; // Rich text notes
   fileSize?: string;
+  countdownEnabled?: boolean;
+  countdownMinutes?: number;
+  countdownStartedAt?: string;
 }
 
 export interface Assignment {
@@ -122,6 +125,9 @@ export interface Assignment {
   maxScore: number;
   allowedFileType: 'PDF';
   submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST';
+  countdownEnabled?: boolean;
+  countdownMinutes?: number;
+  countdownStartedAt?: string;
 }
 
 export interface LearningUnit {

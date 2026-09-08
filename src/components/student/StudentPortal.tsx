@@ -33,6 +33,7 @@ import { StudentGradeCard } from './StudentGradeCard';
 import { StudentCourseCatalog } from './StudentCourseCatalog';
 import { PDFViewerModal } from '../common/PDFViewerModal';
 import { formatPeriodRange } from '../../utils/dateUtils';
+import { CountdownLockedPanel, CountdownModal, getCountdownEndAt, isCountdownLocked } from './StudentCountdownGate';
 
 interface StudentPortalProps {
   courseSlug?: string;
@@ -70,7 +71,14 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     }
   };
   const [pdfModalDoc, setPdfModalDoc] = useState<{ isOpen: boolean; title: string; url?: string } | null>(null);
+  const [countdownNow, setCountdownNow] = useState(Date.now());
+  const [countdownDialog, setCountdownDialog] = useState<{ title: string; endAt: number } | null>(null);
   const [isOutlineOpen, setIsOutlineOpen] = useState<boolean>(() => (typeof window === 'undefined' ? true : window.innerWidth >= 1024));
+
+  React.useEffect(() => {
+    const timer = window.setInterval(() => setCountdownNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Catalog view state (PRD Option B: Course Catalog & Switcher)
   const [isViewingCatalog, setIsViewingCatalog] = useState<boolean>(() => {
@@ -795,7 +803,16 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                     {currentUnit.materials && currentUnit.materials.length > 0 ? (
                       currentUnit.materials.map(mat => (
                         <div key={mat.id} className="border border-slate-200 rounded-xl p-4 sm:p-5 bg-slate-50/60 shadow-xs">
-                          
+                          {isCountdownLocked(mat, countdownNow) ? (
+                            <CountdownLockedPanel
+                              title={mat.title}
+                              onOpen={() => {
+                                const endAt = getCountdownEndAt(mat);
+                                if (endAt) setCountdownDialog({ title: mat.title, endAt });
+                              }}
+                            />
+                          ) : (
+                            <>
                           {/* Rich Text Material */}
                           {mat.type === 'RICHTEXT' && (
                             <div>
@@ -880,13 +897,22 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                               </a>
                             </div>
                           )}
-
+                            </>
+                          )}
                         </div>
                       ))
                     ) : (
                       <p className="text-xs text-slate-400">Belum ada lampiran materi pada unit ini.</p>
                     )}
                   </div>
+
+                  {countdownDialog && (
+                    <CountdownModal
+                      title={countdownDialog.title}
+                      endAt={countdownDialog.endAt}
+                      onClose={() => setCountdownDialog(null)}
+                    />
+                  )}
 
 
 

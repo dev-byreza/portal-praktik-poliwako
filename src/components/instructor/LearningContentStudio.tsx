@@ -70,12 +70,17 @@ export const LearningContentStudio: React.FC = () => {
   const [matUrl, setMatUrl] = useState('');
   const [matText, setMatText] = useState('');
   const [editingMaterial, setEditingMaterial] = useState<LearningMaterial | null>(null);
+  const [matCountdownEnabled, setMatCountdownEnabled] = useState(false);
+  const [matCountdownMinutes, setMatCountdownMinutes] = useState('5');
 
   const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
   const [assignTitle, setAssignTitle] = useState('');
   const [assignDesc, setAssignDesc] = useState('');
   const [assignDeadline, setAssignDeadline] = useState('2026-09-11 23:59 WITA');
   const [assignSubmissionType, setAssignSubmissionType] = useState<'ASSIGNMENT' | 'REPORT' | 'POST_TEST'>('ASSIGNMENT');
+  const [assignCountdownEnabled, setAssignCountdownEnabled] = useState(false);
+  const [assignCountdownMinutes, setAssignCountdownMinutes] = useState('5');
 
   const [pdfPreview, setPdfPreview] = useState<{ isOpen: boolean; title: string; url?: string } | null>(null);
 
@@ -217,7 +222,12 @@ export const LearningContentStudio: React.FC = () => {
       type: matType,
       contentUrl: matUrl.trim() || undefined,
       contentText: matText.trim(),
-      fileSize: undefined
+      fileSize: editingMaterial?.fileSize,
+      countdownEnabled: matCountdownEnabled,
+      countdownMinutes: matCountdownEnabled ? Math.max(1, Number(matCountdownMinutes) || 1) : undefined,
+      countdownStartedAt: matCountdownEnabled
+        ? (editingMaterial?.countdownStartedAt || new Date().toISOString())
+        : undefined
     };
 
     const updatedMaterials = editingMaterial
@@ -242,6 +252,8 @@ export const LearningContentStudio: React.FC = () => {
     setMatTitle(material.title);
     setMatUrl(material.contentUrl || '');
     setMatText(material.contentText || '');
+    setMatCountdownEnabled(Boolean(material.countdownEnabled));
+    setMatCountdownMinutes(String(Math.max(1, material.countdownMinutes || 5)));
     setIsMaterialModalOpen(true);
   };
 
@@ -276,7 +288,7 @@ export const LearningContentStudio: React.FC = () => {
     if (!activeSelectedUnit || !activeSelectedPeriod) return;
 
     const newAssign: Assignment = {
-      id: newStudioEntityId('assign'),
+      id: editingAssignment?.id || newStudioEntityId('assign'),
       unitId: activeSelectedUnit.id,
       periodId: activeSelectedPeriod.id,
       title: assignTitle.trim() || 'Tugas Praktik PDF',
@@ -284,7 +296,12 @@ export const LearningContentStudio: React.FC = () => {
       deadline: assignDeadline,
       maxScore: 100,
       allowedFileType: 'PDF',
-      submissionType: assignSubmissionType
+      submissionType: assignSubmissionType,
+      countdownEnabled: assignCountdownEnabled,
+      countdownMinutes: assignCountdownEnabled ? Math.max(1, Number(assignCountdownMinutes) || 1) : undefined,
+      countdownStartedAt: assignCountdownEnabled
+        ? (editingAssignment?.countdownStartedAt || new Date().toISOString())
+        : undefined
     };
 
     updateLearningUnit({
@@ -293,7 +310,19 @@ export const LearningContentStudio: React.FC = () => {
     });
 
     setIsAssignmentModalOpen(false);
-    showToast('Tugas Dikonfigurasi', `Tugas PDF berhasil diaktifkan pada Unit ${activeSelectedUnit.unitNumber}.`, 'success');
+    setEditingAssignment(null);
+    showToast(editingAssignment ? 'Tugas Diperbarui' : 'Tugas Dikonfigurasi', `Tugas PDF berhasil disimpan pada Unit ${activeSelectedUnit.unitNumber}.`, 'success');
+  };
+
+  const handleOpenEditAssignment = (assignment: Assignment) => {
+    setEditingAssignment(assignment);
+    setAssignTitle(assignment.title);
+    setAssignDesc(assignment.description);
+    setAssignDeadline(assignment.deadline);
+    setAssignSubmissionType(assignment.submissionType || 'ASSIGNMENT');
+    setAssignCountdownEnabled(Boolean(assignment.countdownEnabled));
+    setAssignCountdownMinutes(String(Math.max(1, assignment.countdownMinutes || 5)));
+    setIsAssignmentModalOpen(true);
   };
 
   const handleDeleteAssignment = () => {
@@ -469,6 +498,8 @@ export const LearningContentStudio: React.FC = () => {
                       setMatTitle('');
                       setMatUrl('');
                       setMatText('');
+                      setMatCountdownEnabled(false);
+                      setMatCountdownMinutes('5');
                       setIsMaterialModalOpen(true);
                     }}
                     className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow-sm transition-colors flex items-center gap-1.5"
@@ -497,7 +528,14 @@ export const LearningContentStudio: React.FC = () => {
                           {mat.type === 'EXTERNAL_LINK' && <ExternalLink className="w-5 h-5 text-emerald-600" />}
                         </div>
                         <div className="min-w-0">
-                          <h5 className="text-xs font-bold text-slate-900">{mat.title}</h5>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <h5 className="text-xs font-bold text-slate-900">{mat.title}</h5>
+                            {mat.countdownEnabled && (
+                              <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold text-indigo-800">
+                                Countdown {mat.countdownMinutes || 5} mnt
+                              </span>
+                            )}
+                          </div>
                           {mat.type === 'RICHTEXT' && (
                             <p className="text-[11px] text-slate-600 line-clamp-2 mt-1">{mat.contentText}</p>
                           )}
@@ -575,9 +613,12 @@ export const LearningContentStudio: React.FC = () => {
                   {!activeSelectedUnit.assignment && (
                     <button
                       onClick={() => {
+                        setEditingAssignment(null);
                         setAssignTitle(`Tugas Unit ${activeSelectedUnit.unitNumber}: Judul Laporan`);
                         setAssignDesc('Upload dokumen laporan pengujian dalam format PDF (Maks. 25 MB).');
                         setAssignSubmissionType('REPORT');
+                        setAssignCountdownEnabled(false);
+                        setAssignCountdownMinutes('5');
                         setIsAssignmentModalOpen(true);
                       }}
                       className="px-3 py-1 bg-amber-50 text-amber-800 hover:bg-amber-100 rounded-lg text-xs font-bold border border-amber-200 transition-colors"
@@ -596,6 +637,11 @@ export const LearningContentStudio: React.FC = () => {
                           <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-200 text-amber-900 rounded">
                             PDF Only
                           </span>
+                          {activeSelectedUnit.assignment.countdownEnabled && (
+                            <span className="px-2 py-0.5 text-[10px] font-bold bg-indigo-100 text-indigo-800 rounded">
+                              Countdown {activeSelectedUnit.assignment.countdownMinutes || 5} mnt
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-amber-800 mt-1 leading-relaxed">{activeSelectedUnit.assignment.description}</p>
                         <p className="text-[11px] text-amber-700 font-mono mt-2">
@@ -603,13 +649,22 @@ export const LearningContentStudio: React.FC = () => {
                         </p>
                       </div>
 
-                      <button
-                        onClick={handleDeleteAssignment}
-                        className="p-1.5 text-amber-600 hover:text-rose-600 rounded transition-colors"
-                        title="Hapus Tugas"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => handleOpenEditAssignment(activeSelectedUnit.assignment!)}
+                          className="p-1.5 text-amber-600 hover:text-blue-600 rounded transition-colors"
+                          title="Edit Tugas"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={handleDeleteAssignment}
+                          className="p-1.5 text-amber-600 hover:text-rose-600 rounded transition-colors"
+                          title="Hapus Tugas"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -793,6 +848,35 @@ export const LearningContentStudio: React.FC = () => {
                 </div>
               )}
 
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-3">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={matCountdownEnabled}
+                    onChange={e => setMatCountdownEnabled(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 accent-indigo-600"
+                  />
+                  <span>
+                    <span className="block text-xs font-bold text-indigo-900">Aktifkan countdown akses</span>
+                    <span className="block text-[10px] leading-relaxed text-indigo-700 mt-0.5">Mahasiswa melihat popup waktu dan isi materi/unduhan terbuka setelah waktu selesai.</span>
+                  </span>
+                </label>
+                {matCountdownEnabled && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <label className="text-[11px] font-semibold text-indigo-900">Durasi</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={1440}
+                      value={matCountdownMinutes}
+                      onChange={e => setMatCountdownMinutes(e.target.value)}
+                      className="w-20 px-2.5 py-1.5 bg-white border border-indigo-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    />
+                    <span className="text-[11px] text-indigo-700">menit</span>
+                  </div>
+                )}
+              </div>
+
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button
                   type="button"
@@ -820,7 +904,7 @@ export const LearningContentStudio: React.FC = () => {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-fadeIn">
           <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden flex flex-col">
             <div className="p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
-              <h3 className="text-base font-bold text-white">Konfigurasi Tugas Praktik (PDF)</h3>
+              <h3 className="text-base font-bold text-white">{editingAssignment ? 'Edit Tugas Praktik (PDF)' : 'Konfigurasi Tugas Praktik (PDF)'}</h3>
               <button onClick={() => setIsAssignmentModalOpen(false)} className="text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
@@ -881,6 +965,35 @@ export const LearningContentStudio: React.FC = () => {
                 />
               </div>
 
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-3">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={assignCountdownEnabled}
+                    onChange={e => setAssignCountdownEnabled(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 accent-indigo-600"
+                  />
+                  <span>
+                    <span className="block text-xs font-bold text-indigo-900">Aktifkan countdown akses tugas</span>
+                    <span className="block text-[10px] leading-relaxed text-indigo-700 mt-0.5">Instruksi dan area pengumpulan disembunyikan sampai countdown selesai.</span>
+                  </span>
+                </label>
+                {assignCountdownEnabled && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <label className="text-[11px] font-semibold text-indigo-900">Durasi</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={1440}
+                      value={assignCountdownMinutes}
+                      onChange={e => setAssignCountdownMinutes(e.target.value)}
+                      className="w-20 px-2.5 py-1.5 bg-white border border-indigo-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    />
+                    <span className="text-[11px] text-indigo-700">menit</span>
+                  </div>
+                )}
+              </div>
+
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button
                   type="button"
@@ -893,7 +1006,7 @@ export const LearningContentStudio: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl shadow-md shadow-amber-600/30"
                 >
-                  Simpan Tugas
+                  {editingAssignment ? 'Simpan Perubahan' : 'Simpan Tugas'}
                 </button>
               </div>
             </form>

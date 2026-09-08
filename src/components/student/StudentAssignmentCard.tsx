@@ -1,6 +1,6 @@
 // Student Assignment & PDF Submission Card
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Assignment, Submission } from '../../types';
 import {
@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { PDFViewerModal } from '../common/PDFViewerModal';
 import { formatDeadline, formatWitaDateTime } from '../../utils/dateUtils';
+import { CountdownLockedPanel, CountdownModal, getCountdownEndAt, isCountdownLocked } from './StudentCountdownGate';
 
 interface StudentAssignmentCardProps {
   assignment: Assignment;
@@ -31,6 +32,24 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [countdownNow, setCountdownNow] = useState(Date.now());
+  const [isCountdownOpen, setIsCountdownOpen] = useState(false);
+  const hasAutoOpenedCountdown = useRef(false);
+  const countdownEndAt = getCountdownEndAt(assignment);
+  const countdownLocked = isCountdownLocked(assignment, countdownNow);
+
+  useEffect(() => {
+    if (!countdownEndAt) return;
+    const timer = window.setInterval(() => setCountdownNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [countdownEndAt]);
+
+  useEffect(() => {
+    if (countdownLocked && countdownEndAt && !hasAutoOpenedCountdown.current) {
+      setIsCountdownOpen(true);
+      hasAutoOpenedCountdown.current = true;
+    }
+  }, [countdownLocked, countdownEndAt]);
 
   const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -85,7 +104,9 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
               <span className="leading-tight">Tugas Praktik (Wajib PDF)</span>
             </div>
             <h3 className="text-base sm:text-lg font-bold text-slate-900 break-words">{assignment.title}</h3>
-            <p className="text-sm text-slate-600 mt-1.5 leading-relaxed break-words">{assignment.description}</p>
+            {!countdownLocked && (
+              <p className="text-sm text-slate-600 mt-1.5 leading-relaxed break-words">{assignment.description}</p>
+            )}
           </div>
 
           <div className="w-full sm:w-auto text-left sm:text-right shrink-0">
@@ -97,8 +118,12 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
           </div>
         </div>
 
-        {/* Existing Submission Details */}
-        {submission ? (
+        {countdownLocked ? (
+          <CountdownLockedPanel
+            title={assignment.title}
+            onOpen={() => setIsCountdownOpen(true)}
+          />
+        ) : submission ? (
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -215,6 +240,14 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
         )}
 
       </div>
+
+      {isCountdownOpen && countdownEndAt && (
+        <CountdownModal
+          title={assignment.title}
+          endAt={countdownEndAt}
+          onClose={() => setIsCountdownOpen(false)}
+        />
+      )}
 
       {/* PDF Viewer Modal */}
       {submission && (

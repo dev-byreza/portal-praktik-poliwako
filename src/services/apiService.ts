@@ -531,6 +531,9 @@ export class ApiService {
           contentUrl: m.content_url || undefined,
           contentText: m.content_text || undefined,
           fileSize: m.file_size || undefined,
+          countdownEnabled: Boolean(m.countdown_enabled),
+          countdownMinutes: Number(m.countdown_minutes) || undefined,
+          countdownStartedAt: m.countdown_started_at || undefined,
           })),
         assignment: u.assignments?.[0]
           ? {
@@ -542,6 +545,9 @@ export class ApiService {
               deadline: u.assignments[0].deadline,
               maxScore: u.assignments[0].max_score,
               allowedFileType: u.assignments[0].allowed_file_type,
+              countdownEnabled: Boolean(u.assignments[0].countdown_enabled),
+              countdownMinutes: Number(u.assignments[0].countdown_minutes) || undefined,
+              countdownStartedAt: u.assignments[0].countdown_started_at || undefined,
               submissionType: (u.assignments[0].submission_type && u.assignments[0].submission_type !== 'ASSIGNMENT')
                 ? u.assignments[0].submission_type
                 : (/laporan|report/i.test(u.assignments[0].title || '') ? 'REPORT' : 'ASSIGNMENT'),
@@ -588,6 +594,9 @@ export class ApiService {
         content_text: material.contentText || null,
         file_size: material.fileSize || null,
         created_at: material.createdAt,
+        countdown_enabled: Boolean(material.countdownEnabled),
+        countdown_minutes: material.countdownEnabled ? Math.max(1, Number(material.countdownMinutes) || 1) : 0,
+        countdown_started_at: material.countdownEnabled ? (material.countdownStartedAt || new Date().toISOString()) : null,
       }));
       const { data: existingMaterials, error: materialReadError } = await supabase
         .from('learning_materials').select('id').eq('unit_id', unitId);
@@ -600,7 +609,12 @@ export class ApiService {
         if (error) throw error;
       }
       if (materialRows.length) {
-        const { error } = await supabase.from('learning_materials').upsert(materialRows);
+        let { error } = await supabase.from('learning_materials').upsert(materialRows);
+        // Keep existing deployments usable until the countdown migration is applied.
+        if (error && /countdown_|column .* does not exist/i.test(error.message || '')) {
+          const legacyRows = materialRows.map(({ countdown_enabled, countdown_minutes, countdown_started_at, ...row }) => row);
+          ({ error } = await supabase.from('learning_materials').upsert(legacyRows));
+        }
         if (error) throw error;
       }
 
@@ -615,12 +629,18 @@ export class ApiService {
           max_score: savedAssignment.maxScore,
           allowed_file_type: savedAssignment.allowedFileType || 'PDF',
           submission_type: savedAssignment.submissionType || 'ASSIGNMENT',
+          countdown_enabled: Boolean(savedAssignment.countdownEnabled),
+          countdown_minutes: savedAssignment.countdownEnabled ? Math.max(1, Number(savedAssignment.countdownMinutes) || 1) : 0,
+          countdown_started_at: savedAssignment.countdownEnabled ? (savedAssignment.countdownStartedAt || new Date().toISOString()) : null,
         };
         let { error } = await supabase.from('assignments').upsert(assignmentPayload);
-        // Keep existing deployments usable until migration 0004 is run.
-        if (error && /submission_type|column .* does not exist/i.test(error.message || '')) {
+        // Keep existing deployments usable until the countdown/submission migrations are applied.
+        if (error && /countdown_|submission_type|column .* does not exist/i.test(error.message || '')) {
           const legacyPayload = { ...assignmentPayload };
           delete (legacyPayload as any).submission_type;
+          delete (legacyPayload as any).countdown_enabled;
+          delete (legacyPayload as any).countdown_minutes;
+          delete (legacyPayload as any).countdown_started_at;
           ({ error } = await supabase.from('assignments').upsert(legacyPayload));
         }
         if (error) throw error;
