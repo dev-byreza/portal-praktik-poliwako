@@ -110,6 +110,12 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     const syncStudentSlug = () => {
       const parts = window.location.pathname.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
       if (parts[0] !== 'mahasiswa') return;
+      if (!parts[1]) {
+        sessionStorage.removeItem('poliwako_in_workspace');
+        clearStudentIdentity();
+        setIsViewingCatalog(false);
+        return;
+      }
       const isCanonicalRoute = ['unit', 'final-project', 'nilai'].includes(parts[1]);
       const slug = isCanonicalRoute ? parts[2] : parts[1];
       const section = isCanonicalRoute ? parts[1] : parts[2];
