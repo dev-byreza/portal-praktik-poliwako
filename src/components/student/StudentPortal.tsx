@@ -140,7 +140,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
   const handleOpenCatalog = () => {
     sessionStorage.removeItem('poliwako_in_workspace');
     setIsViewingCatalog(true);
-    window.history.pushState(null, '', '/mahasiswa');
+    window.history.pushState(null, '', '/mahasiswa/unit');
   };
 
   const handleLogout = () => {
