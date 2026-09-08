@@ -504,15 +504,41 @@ export class ApiService {
       return StorageService.getLearningUnits();
     }
     try {
+      // Load the three resources separately. Embedded PostgREST relations can
+      // be stale while a migration is being applied and would otherwise make
+      // the whole unit query fail, hiding assignments after a refresh.
       let query = supabase
         .from('learning_units')
-        .select('*, learning_materials(*), assignments(*)')
+        .select('*')
         .order('unit_number', { ascending: true });
       if (periodId) {
         query = query.eq('period_id', periodId);
       }
       const { data, error } = await query;
-      if (error || !data || data.length === 0) return StorageService.getLearningUnits();
+      if (error) throw error;
+      if (!data) return [];
+
+      const unitIds = data.map((unit: any) => unit.id).filter(Boolean);
+      const [materialsResult, assignmentsResult] = unitIds.length
+        ? await Promise.all([
+            supabase.from('learning_materials').select('*').in('unit_id', unitIds),
+            supabase.from('assignments').select('*').in('unit_id', unitIds),
+          ])
+        : [{ data: [], error: null }, { data: [], error: null }];
+      if (materialsResult.error) throw materialsResult.error;
+      if (assignmentsResult.error) throw assignmentsResult.error;
+      const materialsByUnit = new Map<string, any[]>();
+      (materialsResult.data || []).forEach((material: any) => {
+        const list = materialsByUnit.get(material.unit_id) || [];
+        list.push(material);
+        materialsByUnit.set(material.unit_id, list);
+      });
+      const assignmentsByUnit = new Map<string, any[]>();
+      (assignmentsResult.data || []).forEach((assignment: any) => {
+        const list = assignmentsByUnit.get(assignment.unit_id) || [];
+        list.push(assignment);
+        assignmentsByUnit.set(assignment.unit_id, list);
+      });
 
       // Older databases may not have the unit countdown columns yet. Preserve
       // the last locally saved unit gate while the rest of the unit remains
@@ -540,7 +566,7 @@ export class ApiService {
         countdownStartedAt: u.countdown_started_at == null
           ? cachedUnitCountdown.get(u.id)?.countdownStartedAt
           : u.countdown_started_at,
-        materials: [...(u.learning_materials || [])]
+        materials: [...(materialsByUnit.get(u.id) || [])]
           .sort((a: any, b: any) => {
             const aTime = Date.parse(a.created_at || '') || 0;
             const bTime = Date.parse(b.created_at || '') || 0;
@@ -559,27 +585,28 @@ export class ApiService {
           countdownMinutes: Number(m.countdown_minutes) || undefined,
           countdownStartedAt: m.countdown_started_at || undefined,
           })),
-        assignment: u.assignments?.[0]
+        assignment: assignmentsByUnit.get(u.id)?.[0]
           ? {
-              id: u.assignments[0].id,
-              unitId: u.assignments[0].unit_id,
-              periodId: u.assignments[0].period_id,
-              title: u.assignments[0].title,
-              description: u.assignments[0].description,
-              deadline: u.assignments[0].deadline,
-              maxScore: u.assignments[0].max_score,
-              allowedFileType: u.assignments[0].allowed_file_type,
-              countdownEnabled: Boolean(u.assignments[0].countdown_enabled),
-              countdownMinutes: Number(u.assignments[0].countdown_minutes) || undefined,
-              countdownStartedAt: u.assignments[0].countdown_started_at || undefined,
-              submissionType: (u.assignments[0].submission_type && u.assignments[0].submission_type !== 'ASSIGNMENT')
-                ? u.assignments[0].submission_type
-                : (/laporan|report/i.test(u.assignments[0].title || '') ? 'REPORT' : 'ASSIGNMENT'),
+              id: assignmentsByUnit.get(u.id)![0].id,
+              unitId: assignmentsByUnit.get(u.id)![0].unit_id,
+              periodId: assignmentsByUnit.get(u.id)![0].period_id,
+              title: assignmentsByUnit.get(u.id)![0].title,
+              description: assignmentsByUnit.get(u.id)![0].description,
+              deadline: assignmentsByUnit.get(u.id)![0].deadline,
+              maxScore: assignmentsByUnit.get(u.id)![0].max_score,
+              allowedFileType: assignmentsByUnit.get(u.id)![0].allowed_file_type,
+              countdownEnabled: Boolean(assignmentsByUnit.get(u.id)![0].countdown_enabled),
+              countdownMinutes: Number(assignmentsByUnit.get(u.id)![0].countdown_minutes) || undefined,
+              countdownStartedAt: assignmentsByUnit.get(u.id)![0].countdown_started_at || undefined,
+              submissionType: (assignmentsByUnit.get(u.id)![0].submission_type && assignmentsByUnit.get(u.id)![0].submission_type !== 'ASSIGNMENT')
+                ? assignmentsByUnit.get(u.id)![0].submission_type
+                : (/laporan|report/i.test(assignmentsByUnit.get(u.id)![0].title || '') ? 'REPORT' : 'ASSIGNMENT'),
             }
           : undefined,
       }));
-    } catch {
-      return StorageService.getLearningUnits();
+    } catch (error) {
+      console.error('Unable to load learning units and assignments from Supabase:', error);
+      return [];
     }
   }
 
@@ -679,7 +706,10 @@ export class ApiService {
         const assignmentPayload = {
           id: savedAssignment.id,
           unit_id: unitId,
-          period_id: savedAssignment.periodId || unit.periodId,
+          // A task always belongs to the same period as its unit. Using the
+          // unit period prevents an old/stale assignment period from failing
+          // the instructor ownership policy or being omitted for students.
+          period_id: unit.periodId,
           title: savedAssignment.title,
           description: savedAssignment.description || '',
           deadline: normalizeDeadline(savedAssignment.deadline),
@@ -705,12 +735,15 @@ export class ApiService {
         const persistedAssignmentId = savedAssignment.id;
         const { data: persistedAssignment, error: verifyAssignmentError } = await supabase
           .from('assignments')
-          .select('id')
+          .select('id, unit_id, period_id, title, deadline, max_score, allowed_file_type')
           .eq('id', persistedAssignmentId)
           .maybeSingle();
         if (verifyAssignmentError) throw verifyAssignmentError;
         if (!persistedAssignment) {
           throw new Error('Tugas berhasil dikirim tetapi tidak ditemukan saat verifikasi ulang Supabase.');
+        }
+        if (persistedAssignment.unit_id !== unitId || persistedAssignment.period_id !== unit.periodId) {
+          throw new Error('Tugas tersimpan pada unit/periode yang berbeda dan dibatalkan.');
         }
       } else {
         // Removing an assignment from the unit must also remove its persisted
