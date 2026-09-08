@@ -71,7 +71,7 @@ export const InstructorHeader: React.FC<InstructorHeaderProps> = ({
         {/* Bagikan Link Portal ke Mahasiswa */}
         <button
           onClick={() => setIsShareModalOpen(true)}
-          className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 bg-cyan-600" hover:bg-cyan-500 text-white text-xs font-bold rounded-xl shadow-sm shadow-cyan-600/25 hover:shadow-cyan-600/40 transition-all cursor-pointer"
+          className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-xl shadow-sm shadow-cyan-600/25 hover:shadow-cyan-600/40 transition-all cursor-pointer"
           title="Bagikan link portal ke mahasiswa"
         >
           <Share2 className="w-3.5 h-3.5" />
