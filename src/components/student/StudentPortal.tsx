@@ -304,11 +304,18 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
   // Never expose a workspace for a course in which this student is not enrolled.
   // Returning to the catalog also keeps manually entered unauthorized slugs from working.
-  const unauthorizedCourse = currentStudent && studentSession && !isViewingCatalog && currentCourse && !isCurrentCourseEnrolled;
-  if (unauthorizedCourse) {
-    if (typeof window !== 'undefined' && window.location.pathname !== '/mahasiswa/unit') {
+  const unauthorizedCourse = Boolean(
+    currentStudent && studentSession && !isViewingCatalog && currentCourse && !isCurrentCourseEnrolled
+  );
+  React.useEffect(() => {
+    if (!unauthorizedCourse || typeof window === 'undefined') return;
+    sessionStorage.removeItem('poliwako_in_workspace');
+    setIsViewingCatalog(true);
+    if (window.location.pathname !== '/mahasiswa/unit') {
       window.history.replaceState(null, '', '/mahasiswa/unit');
     }
+  }, [unauthorizedCourse]);
+  if (unauthorizedCourse) {
     return <StudentCourseCatalog onSelectCourse={handleSelectCourse} />;
   }
 
