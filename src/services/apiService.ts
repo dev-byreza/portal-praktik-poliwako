@@ -507,7 +507,8 @@ export class ApiService {
       let query = supabase
         .from('learning_units')
         .select('*, learning_materials(*), assignments(*)')
-        .order('unit_number', { ascending: true });
+        .order('unit_number', { ascending: true })
+        .order('created_at', { foreignTable: 'learning_materials', ascending: true });
       if (periodId) {
         query = query.eq('period_id', periodId);
       }
@@ -556,10 +557,13 @@ export class ApiService {
   static async saveLearningUnit(unit: LearningUnit): Promise<LearningUnit> {
     if (this.isLiveBackend() && supabase) {
       const unitId = await databaseId(unit.id, 'learning-unit');
-      const savedMaterials = await Promise.all(unit.materials.map(async material => ({
+      const savedMaterials = await Promise.all(unit.materials.map(async (material, index) => ({
         ...material,
         id: await databaseId(material.id, `learning-material:${unit.id}`),
         unitId,
+        // Reuse the existing timestamp column as the persisted display order.
+        // The list is rewritten in its current order whenever the unit is saved.
+        createdAt: new Date(Date.now() + index).toISOString(),
       })));
       const savedAssignment = unit.assignment ? {
         ...unit.assignment,
@@ -583,6 +587,7 @@ export class ApiService {
         content_url: material.contentUrl || null,
         content_text: material.contentText || null,
         file_size: material.fileSize || null,
+        created_at: material.createdAt,
       }));
       const { data: existingMaterials, error: materialReadError } = await supabase
         .from('learning_materials').select('id').eq('unit_id', unitId);

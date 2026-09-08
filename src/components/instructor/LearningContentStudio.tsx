@@ -19,6 +19,8 @@ import {
   Sparkles,
   Copy,
   ArrowRight,
+  ChevronUp,
+  ChevronDown,
   CheckSquare,
   Square,
   Check,
@@ -248,6 +250,25 @@ export const LearningContentStudio: React.FC = () => {
     const updated = activeSelectedUnit.materials.filter(m => m.id !== matId);
     updateLearningUnit({ ...activeSelectedUnit, materials: updated });
     showToast('Materi Dihapus', 'Materi telah dihapus dari unit.', 'info');
+  };
+
+  const handleMoveMaterial = (matId: string, direction: 'up' | 'down') => {
+    if (!activeSelectedUnit) return;
+    const currentIndex = activeSelectedUnit.materials.findIndex(material => material.id === matId);
+    if (currentIndex < 0) return;
+
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= activeSelectedUnit.materials.length) return;
+
+    const reorderedMaterials = [...activeSelectedUnit.materials];
+    const [movedMaterial] = reorderedMaterials.splice(currentIndex, 1);
+    reorderedMaterials.splice(targetIndex, 0, movedMaterial);
+    updateLearningUnit({ ...activeSelectedUnit, materials: reorderedMaterials });
+    showToast(
+      'Urutan Materi Diubah',
+      `Materi "${movedMaterial.title}" dipindahkan ${direction === 'up' ? 'ke atas' : 'ke bawah'}.`,
+      'success'
+    );
   };
 
   const handleSaveAssignment = (e: React.FormEvent) => {
@@ -498,6 +519,26 @@ export const LearningContentStudio: React.FC = () => {
                       </div>
 
                       <div className="flex items-center gap-1 shrink-0">
+                        <div className="flex flex-col items-center gap-0.5 mr-1">
+                          <button
+                            onClick={() => handleMoveMaterial(mat.id, 'up')}
+                            disabled={activeSelectedUnit.materials[0]?.id === mat.id}
+                            className="p-1 text-slate-400 hover:text-blue-600 disabled:opacity-25 disabled:cursor-not-allowed rounded transition-colors"
+                            title="Pindahkan materi ke atas"
+                            aria-label={`Pindahkan ${mat.title} ke atas`}
+                          >
+                            <ChevronUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleMoveMaterial(mat.id, 'down')}
+                            disabled={activeSelectedUnit.materials[activeSelectedUnit.materials.length - 1]?.id === mat.id}
+                            className="p-1 text-slate-400 hover:text-blue-600 disabled:opacity-25 disabled:cursor-not-allowed rounded transition-colors"
+                            title="Pindahkan materi ke bawah"
+                            aria-label={`Pindahkan ${mat.title} ke bawah`}
+                          >
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                         <button
                           onClick={() => handleOpenEditMaterial(mat)}
                           className="p-1.5 text-slate-400 hover:text-blue-600 rounded transition-colors"
