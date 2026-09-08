@@ -21,6 +21,17 @@ interface StudentAssignmentCardProps {
   isPeriodExpired?: boolean;
 }
 
+type AllowedFileType = 'PDF' | 'IMAGE' | 'ZIP' | 'RAR';
+
+const fileRule = (type: AllowedFileType) => {
+  switch (type) {
+    case 'IMAGE': return { label: 'Gambar', extensions: '.jpg, .jpeg, .png, .webp, .gif', accept: 'image/*,.jpg,.jpeg,.png,.webp,.gif' };
+    case 'ZIP': return { label: 'ZIP', extensions: '.zip', accept: '.zip,application/zip,application/x-zip-compressed' };
+    case 'RAR': return { label: 'RAR', extensions: '.rar', accept: '.rar,application/vnd.rar,application/x-rar-compressed' };
+    default: return { label: 'PDF', extensions: '.pdf', accept: '.pdf,application/pdf' };
+  }
+};
+
 export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
   assignment,
   submission,
@@ -47,9 +58,14 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
   };
 
   const validateAndSetFile = (file: File) => {
-    // PDF Only Validation (PRD Section 42)
-    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-      showToast('Format Ditolak', 'Hanya file berformat PDF (.pdf) yang diperbolehkan untuk pengumpulan tugas.', 'error');
+    const allowedType = (assignment.allowedFileType || 'PDF') as AllowedFileType;
+    const rule = fileRule(allowedType);
+    const lowerName = file.name.toLowerCase();
+    const isAllowed = allowedType === 'IMAGE'
+      ? file.type.startsWith('image/') || /\.(jpe?g|png|webp|gif)$/i.test(lowerName)
+      : lowerName.endsWith(`.${allowedType.toLowerCase()}`);
+    if (!isAllowed) {
+      showToast('Format Ditolak', `Tugas ini hanya menerima ${rule.label} (${rule.extensions}).`, 'error');
       return;
     }
 
@@ -66,7 +82,12 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
     if (!selectedFile) return;
     setIsUploading(true);
     try {
-      const result = await submitAssignment(assignment.id, selectedFile, assignment.submissionType || 'ASSIGNMENT');
+      const result = await submitAssignment(
+        assignment.id,
+        selectedFile,
+        assignment.submissionType || 'ASSIGNMENT',
+        assignment.allowedFileType || 'PDF'
+      );
       if (result.success) setSelectedFile(null);
     } finally {
       setIsUploading(false);
@@ -82,7 +103,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
           <div className="min-w-0 w-full">
             <div className="inline-flex max-w-full items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 mb-2">
               <FileText className="w-3.5 h-3.5" />
-              <span className="leading-tight">Tugas Praktik (Wajib PDF)</span>
+              <span className="leading-tight">Tugas Praktik (Wajib {fileRule((assignment.allowedFileType || 'PDF') as AllowedFileType).label})</span>
             </div>
             <h3 className="text-base sm:text-lg font-bold text-slate-900 break-words">{assignment.title}</h3>
             <p className="text-sm text-slate-600 mt-1.5 leading-relaxed break-words">{assignment.description}</p>
@@ -136,7 +157,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                   Ganti File PDF
                   <input
                     type="file"
-                    accept=".pdf,application/pdf"
+                    accept={fileRule((assignment.allowedFileType || 'PDF') as AllowedFileType).accept}
                     onChange={handleFileInputChange}
                     className="hidden"
                   />
@@ -161,18 +182,18 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                 >
                   <UploadCloud className="w-10 h-10 text-slate-400 mx-auto mb-2" />
                   <p className="text-xs font-bold text-slate-700">
-                    Tarik dan lepas file PDF tugas Anda di sini, atau
+                    Tarik dan lepas file {fileRule((assignment.allowedFileType || 'PDF') as AllowedFileType).label} tugas Anda di sini, atau
                   </p>
                   <label className="inline-block mt-2 px-4 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg cursor-pointer transition-colors shadow-sm">
                     Pilih File PDF
                     <input
                       type="file"
-                      accept=".pdf,application/pdf"
+                    accept={fileRule((assignment.allowedFileType || 'PDF') as AllowedFileType).accept}
                       onChange={handleFileInputChange}
                       className="hidden"
                     />
                   </label>
-                  <p className="text-[11px] text-slate-400 mt-2">Hanya format PDF (Maks. 25 MB)</p>
+                  <p className="text-[11px] text-slate-400 mt-2">Format: {fileRule((assignment.allowedFileType || 'PDF') as AllowedFileType).extensions} (Maks. 25 MB)</p>
                 </div>
 
                 {/* Selected File Preview before submit */}

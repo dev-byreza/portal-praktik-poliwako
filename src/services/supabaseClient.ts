@@ -161,14 +161,20 @@ export async function uploadSubmissionPDF(
     studentId: string;
     assignmentId: string;
     submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST' | 'REMEDIAL';
+    allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR';
   }
 ): Promise<{ storagePath: string | null; publicUrl: string | null; error: Error | null }> {
   // Validate file type
-  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+  const allowedType = path.allowedFileType || 'PDF';
+  const lowerName = file.name.toLowerCase();
+  const isAllowed = allowedType === 'IMAGE'
+    ? file.type.startsWith('image/') || /\.(jpe?g|png|webp|gif)$/i.test(lowerName)
+    : lowerName.endsWith(`.${allowedType.toLowerCase()}`);
+  if (!isAllowed) {
     return {
       storagePath: null,
       publicUrl: null,
-      error: new Error('File tidak valid: Hanya format berkas PDF yang diperbolehkan.'),
+      error: new Error(`File tidak valid: format ${allowedType} tidak diizinkan untuk tugas ini.`),
     };
   }
 
@@ -199,7 +205,7 @@ export async function uploadSubmissionPDF(
       .upload(filePath, file, {
         cacheControl: '3600',
         upsert: true,
-        contentType: 'application/pdf',
+        contentType: file.type || 'application/octet-stream',
       });
 
     if (uploadError) throw uploadError;

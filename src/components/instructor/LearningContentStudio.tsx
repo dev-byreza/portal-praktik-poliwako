@@ -78,6 +78,7 @@ export const LearningContentStudio: React.FC = () => {
   const [assignTitle, setAssignTitle] = useState('');
   const [assignDesc, setAssignDesc] = useState('');
   const [assignDeadline, setAssignDeadline] = useState('2026-09-11 23:59 WITA');
+  const [assignAllowedFileType, setAssignAllowedFileType] = useState<'PDF' | 'IMAGE' | 'ZIP' | 'RAR'>('PDF');
   const [assignSubmissionType, setAssignSubmissionType] = useState<'ASSIGNMENT' | 'REPORT' | 'POST_TEST'>('ASSIGNMENT');
   const [assignCountdownEnabled, setAssignCountdownEnabled] = useState(false);
   const [assignCountdownMinutes, setAssignCountdownMinutes] = useState('5');
@@ -308,7 +309,7 @@ export const LearningContentStudio: React.FC = () => {
       description: assignDesc.trim() || '',
       deadline: assignDeadline,
       maxScore: 100,
-      allowedFileType: 'PDF',
+      allowedFileType: assignAllowedFileType,
       submissionType: assignSubmissionType,
       // Countdown access is configured once at the unit level.
       countdownEnabled: undefined,
@@ -331,6 +332,7 @@ export const LearningContentStudio: React.FC = () => {
     setAssignTitle(assignment.title);
     setAssignDesc(assignment.description);
     setAssignDeadline(assignment.deadline);
+    setAssignAllowedFileType(assignment.allowedFileType || 'PDF');
     setAssignSubmissionType(assignment.submissionType || 'ASSIGNMENT');
     setAssignCountdownEnabled(Boolean(assignment.countdownEnabled));
     setAssignCountdownMinutes(String(Math.max(1, assignment.countdownMinutes || 5)));
@@ -632,14 +634,15 @@ export const LearningContentStudio: React.FC = () => {
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                     <FileText className="w-4 h-4 text-amber-500" />
-                    <span>Tugas Praktik Mahasiswa (Internal PDF Submission)</span>
+                    <span>Tugas Praktik Mahasiswa (Pengumpulan File)</span>
                   </h4>
                   {!activeSelectedUnit.assignment && (
                     <button
                       onClick={() => {
                         setEditingAssignment(null);
                         setAssignTitle(`Tugas Unit ${activeSelectedUnit.unitNumber}: Judul Laporan`);
-                        setAssignDesc('Upload dokumen laporan pengujian dalam format PDF (Maks. 25 MB).');
+                        setAssignDesc('Upload dokumen tugas sesuai format yang diizinkan (Maks. 25 MB).');
+                        setAssignAllowedFileType('PDF');
                         setAssignSubmissionType('REPORT');
                         setAssignCountdownEnabled(false);
                         setAssignCountdownMinutes('5');
@@ -659,7 +662,7 @@ export const LearningContentStudio: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <h5 className="text-xs font-bold text-amber-950">{activeSelectedUnit.assignment.title}</h5>
                           <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-200 text-amber-900 rounded">
-                            PDF Only
+                            {activeSelectedUnit.assignment.allowedFileType === 'IMAGE' ? 'IMAGE' : `${activeSelectedUnit.assignment.allowedFileType} Only`}
                           </span>
                           {activeSelectedUnit.assignment.countdownEnabled && (
                             <span className="px-2 py-0.5 text-[10px] font-bold bg-indigo-100 text-indigo-800 rounded">
@@ -927,7 +930,7 @@ export const LearningContentStudio: React.FC = () => {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-fadeIn">
           <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden flex flex-col">
             <div className="p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
-              <h3 className="text-base font-bold text-white">{editingAssignment ? 'Edit Tugas Praktik (PDF)' : 'Konfigurasi Tugas Praktik (PDF)'}</h3>
+              <h3 className="text-base font-bold text-white">{editingAssignment ? 'Edit Tugas Praktik' : 'Konfigurasi Tugas Praktik'}</h3>
               <button onClick={() => setIsAssignmentModalOpen(false)} className="text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
@@ -961,6 +964,23 @@ export const LearningContentStudio: React.FC = () => {
                   <option value="POST_TEST">Post-Test</option>
                 </select>
                 <p className="mt-1 text-[10px] text-slate-500">Jenis ini menentukan tab PDF tempat berkas mahasiswa ditampilkan kepada instruktur.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Format File yang Diizinkan
+                </label>
+                <select
+                  value={assignAllowedFileType}
+                  onChange={e => setAssignAllowedFileType(e.target.value as 'PDF' | 'IMAGE' | 'ZIP' | 'RAR')}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="PDF">PDF (.pdf)</option>
+                  <option value="IMAGE">Gambar (.jpg, .png, .webp, .gif)</option>
+                  <option value="ZIP">Arsip ZIP (.zip)</option>
+                  <option value="RAR">Arsip RAR (.rar)</option>
+                </select>
+                <p className="mt-1 text-[10px] text-slate-500">Mahasiswa hanya dapat mengunggah format yang dipilih (maksimal 25 MB).</p>
               </div>
 
               <div>

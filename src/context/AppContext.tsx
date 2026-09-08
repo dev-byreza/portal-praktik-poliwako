@@ -94,7 +94,7 @@ interface AppContextType {
 
   // Student Actions
   toggleUnitCompletion: (unitId: string) => void;
-  submitAssignment: (assignmentId: string, file: File, submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST') => Promise<{ success: boolean; message?: string }>;
+  submitAssignment: (assignmentId: string, file: File, submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST', allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR') => Promise<{ success: boolean; message?: string }>;
   confirmFinalProject: () => void;
   submitStudentRemedial: (remedialId: string, fileName: string, fileUrl: string) => void;
 
@@ -680,13 +680,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Student Assignment Submission
-  const submitAssignment = async (assignmentId: string, file: File, submissionType: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST' = 'ASSIGNMENT'): Promise<{ success: boolean; message?: string }> => {
+  const submitAssignment = async (assignmentId: string, file: File, submissionType: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST' = 'ASSIGNMENT', allowedFileType: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' = 'PDF'): Promise<{ success: boolean; message?: string }> => {
     if (!studentSession) return { success: false, message: 'Sesi mahasiswa tidak ditemukan. Silakan login kembali.' };
     const { studentId, periodId } = studentSession;
     const period = periods.find((item) => item.id === periodId);
     if (!period) return { success: false, message: 'Periode praktik tidak ditemukan.' };
 
-    const upload = await uploadSubmissionPDF(file, { courseId: period.courseId, periodId, studentId, assignmentId, submissionType });
+    const upload = await uploadSubmissionPDF(file, { courseId: period.courseId, periodId, studentId, assignmentId, submissionType, allowedFileType });
     if (upload.error || !upload.storagePath || !upload.publicUrl) {
       const message = upload.error?.message || 'File tidak dapat disimpan ke Supabase Storage.';
       showToast('Unggah Gagal', message, 'error');

@@ -123,7 +123,7 @@ export interface Assignment {
   description: string;
   deadline: string;
   maxScore: number;
-  allowedFileType: 'PDF';
+  allowedFileType: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR';
   submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST';
   countdownEnabled?: boolean;
   countdownMinutes?: number;
