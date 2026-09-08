@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useMe
 import {
   UserRole,
   InstructorProfile,
+  PublicInstructorProfile,
   Student,
   Course,
   PracticePeriod,
@@ -55,6 +56,7 @@ interface AppContextType {
   setActiveCourseId: (id: string) => void;
   activeCourse: Course | null;
   courses: Course[];
+  instructorDirectory: Record<string, PublicInstructorProfile>;
 
   // Data
   students: Student[];
@@ -153,6 +155,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isInstructorLoggedIn, setIsInstructorLoggedIn] = useState<boolean>(() => StorageService.isInstructorLoggedIn());
   const [role, setRole] = useState<UserRole>(() => (StorageService.isInstructorLoggedIn() ? 'INSTRUCTOR' : 'STUDENT'));
   const [instructor, setInstructor] = useState<InstructorProfile>(StorageService.getInstructor());
+  const [instructorDirectory, setInstructorDirectory] = useState<Record<string, PublicInstructorProfile>>(() => {
+    if (isLiveBackend) return {};
+    const profile = StorageService.getInstructor();
+    return profile?.id
+      ? { [profile.id]: { id: profile.id, name: profile.name, department: profile.department, avatarUrl: profile.avatarUrl } }
+      : {};
+  });
   // Supabase is authoritative in live mode. Do not paint the previous account's local course cache while the authenticated scope is loading.
   const [courses, setCourses] = useState<Course[]>(() => (isLiveBackend ? [] : StorageService.getCourses()));
   const [activeCourseId, setActiveCourseIdState] = useState<string>(() => (isLiveBackend ? '' : StorageService.getActiveCourseId()));
@@ -180,7 +189,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!isLiveBackend) return;
         const authInstructorId = await ApiService.getCurrentInstructorId();
         const courseScope = authInstructorId || (role === 'STUDENT' && !isInstructorLoggedIn ? undefined : null);
-        const [liveCourses, liveStudents, livePeriods, liveParticipants, liveUnits, liveAttendance, liveSubmissions] = await Promise.all([
+        const [liveCourses, liveStudents, livePeriods, liveParticipants, liveUnits, liveAttendance, liveSubmissions, liveInstructorDirectory] = await Promise.all([
           courseScope === null ? Promise.resolve([]) : ApiService.getCourses(courseScope),
           ApiService.getStudents(),
           ApiService.getPeriods(),
@@ -188,6 +197,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ApiService.getLearningUnits(),
           ApiService.getAttendance(),
           ApiService.getSubmissions(),
+          ApiService.getInstructorDirectory(),
         ]);
         if (!isMounted) return;
         if (liveCourses) {
@@ -219,6 +229,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (liveUnits) setLearningUnits(liveUnits);
         if (liveAttendance) setAttendance(liveAttendance);
         if (liveSubmissions) setSubmissions(liveSubmissions);
+        if (liveInstructorDirectory) setInstructorDirectory(liveInstructorDirectory);
       } catch (e) {
         console.warn('Sync from Supabase notice:', e);
       }
@@ -1475,6 +1486,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const resetToDefaultData = () => {
     StorageService.resetToDefault();
     setInstructor(StorageService.getInstructor());
+    const resetProfile = StorageService.getInstructor();
+    setInstructorDirectory(resetProfile?.id ? {
+      [resetProfile.id]: {
+        id: resetProfile.id,
+        name: resetProfile.name,
+        department: resetProfile.department,
+        avatarUrl: resetProfile.avatarUrl,
+      }
+    } : {});
     setCourses(StorageService.getCourses());
     setActiveCourseIdState(StorageService.getActiveCourseId());
     setStudents(StorageService.getStudents());
@@ -1506,6 +1526,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setActiveCourseId,
         activeCourse,
         courses,
+        instructorDirectory,
         students,
         periods,
         participants,

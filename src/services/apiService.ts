@@ -24,6 +24,7 @@ import {
   RemedialAssignment,
   FeedbackRule,
   InstructorProfile,
+  PublicInstructorProfile,
 } from '../types';
 
 export class ApiService {
@@ -82,6 +83,32 @@ export class ApiService {
       };
     } catch {
       return StorageService.getInstructor();
+    }
+  }
+
+  // Public, minimal instructor directory used by the student course catalog.
+  // The database view intentionally exposes only name, department, and avatar.
+  static async getInstructorDirectory(): Promise<Record<string, PublicInstructorProfile>> {
+    if (!this.isLiveBackend() || !supabase) {
+      const profile = StorageService.getInstructor();
+      return profile?.id
+        ? { [profile.id]: { id: profile.id, name: profile.name, department: profile.department, avatarUrl: profile.avatarUrl } }
+        : {};
+    }
+    try {
+      const { data, error } = await supabase
+        .from('instructor_directory')
+        .select('id, name, department, avatar_url');
+      if (error || !data) return {};
+      return Object.fromEntries(data.map((profile: any) => [profile.id, {
+        id: profile.id,
+        name: profile.name || 'Instruktur mata kuliah',
+        department: profile.department || 'Program studi belum diisi',
+        avatarUrl: profile.avatar_url || undefined,
+      }]));
+    } catch (error) {
+      console.warn('Unable to load public instructor directory:', error);
+      return {};
     }
   }
 

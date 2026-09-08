@@ -19,6 +19,13 @@ export interface InstructorProfile {
   department: string;
 }
 
+export interface PublicInstructorProfile {
+  id: string;
+  name: string;
+  department: string;
+  avatarUrl?: string;
+}
+
 export interface Student {
   id: string;
   nim: string;

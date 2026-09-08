@@ -8,7 +8,8 @@ import {
   Calendar, 
   LogOut, 
   Layers, 
-  Sparkles 
+  Sparkles,
+  UserRound
 } from 'lucide-react';
 import { formatPeriodRange } from '../../utils/dateUtils';
 
@@ -20,6 +21,7 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
   const {
     currentStudent,
     courses,
+    instructorDirectory,
     periods,
     participants,
     learningUnits,
@@ -172,6 +174,8 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
             const activePeriod = periods.find(p => p.courseId === course.id && p.status === 'ACTIVE') ||
                                  periods.find(p => p.courseId === course.id);
 
+            const instructorProfile = instructorDirectory[course.instructorId];
+
             // Units in this active period
             const units = activePeriod
               ? learningUnits.filter(u => u.periodId === activePeriod.id)
@@ -209,6 +213,25 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
 
                   <div className="shrink-0 w-11 h-11 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-cyan-400 group-hover:scale-105 group-hover:border-cyan-500/50 group-hover:bg-cyan-500/10 transition-all shadow-inner">
                     <BookOpen className="w-5 h-5" />
+                  </div>
+                </div>
+
+                {/* Instructor & study program */}
+                <div className="mb-4 rounded-xl border border-slate-700/60 bg-slate-800/40 px-3.5 py-3 text-xs">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <UserRound className="h-3.5 w-3.5 text-cyan-400" />
+                      Instruktur
+                    </span>
+                    <span className="text-right font-semibold text-slate-200">
+                      {instructorProfile?.name || 'Instruktur mata kuliah'}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-3 border-t border-slate-700/40 pt-2">
+                    <span className="text-slate-400">Program Studi</span>
+                    <span className="text-right text-slate-300">
+                      {instructorProfile?.department || course.department}
+                    </span>
                   </div>
                 </div>
 
