@@ -34,6 +34,30 @@ export function formatDeadline(deadline: string): string {
   }).format(parsed).replace(/\./g, ':') + ' WITA';
 }
 
+/** Value for a native datetime-local input, rendered in WITA (UTC+8). */
+export function toDateTimeLocalWita(value: string): string {
+  if (!value) return '';
+  const raw = String(value).trim();
+  const legacy = raw.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})/);
+  if (legacy) return `${legacy[1]}T${legacy[2]}`;
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Makassar', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false
+  }).formatToParts(parsed).reduce<Record<string, string>>((acc, part) => {
+    acc[part.type] = part.value;
+    return acc;
+  }, {});
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour === '24' ? '00' : parts.hour}:${parts.minute}`;
+}
+
+/** Convert a datetime-local value (interpreted as WITA) to the app's stored format. */
+export function fromDateTimeLocalWita(value: string): string {
+  const match = String(value || '').trim().match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+  return match ? `${match[1]} ${match[2]} WITA` : '';
+}
+
 /** Format stored ISO timestamps in the global WITA timezone for users. */
 export function formatWitaDateTime(value: string): string {
   if (!value) return '-';

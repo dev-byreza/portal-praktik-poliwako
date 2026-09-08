@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { PDFViewerModal } from '../common/PDFViewerModal';
 import { ModalPortal } from '../common/ModalPortal';
-import { formatDeadline } from '../../utils/dateUtils';
+import { formatDeadline, toDateTimeLocalWita, fromDateTimeLocalWita } from '../../utils/dateUtils';
 
 const newStudioEntityId = (prefix: string): string => (
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -981,11 +981,17 @@ export const LearningContentStudio: React.FC = () => {
                   Batas Waktu Pengumpulan (Deadline)
                 </label>
                 <input
-                  type="text"
-                  value={assignDeadline}
-                  onChange={e => setAssignDeadline(e.target.value)}
+                  type="datetime-local"
+                  value={toDateTimeLocalWita(assignDeadline)}
+                  onChange={e => setAssignDeadline(fromDateTimeLocalWita(e.target.value))}
+                  step="60"
+                  required
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
+                <p className="mt-1.5 text-[10px] text-slate-500">Pilih tanggal dan jam pada kalender. Waktu disimpan sebagai WITA (UTC+8).</p>
+                {assignDeadline && (
+                  <p className="mt-1 text-[10px] font-semibold text-blue-700">Tersimpan: {formatDeadline(assignDeadline)}</p>
+                )}
               </div>
 
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
