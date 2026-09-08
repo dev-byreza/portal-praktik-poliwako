@@ -143,6 +143,7 @@ export interface Submission {
   fileName: string;
   fileUrl: string;
   fileSize: string;
+  storagePath?: string;
   submittedAt: string;
   status: 'SUBMITTED' | 'GRADED';
 }

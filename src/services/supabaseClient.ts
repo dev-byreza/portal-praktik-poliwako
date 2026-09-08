@@ -184,12 +184,10 @@ export async function uploadSubmissionPDF(
   const filePath = `${path.courseId}/${path.periodId}/${path.studentId}/${path.assignmentId}/${safeFileName}`;
 
   if (!supabase) {
-    // Offline / LocalStorage mode fallback: generate local object URL
-    const objectUrl = URL.createObjectURL(file);
     return {
-      storagePath: filePath,
-      publicUrl: objectUrl,
-      error: null,
+      storagePath: null,
+      publicUrl: null,
+      error: new Error('Penyimpanan Supabase belum terhubung. File tidak dikirim.'),
     };
   }
 

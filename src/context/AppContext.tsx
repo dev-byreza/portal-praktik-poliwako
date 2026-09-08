@@ -20,7 +20,7 @@ import {
   FeedbackRule,
 } from '../types';
 import { StorageService } from '../services/storageService';
-import { isSupabaseConfigured } from '../services/supabaseClient';
+import { isSupabaseConfigured, uploadSubmissionPDF } from '../services/supabaseClient';
 import { ApiService } from '../services/apiService';
 import { computeAttendanceStats, calculateWeightedFinalScore, getFeedbackForScore } from '../utils/gradeCalculators';
 import { computePeriodEndDate, computePeriodStatus, getWitaDateString } from '../utils/dateUtils';
@@ -92,7 +92,7 @@ interface AppContextType {
 
   // Student Actions
   toggleUnitCompletion: (unitId: string) => void;
-  submitAssignment: (assignmentId: string, fileName: string, fileUrl: string, fileSize: string) => void;
+  submitAssignment: (assignmentId: string, file: File) => Promise<{ success: boolean; message?: string }>;
   confirmFinalProject: () => void;
   submitStudentRemedial: (remedialId: string, fileName: string, fileUrl: string) => void;
 
@@ -180,13 +180,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!isLiveBackend) return;
         const authInstructorId = await ApiService.getCurrentInstructorId();
         const courseScope = authInstructorId || (role === 'STUDENT' && !isInstructorLoggedIn ? undefined : null);
-        const [liveCourses, liveStudents, livePeriods, liveParticipants, liveUnits, liveAttendance] = await Promise.all([
+        const [liveCourses, liveStudents, livePeriods, liveParticipants, liveUnits, liveAttendance, liveSubmissions] = await Promise.all([
           courseScope === null ? Promise.resolve([]) : ApiService.getCourses(courseScope),
           ApiService.getStudents(),
           ApiService.getPeriods(),
           ApiService.getParticipants(),
           ApiService.getLearningUnits(),
           ApiService.getAttendance(),
+          ApiService.getSubmissions(),
         ]);
         if (!isMounted) return;
         if (liveCourses) {
@@ -217,6 +218,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (liveParticipants) setParticipants(liveParticipants);
         if (liveUnits) setLearningUnits(liveUnits);
         if (liveAttendance) setAttendance(liveAttendance);
+        if (liveSubmissions) setSubmissions(liveSubmissions);
       } catch (e) {
         console.warn('Sync from Supabase notice:', e);
       }
@@ -703,28 +705,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Student Assignment Submission
-  const submitAssignment = (assignmentId: string, fileName: string, fileUrl: string, fileSize: string) => {
-    if (!studentSession) return;
+  const submitAssignment = async (assignmentId: string, file: File): Promise<{ success: boolean; message?: string }> => {
+    if (!studentSession) return { success: false, message: 'Sesi mahasiswa tidak ditemukan. Silakan login kembali.' };
     const { studentId, periodId } = studentSession;
+    const period = periods.find((item) => item.id === periodId);
+    if (!period) return { success: false, message: 'Periode praktik tidak ditemukan.' };
 
-    const newSub: Submission = {
-      id: `sub-${Date.now()}`,
-      assignmentId,
-      studentId,
-      periodId,
-      fileName,
-      fileUrl,
-      fileSize,
-      submittedAt: `${getWitaDateString()} ${new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WITA`,
-      status: 'SUBMITTED'
+    const upload = await uploadSubmissionPDF(file, { courseId: period.courseId, periodId, studentId, assignmentId });
+    if (upload.error || !upload.storagePath || !upload.publicUrl) {
+      const message = upload.error?.message || 'File tidak dapat disimpan ke Supabase Storage.';
+      showToast('Unggah Gagal', message, 'error');
+      return { success: false, message };
+    }
+
+    const existing = submissions.find((item) => item.assignmentId === assignmentId && item.studentId === studentId && item.periodId === periodId);
+    const submission: Submission = {
+      id: existing?.id || crypto.randomUUID(), assignmentId, studentId, periodId,
+      fileName: file.name, fileUrl: upload.publicUrl, fileSize: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
+      storagePath: upload.storagePath, submittedAt: new Date().toISOString(), status: 'SUBMITTED'
     };
 
-    setSubmissions(prev => {
-      const filtered = prev.filter(s => !(s.assignmentId === assignmentId && s.studentId === studentId && s.periodId === periodId));
-      return [...filtered, newSub];
-    });
-
-    showToast('Tugas Terkirim', `File ${fileName} berhasil diunggah.`, 'success');
+    try {
+      await ApiService.saveSubmission(submission);
+      setSubmissions((previous) => [...previous.filter((item) => !(item.assignmentId === assignmentId && item.studentId === studentId && item.periodId === periodId)), submission]);
+      showToast('Tugas Terkirim', 'File ' + file.name + ' tersimpan dan siap diperiksa instruktur.', 'success');
+      return { success: true };
+    } catch (error: any) {
+      const message = error?.message || 'Data tugas tidak dapat disimpan ke Supabase.';
+      showToast('Unggah Gagal', message, 'error');
+      return { success: false, message };
+    }
   };
 
   // Student Final Project Confirmation

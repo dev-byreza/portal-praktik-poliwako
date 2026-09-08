@@ -8,6 +8,7 @@ import {
   signUpInstructor as authSignUpInstructor,
   signOutInstructor as authSignOutInstructor,
   getCurrentAuthUser,
+  getSubmissionSignedUrl,
 } from './supabaseClient';
 import { StorageService } from './storageService';
 import {
@@ -434,28 +435,37 @@ export class ApiService {
   // ====================================================================
   // SUBMISSIONS & ASSESSMENTS
   // ====================================================================
-  static async saveSubmission(submission: Submission): Promise<void> {
-    const subs = StorageService.getSubmissions().filter((s) => s.id !== submission.id);
-    StorageService.saveSubmissions([...subs, submission]);
+  static async getSubmissions(): Promise<Submission[]> {
+    if (!this.isLiveBackend() || !supabase) return StorageService.getSubmissions();
 
+    const { data, error } = await supabase.from('submissions').select('*').order('submitted_at', { ascending: false });
+    if (error) throw error;
+
+    return Promise.all((data || []).map(async (row: any) => ({
+      id: row.id,
+      assignmentId: row.assignment_id,
+      studentId: row.student_id,
+      periodId: row.period_id,
+      fileName: row.file_name,
+      fileUrl: row.storage_path ? (await getSubmissionSignedUrl(row.storage_path)) || row.file_url : row.file_url,
+      fileSize: row.file_size,
+      storagePath: row.storage_path || undefined,
+      submittedAt: row.submitted_at,
+      status: row.status,
+    })));
+  }
+
+  static async saveSubmission(submission: Submission): Promise<void> {
     if (this.isLiveBackend() && supabase) {
-      try {
-        await supabase.from('submissions').upsert({
-          id: submission.id,
-          assignment_id: submission.assignmentId,
-          student_id: submission.studentId,
-          period_id: submission.periodId,
-          file_name: submission.fileName,
-          file_url: submission.fileUrl,
-          file_size: submission.fileSize,
-          storage_path: (submission as any).storagePath || null,
-          submitted_at: submission.submittedAt,
-          status: submission.status,
-        });
-      } catch (err) {
-        console.error('Error syncing submission to Supabase:', err);
-      }
+      const { error } = await supabase.from('submissions').upsert({
+        id: submission.id, assignment_id: submission.assignmentId, student_id: submission.studentId, period_id: submission.periodId,
+        file_name: submission.fileName, file_url: submission.fileUrl, file_size: submission.fileSize,
+        storage_path: submission.storagePath || null, submitted_at: submission.submittedAt, status: submission.status,
+      });
+      if (error) throw error;
     }
+    const stored = StorageService.getSubmissions().filter((item) => !(item.assignmentId === submission.assignmentId && item.studentId === submission.studentId && item.periodId === submission.periodId));
+    StorageService.saveSubmissions([...stored, submission]);
   }
 
   static async saveAssessment(assessment: Assessment): Promise<void> {

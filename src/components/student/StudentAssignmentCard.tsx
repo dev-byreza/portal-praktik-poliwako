@@ -61,25 +61,15 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
     setSelectedFile(file);
   };
 
-  const handleUpload = () => {
-    if (!selectedFile || !currentStudent || !studentSession) return;
-
+  const handleUpload = async () => {
+    if (!selectedFile) return;
     setIsUploading(true);
-    setTimeout(() => {
-      const formattedSize = `${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB`;
-      const fileName = `${currentStudent.nim}_${currentStudent.name.replace(/\s+/g, '_')}_${selectedFile.name}`;
-      
-      // Store dummy sample link
-      submitAssignment(
-        assignment.id,
-        fileName,
-        'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-        formattedSize
-      );
-
-      setSelectedFile(null);
+    try {
+      const result = await submitAssignment(assignment.id, selectedFile);
+      if (result.success) setSelectedFile(null);
+    } finally {
       setIsUploading(false);
-    }, 600);
+    }
   };
 
   return (
