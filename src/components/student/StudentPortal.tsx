@@ -22,7 +22,8 @@ import {
   FolderArchive,
   LogOut,
   List,
-  LayoutGrid
+  LayoutGrid,
+  X
 } from 'lucide-react';
 import { StudentIdentityModal } from './StudentIdentityModal';
 import { StudentAssignmentCard } from './StudentAssignmentCard';
@@ -363,7 +364,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     <div className="h-full w-full flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-100">
       
       {/* Top Compact Banner & Header */}
-      <div className="bg-slate-900 text-white border-b border-slate-800 shadow-sm shrink-0">
+      <div className="sticky top-0 z-30 bg-slate-900 text-white border-b border-slate-800 shadow-sm shrink-0">
         <div className="w-full px-4 sm:px-6 lg:px-8 py-2.5">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2.5">
             
@@ -605,8 +606,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                 }`}
                 title={isOutlineOpen ? 'Tutup sidebar Course Outline' : 'Buka sidebar Course Outline'}
               >
-                <List className="w-4 h-4 text-slate-700" />
-                <span>Course outline</span>
+                {isOutlineOpen ? <X className="w-4 h-4 text-slate-700" /> : <List className="w-4 h-4 text-slate-700" />}
+                <span className="hidden sm:inline">{isOutlineOpen ? 'Tutup Course Outline' : 'Buka Course Outline'}</span>
+                <span className="sm:hidden">{isOutlineOpen ? 'Tutup menu' : 'Buka menu'}</span>
               </button>
 
               <div className="flex items-center gap-3 text-xs sm:text-sm font-medium text-slate-600">
@@ -844,6 +846,10 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
         </div>
       </div>
+
+      <footer className="shrink-0 border-t border-slate-800 bg-slate-900 px-4 py-3 text-center text-[10px] sm:text-xs text-slate-400">
+        © 2026 Politeknik Sorowako · Portal Praktik Mahasiswa
+      </footer>
 
       {/* Student Identity Modal */}
       <StudentIdentityModal

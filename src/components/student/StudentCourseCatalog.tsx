@@ -262,11 +262,15 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
         </div>
 
         {/* Footer Note */}
-        <div className="mt-12 text-center text-xs text-slate-500 pb-6">
-          <p>© 2026 Politeknik Sorowako — Sistem Penilaian Praktik Terintegrasi Outcome-Based Education (OBE)</p>
-        </div>
+        <footer className="mt-12 w-full text-center text-xs text-slate-500 pb-6">
+          <p>© 2026 Politeknik Sorowako — Portal Praktik Mahasiswa</p>
+        </footer>
 
       </main>
+
+      <footer className="shrink-0 border-t border-slate-800 bg-slate-900 px-4 py-3 text-center text-[10px] sm:text-xs text-slate-400">
+        © 2026 Politeknik Sorowako · Portal Praktik Mahasiswa
+      </footer>
 
     </div>
   );
