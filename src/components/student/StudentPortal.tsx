@@ -61,7 +61,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     setActiveTabState(tab);
     if (typeof window !== 'undefined' && !isViewingCatalog) {
       const suffix = tab === 'FINAL_PROJECT' ? 'final-project' : tab === 'GRADE' ? 'nilai' : 'unit';
-      const target = `/mahasiswa/${selectedCourseSlug}/${suffix}`;
+      const target = `/mahasiswa/unit/${selectedCourseSlug}/${suffix}`;
       if (window.location.pathname !== target) window.history.pushState(null, '', target);
     }
   };
@@ -106,11 +106,14 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     const syncStudentSlug = () => {
       const parts = window.location.pathname.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
       if (parts[0] !== 'mahasiswa') return;
-      setIsViewingCatalog(!parts[1]);
-      if (parts[1]) setSelectedCourseSlug(parts[1]);
-      if (parts[2] === 'final-project') setActiveTabState('FINAL_PROJECT');
-      else if (parts[2] === 'nilai') setActiveTabState('GRADE');
-      else if (parts[2] === 'unit') setActiveTabState('UNITS');
+      const isUnitRoute = parts[1] === 'unit';
+      const slug = isUnitRoute ? parts[2] : parts[1];
+      const section = isUnitRoute ? parts[3] : parts[2];
+      setIsViewingCatalog(!slug);
+      if (slug) setSelectedCourseSlug(slug);
+      if (section === 'final-project') setActiveTabState('FINAL_PROJECT');
+      else if (section === 'nilai') setActiveTabState('GRADE');
+      else if (section === 'unit') setActiveTabState('UNITS');
     };
     window.addEventListener('popstate', syncStudentSlug);
     syncStudentSlug();
@@ -123,7 +126,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                          periods.find(p => p.courseId === targetCourse?.id);
     setSelectedCourseSlug(slug);
     setIsViewingCatalog(false);
-    window.history.pushState(null, '', `/mahasiswa/${slug}/unit`);
+    window.history.pushState(null, '', `/mahasiswa/unit/${slug}/unit`);
     sessionStorage.setItem('poliwako_in_workspace', 'true');
     if (currentStudent && targetCourse && targetPeriod) {
       setStudentIdentity(currentStudent.id, targetCourse.slug, targetPeriod.id);
