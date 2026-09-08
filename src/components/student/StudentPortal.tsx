@@ -56,7 +56,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
   const [selectedUnitId, setSelectedUnitId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'UNITS' | 'FINAL_PROJECT' | 'GRADE'>('UNITS');
   const [pdfModalDoc, setPdfModalDoc] = useState<{ isOpen: boolean; title: string; url?: string } | null>(null);
-  const [isOutlineOpen, setIsOutlineOpen] = useState<boolean>(true);
+  const [isOutlineOpen, setIsOutlineOpen] = useState<boolean>(() => (typeof window === 'undefined' ? true : window.innerWidth >= 1024));
 
   // Catalog view state (PRD Option B: Course Catalog & Switcher)
   const [isViewingCatalog, setIsViewingCatalog] = useState<boolean>(() => {
@@ -465,9 +465,12 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                   <Layers className="w-3.5 h-3.5 text-blue-600" />
                   <span>Course Outline</span>
                 </div>
-                <span className="text-[10px] font-semibold text-slate-400">
-                  {periodUnits.length} Unit
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-semibold text-slate-400">{periodUnits.length} Unit</span>
+                  <button type="button" onClick={() => setIsOutlineOpen(false)} aria-label="Tutup Course Outline" className="md:hidden inline-flex items-center gap-1 rounded-lg bg-white px-2 py-1 text-[10px] font-bold text-slate-600 border border-slate-200 shadow-sm">
+                    <ChevronUp className="w-3.5 h-3.5" /> Tutup
+                  </button>
+                </div>
               </div>
 
               {/* Units List */}
@@ -605,8 +608,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                 }`}
                 title={isOutlineOpen ? 'Tutup sidebar Course Outline' : 'Buka sidebar Course Outline'}
               >
-                <List className="w-4 h-4 text-slate-700" />
-                <span>Course outline</span>
+                {isOutlineOpen ? <ChevronUp className="w-4 h-4 text-slate-700" /> : <ChevronDown className="w-4 h-4 text-slate-700" />}
+                <span className="hidden sm:inline">{isOutlineOpen ? 'Tutup Course Outline' : 'Buka Course Outline'}</span>
+                <span className="sm:hidden">{isOutlineOpen ? 'Tutup menu' : 'Buka menu'}</span>
               </button>
 
               <div className="flex items-center gap-3 text-xs sm:text-sm font-medium text-slate-600">
