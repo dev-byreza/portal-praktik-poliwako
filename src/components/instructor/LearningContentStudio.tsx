@@ -963,7 +963,7 @@ export const LearningContentStudio: React.FC = () => {
                   <option value="REPORT">Laporan Praktik</option>
                   <option value="POST_TEST">Post-Test</option>
                 </select>
-                <p className="mt-1 text-[10px] text-slate-500">Jenis ini menentukan tab PDF tempat berkas mahasiswa ditampilkan kepada instruktur.</p>
+                <p className="mt-1 text-[10px] text-slate-500">Jenis ini menentukan kategori berkas mahasiswa saat ditampilkan kepada instruktur.</p>
               </div>
 
               <div>
