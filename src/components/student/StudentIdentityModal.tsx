@@ -94,7 +94,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   // Step 2A: Create Password for First-time user
   const handleCreatePassword = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!targetStudent || !activeCourse || !activePeriod) return;
+    if (!targetStudent) return;
 
     setErrorMessage(null);
 
@@ -113,8 +113,8 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
       const result = createStudentPassword(
         targetStudent.id,
         passwordInput,
-        activeCourse.slug,
-        activePeriod.id
+        activeCourse?.slug || courseSlug,
+        activePeriod?.id || ''
       );
 
       if (result.success) {
@@ -133,7 +133,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   // Step 2B: Login with Password for returning user
   const handleLoginPassword = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!targetStudent || !activeCourse || !activePeriod) return;
+    if (!targetStudent) return;
 
     setErrorMessage(null);
 
@@ -147,8 +147,8 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
       const result = loginStudentWithPassword(
         targetStudent.nim,
         passwordInput,
-        activeCourse.slug,
-        activePeriod.id
+        activeCourse?.slug || courseSlug,
+        activePeriod?.id || ''
       );
 
       if (result.success) {

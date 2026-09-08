@@ -355,7 +355,11 @@ export class ApiService {
         query = query.eq('period_id', periodId);
       }
       const { data, error } = await query;
-      if (error || !data || data.length === 0) return StorageService.getParticipants();
+      if (error) {
+        console.error('Error loading participants from Supabase:', error);
+        return [];
+      }
+      if (!data) return [];
 
       return data.map((p: any) => ({
         id: p.id,

@@ -93,6 +93,18 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                         courses.find(c => c.id === activeCourseId) ||
                         courses[0];
 
+  const enrolledCourseIds = useMemo(() => {
+    if (!currentStudent) return new Set<string>();
+    return new Set(
+      periods
+        .filter(period => participants.some(participant =>
+          participant.periodId === period.id && participant.studentId === currentStudent.id
+        ))
+        .map(period => period.courseId)
+    );
+  }, [periods, participants, currentStudent?.id]);
+  const isCurrentCourseEnrolled = Boolean(currentCourse && enrolledCourseIds.has(currentCourse.id));
+
   // Active period
   const activePeriod = periods.find(p => p.courseId === currentCourse?.id && p.status === 'ACTIVE') ||
                        periods.find(p => p.courseId === currentCourse?.id);
@@ -289,6 +301,16 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
       setIsViewingCatalog(true);
     }
   }, [currentStudent]);
+
+  // Never expose a workspace for a course in which this student is not enrolled.
+  // Returning to the catalog also keeps manually entered unauthorized slugs from working.
+  const unauthorizedCourse = currentStudent && studentSession && !isViewingCatalog && currentCourse && !isCurrentCourseEnrolled;
+  if (unauthorizedCourse) {
+    if (typeof window !== 'undefined' && window.location.pathname !== '/mahasiswa/unit') {
+      window.history.replaceState(null, '', '/mahasiswa/unit');
+    }
+    return <StudentCourseCatalog onSelectCourse={handleSelectCourse} />;
+  }
 
   // Gate check: If student is not authenticated, render login gate directly with interactive pointer-following animations & glassmorphism
   if (!currentStudent || !studentSession) {

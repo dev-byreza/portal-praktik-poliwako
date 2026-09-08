@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
   BookOpen, 
@@ -21,6 +21,7 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
     currentStudent,
     courses,
     periods,
+    participants,
     learningUnits,
     unitProgress,
     clearStudentIdentity
@@ -38,7 +39,19 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
     setRawMouse({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
 
-  const publishedCourses = courses.filter(c => c.status === 'PUBLISHED');
+  const visibleCourses = useMemo(() => {
+    if (!currentStudent) return [];
+    const enrolledCourseIds = new Set(
+      periods
+        .filter(period => participants.some(participant =>
+          participant.periodId === period.id && participant.studentId === currentStudent.id
+        ))
+        .map(period => period.courseId)
+    );
+    return courses.filter(course =>
+      course.status === 'PUBLISHED' && enrolledCourseIds.has(course.id)
+    );
+  }, [courses, periods, participants, currentStudent?.id]);
 
   return (
     <div 
@@ -145,7 +158,16 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
 
         {/* Course Cards Container: Selalu center! Jika 1 frame berada di tengah, jika 2 frame bergeser seimbang ke kiri dan kanan dengan titik tengah simetris */}
         <div className="flex flex-wrap justify-center items-stretch gap-6 w-full max-w-5xl mx-auto">
-          {publishedCourses.map((course) => {
+          {visibleCourses.length === 0 && (
+            <div className="w-full max-w-xl rounded-2xl border border-slate-800 bg-slate-900/70 p-8 text-center shadow-xl">
+              <BookOpen className="mx-auto mb-3 h-10 w-10 text-cyan-400" />
+              <h2 className="text-lg font-bold text-white">Belum ada mata kuliah terdaftar</h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                Akun ini belum didaftarkan pada periode praktik mana pun. Hubungi instruktur untuk mendapatkan pendaftaran mata kuliah.
+              </p>
+            </div>
+          )}
+          {visibleCourses.map((course) => {
             // Find active period for this course
             const activePeriod = periods.find(p => p.courseId === course.id && p.status === 'ACTIVE') ||
                                  periods.find(p => p.courseId === course.id);
@@ -167,7 +189,7 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
             return (
               <div
                 key={course.id}
-                className={`w-full ${publishedCourses.length === 1 ? 'max-w-xl' : 'md:w-[calc(50%-12px)] max-w-xl'} group relative flex flex-col justify-between bg-slate-900/70 hover:bg-slate-900/90 border border-slate-800 hover:border-blue-500/50 rounded-2xl p-6 transition-all duration-300 shadow-xl hover:shadow-2xl hover:shadow-blue-500/10 backdrop-blur-sm`}
+                className={`w-full ${visibleCourses.length === 1 ? 'max-w-xl' : 'md:w-[calc(50%-12px)] max-w-xl'} group relative flex flex-col justify-between bg-slate-900/70 hover:bg-slate-900/90 border border-slate-800 hover:border-blue-500/50 rounded-2xl p-6 transition-all duration-300 shadow-xl hover:shadow-2xl hover:shadow-blue-500/10 backdrop-blur-sm`}
               >
                 {/* Course Header */}
                 <div className="flex items-start justify-between gap-4 mb-4">

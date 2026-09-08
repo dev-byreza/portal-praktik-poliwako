@@ -158,7 +158,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [activeCourseId, setActiveCourseIdState] = useState<string>(() => (isLiveBackend ? '' : StorageService.getActiveCourseId()));
   const [students, setStudents] = useState<Student[]>(StorageService.getStudents());
   const [periods, setPeriods] = useState<PracticePeriod[]>(StorageService.getPeriods());
-  const [participants, setParticipants] = useState<PracticeParticipant[]>(StorageService.getParticipants());
+  const [participants, setParticipants] = useState<PracticeParticipant[]>(() => (isLiveBackend ? [] : StorageService.getParticipants()));
   const [learningUnits, setLearningUnits] = useState<LearningUnit[]>(StorageService.getLearningUnits());
   const [unitProgress, setUnitProgress] = useState<UnitProgress[]>(StorageService.getUnitProgress());
   const [submissions, setSubmissions] = useState<Submission[]>(StorageService.getSubmissions());
@@ -503,26 +503,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setStudents(updatedStudents);
     StorageService.saveStudents(updatedStudents);
 
-    // Auto enroll in active period if not yet participant
-    setParticipants(prev => {
-      const exists = prev.some(p => p.periodId === periodId && p.studentId === studentId);
-      if (!exists) {
-        const newPart: PracticeParticipant = {
-          id: `part-${Date.now()}`,
-          periodId,
-          studentId: std.id,
-          student: { ...std, password: trimmedPassword, hasCreatedPassword: true },
-          enrolledAt: new Date().toISOString().split('T')[0],
-          progressStatus: 'IN_PROGRESS',
-          finalProjectConfirmed: false
-        };
-        const updated = [...prev, newPart];
-        StorageService.saveParticipants(updated);
-        return updated;
-      }
-      return prev;
-    });
-
     // Establish session
     const session = { studentId, courseSlug, periodId };
     setStudentSessionState(session);
@@ -548,26 +528,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (std.password !== password.trim()) {
       return { success: false, message: 'Password salah. Periksa kembali password Anda.' };
     }
-
-    // Auto enroll in active period if not yet participant
-    setParticipants(prev => {
-      const exists = prev.some(p => p.periodId === periodId && p.studentId === std.id);
-      if (!exists) {
-        const newPart: PracticeParticipant = {
-          id: `part-${Date.now()}`,
-          periodId,
-          studentId: std.id,
-          student: std,
-          enrolledAt: new Date().toISOString().split('T')[0],
-          progressStatus: 'IN_PROGRESS',
-          finalProjectConfirmed: false
-        };
-        const updated = [...prev, newPart];
-        StorageService.saveParticipants(updated);
-        return updated;
-      }
-      return prev;
-    });
 
     // Establish session
     const session = { studentId: std.id, courseSlug, periodId };
@@ -599,34 +559,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setStudentSessionState(session);
     StorageService.setStudentSession(session);
     setRole('STUDENT');
-    
-    // Ensure participant progress status is initialized
-    setParticipants(prev => {
-      const exists = prev.some(p => p.periodId === periodId && p.studentId === studentId);
-      if (!exists) {
-        const std = students.find(s => s.id === studentId);
-        if (std) {
-          const newPart: PracticeParticipant = {
-            id: `part-${Date.now()}`,
-            periodId,
-            studentId: std.id,
-            student: std,
-            enrolledAt: new Date().toISOString().split('T')[0],
-            progressStatus: 'IN_PROGRESS',
-            finalProjectConfirmed: false
-          };
-          const updated = [...prev, newPart];
-          StorageService.saveParticipants(updated);
-          return updated;
-        }
+
+    // Enrollment is managed by instructors. Selecting a course only establishes the session.
+    setParticipants(prev => prev.map(p => {
+      if (p.periodId === periodId && p.studentId === studentId && p.progressStatus === 'NOT_STARTED') {
+        return { ...p, progressStatus: 'IN_PROGRESS' };
       }
-      return prev.map(p => {
-        if (p.periodId === periodId && p.studentId === studentId && p.progressStatus === 'NOT_STARTED') {
-          return { ...p, progressStatus: 'IN_PROGRESS' };
-        }
-        return p;
-      });
-    });
+      return p;
+    }));
 
     const std = students.find(s => s.id === studentId);
     showToast('Selamat Datang', `Praktik aktif untuk ${std?.name || 'Mahasiswa'} (NIM: ${std?.nim})`, 'success');
