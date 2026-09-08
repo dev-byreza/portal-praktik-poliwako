@@ -5,7 +5,8 @@ import {
   RotateCcw,
   Copy,
   ChevronRight,
-  Share2
+  Share2,
+  Menu
 } from 'lucide-react';
 import { formatIndonesianDate, getWitaDateString } from '../../utils/dateUtils';
 import { SharePortalModal } from './SharePortalModal';
@@ -13,11 +14,13 @@ import { SharePortalModal } from './SharePortalModal';
 interface InstructorHeaderProps {
   activeTab: string;
   onOpenCopyCourse: () => void;
+  onOpenMobileMenu: () => void;
 }
 
 export const InstructorHeader: React.FC<InstructorHeaderProps> = ({
   activeTab,
-  onOpenCopyCourse
+  onOpenCopyCourse,
+  onOpenMobileMenu
 }) => {
   const { activeCourse, resetToDefaultData } = useApp();
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -37,23 +40,27 @@ export const InstructorHeader: React.FC<InstructorHeaderProps> = ({
   const todayWita = getWitaDateString();
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 px-6 lg:px-8 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+    <header className="h-16 bg-white border-b border-slate-200 px-4 sm:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-30 shadow-xs">
       
+      <button type="button" onClick={onOpenMobileMenu} aria-label="Buka menu navigasi" className="md:hidden p-2 -ml-2 mr-1 rounded-xl text-slate-600 hover:bg-slate-100">
+        <Menu className="w-5 h-5" />
+      </button>
+
       {/* Breadcrumb Title */}
-      <div className="flex items-center gap-2 text-xs">
-        <span className="font-bold text-slate-400">Portal Praktik</span>
+      <div className="flex items-center gap-2 text-xs min-w-0">
+        <span className="hidden sm:inline font-bold text-slate-400">Portal Praktik</span>
         <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
         <span className="font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100">
           {activeCourse?.name || 'Mata Kuliah'}
         </span>
         <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
-        <h1 className="font-extrabold text-slate-900 text-sm">
+        <h1 className="font-extrabold text-slate-900 text-xs sm:text-sm truncate max-w-[9rem] sm:max-w-none">
           {tabTitleMap[activeTab] || 'Dashboard'}
         </h1>
       </div>
 
       {/* Right Controls */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3">
         
         {/* WITA Date Indicator */}
         <div className="hidden md:flex items-center gap-1.5 text-xs text-slate-500 font-medium bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
@@ -64,7 +71,7 @@ export const InstructorHeader: React.FC<InstructorHeaderProps> = ({
         {/* Bagikan Link Portal ke Mahasiswa */}
         <button
           onClick={() => setIsShareModalOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-xl shadow-sm shadow-cyan-600/25 hover:shadow-cyan-600/40 transition-all cursor-pointer"
+          className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 bg-cyan-600" hover:bg-cyan-500 text-white text-xs font-bold rounded-xl shadow-sm shadow-cyan-600/25 hover:shadow-cyan-600/40 transition-all cursor-pointer"
           title="Bagikan link portal ke mahasiswa"
         >
           <Share2 className="w-3.5 h-3.5" />

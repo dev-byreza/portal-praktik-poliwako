@@ -31,6 +31,8 @@ interface InstructorSidebarProps {
   isCollapsed: boolean;
   setIsCollapsed: (collapsed: boolean) => void;
   onOpenCourseWizard: () => void;
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
@@ -38,7 +40,9 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
   setActiveTab,
   isCollapsed,
   setIsCollapsed,
-  onOpenCourseWizard
+  onOpenCourseWizard,
+  isMobileOpen = false,
+  onCloseMobile
 }) => {
   const {
     instructor,
@@ -68,7 +72,7 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
     <aside
       className={`fixed top-0 left-0 h-screen z-40 bg-slate-900 border-r border-slate-800 text-white flex flex-col transition-all duration-300 ease-in-out ${
         isCollapsed ? 'w-20' : 'w-64'
-      }`}
+      } ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
     >
       {/* Brand Header */}
       <div className="h-16 px-4 flex items-center justify-between border-b border-slate-800 shrink-0">
@@ -193,7 +197,7 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
           return (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => { setActiveTab(item.id); onCloseMobile?.(); }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all group relative ${
                 isActive
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 font-extrabold'

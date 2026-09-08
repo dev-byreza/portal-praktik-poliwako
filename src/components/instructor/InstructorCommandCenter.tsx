@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { ShieldCheck, ChevronRight, Lock, ArrowLeft } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { InstructorSidebar } from './InstructorSidebar';
 import { InstructorHeader } from './InstructorHeader';
 import { DashboardOverview } from './DashboardOverview';
@@ -34,6 +34,7 @@ export const InstructorCommandCenter: React.FC<InstructorCommandCenterProps> = (
   const [activeTab, setActiveTab] = useState<string>('DASHBOARD');
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [isCopyCourseOpen, setIsCopyCourseOpen] = useState<boolean>(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   if (!isInstructorLoggedIn) {
     return <InstructorLoginGate />;
@@ -50,22 +51,34 @@ export const InstructorCommandCenter: React.FC<InstructorCommandCenterProps> = (
         isCollapsed={isCollapsed}
         setIsCollapsed={setIsCollapsed}
         onOpenCourseWizard={() => setIsCourseWizardOpen(true)}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
+
+      {isMobileSidebarOpen && (
+        <button
+          type="button"
+          aria-label="Tutup menu"
+          onClick={() => setIsMobileSidebarOpen(false)}
+          className="fixed inset-0 z-30 bg-slate-950/60 md:hidden"
+        />
+      )}
 
       {/* Main Content Area (Offset by sidebar width) */}
       <div
         className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${
-          isCollapsed ? 'ml-20' : 'ml-64'
+          isCollapsed ? 'md:ml-20' : 'md:ml-64'
         }`}
       >
         {/* Top Header */}
         <InstructorHeader
           activeTab={activeTab}
           onOpenCopyCourse={() => setIsCopyCourseOpen(true)}
+          onOpenMobileMenu={() => setIsMobileSidebarOpen(true)}
         />
 
         {/* Tab Pages */}
-        <main className="flex-1 p-6 lg:p-8 animate-fadeIn w-full">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 animate-fadeIn w-full">
           {activeTab === 'DASHBOARD' && <DashboardOverview onNavigateTab={tab => setActiveTab(tab)} />}
           {activeTab === 'STUDENTS' && <MasterStudentManager />}
           {activeTab === 'PERIODS' && <PracticePeriodManager />}
