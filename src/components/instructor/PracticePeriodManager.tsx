@@ -90,7 +90,11 @@ export const PracticePeriodManager: React.FC = () => {
     return periods.filter(p => p.courseId === activeCourseId);
   }, [periods, activeCourseId]);
 
-  const activeSelectedPeriod = coursePeriods.find(p => p.id === selectedPeriodId) || coursePeriods[0];
+  // Open the period that is currently active according to the synchronized
+  // status. Fall back to the first period only when none is active.
+  const activeSelectedPeriod = coursePeriods.find(p => p.id === selectedPeriodId)
+    || coursePeriods.find(p => p.status === 'ACTIVE')
+    || coursePeriods[0];
 
   // Participants of selected period
   const periodParticipants = useMemo(() => {
@@ -211,6 +215,7 @@ export const PracticePeriodManager: React.FC = () => {
       ...period,
       status: 'ACTIVE'
     });
+    setSelectedPeriodId(period.id);
   };
 
   // Delete period with confirmation
