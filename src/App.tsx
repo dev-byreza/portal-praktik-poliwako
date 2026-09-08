@@ -272,26 +272,6 @@ export const App: React.FC = () => {
             </button>
           )}
 
-          {activeRoute === 'STUDENT' && (
-            <>
-              <button
-                onClick={() => navigateTo('/')}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-all px-2.5 py-1 rounded-lg hover:bg-slate-800 text-xs font-medium flex items-center gap-1.5 cursor-pointer"
-                title="Pilihan Portal"
-              >
-                <Home className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Pilihan Portal</span>
-              </button>
-
-              <button
-                onClick={() => navigateTo('/instruktur')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 opacity-25 hover:opacity-100 transition-all p-1.5 rounded-lg hover:bg-slate-800 cursor-pointer"
-                title="Akses Instruktur"
-              >
-                <Lock className="w-3.5 h-3.5" />
-              </button>
-            </>
-          )}
 
         </footer>
       )}
