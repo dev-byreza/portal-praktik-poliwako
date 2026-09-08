@@ -298,6 +298,7 @@ export const assignments = pgTable('assignments', {
   deadline: timestamp('deadline', { withTimezone: true }).notNull(),
   maxScore: integer('max_score').notNull().default(100),
   allowedFileType: varchar('allowed_file_type', { length: 20 }).notNull().default('PDF'),
+  submissionType: varchar('submission_type', { length: 20 }).notNull().default('ASSIGNMENT'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   assignmentPeriodIdx: index('assignment_period_idx').on(table.periodId),
@@ -327,6 +328,7 @@ export const submissions = pgTable('submissions', {
   fileUrl: text('file_url').notNull(),
   fileSize: varchar('file_size', { length: 50 }).notNull(),
   storagePath: text('storage_path'), // e.g. instructor/course/period/student/assignment.pdf
+  submissionType: varchar('submission_type', { length: 20 }).notNull().default('ASSIGNMENT'),
   submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
   status: varchar('status', { length: 30 }).notNull().default('SUBMITTED'), // 'SUBMITTED' | 'GRADED'
 }, (table) => ({

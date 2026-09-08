@@ -521,6 +521,9 @@ export class ApiService {
               deadline: u.assignments[0].deadline,
               maxScore: u.assignments[0].max_score,
               allowedFileType: u.assignments[0].allowed_file_type,
+              submissionType: (u.assignments[0].submission_type && u.assignments[0].submission_type !== 'ASSIGNMENT')
+                ? u.assignments[0].submission_type
+                : (/laporan|report/i.test(u.assignments[0].title || '') ? 'REPORT' : 'ASSIGNMENT'),
             }
           : undefined,
       }));
@@ -549,6 +552,7 @@ export class ApiService {
       storagePath: row.storage_path || undefined,
       submittedAt: row.submitted_at,
       status: row.status,
+      submissionType: row.submission_type || 'ASSIGNMENT',
     })));
   }
 
@@ -558,6 +562,7 @@ export class ApiService {
         id: submission.id, assignment_id: submission.assignmentId, student_id: submission.studentId, period_id: submission.periodId,
         file_name: submission.fileName, file_url: submission.fileUrl, file_size: submission.fileSize,
         storage_path: submission.storagePath || null, submitted_at: submission.submittedAt, status: submission.status,
+        submission_type: submission.submissionType || 'ASSIGNMENT',
       });
       if (error) throw error;
     }

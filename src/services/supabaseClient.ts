@@ -160,6 +160,7 @@ export async function uploadSubmissionPDF(
     periodId: string;
     studentId: string;
     assignmentId: string;
+    submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST' | 'REMEDIAL';
   }
 ): Promise<{ storagePath: string | null; publicUrl: string | null; error: Error | null }> {
   // Validate file type
@@ -181,7 +182,8 @@ export async function uploadSubmissionPDF(
   }
 
   const safeFileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-  const filePath = `${path.courseId}/${path.periodId}/${path.studentId}/${path.assignmentId}/${safeFileName}`;
+  const kind = (path.submissionType || 'ASSIGNMENT').toLowerCase();
+  const filePath = `${path.courseId}/${path.periodId}/${path.studentId}/${kind}/${path.assignmentId}/${safeFileName}`;
 
   if (!supabase) {
     return {

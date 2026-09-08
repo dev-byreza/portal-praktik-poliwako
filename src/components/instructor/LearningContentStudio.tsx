@@ -65,6 +65,7 @@ export const LearningContentStudio: React.FC = () => {
   const [assignTitle, setAssignTitle] = useState('');
   const [assignDesc, setAssignDesc] = useState('');
   const [assignDeadline, setAssignDeadline] = useState('2026-09-11 23:59 WITA');
+  const [assignSubmissionType, setAssignSubmissionType] = useState<'ASSIGNMENT' | 'REPORT' | 'POST_TEST'>('ASSIGNMENT');
 
   const [pdfPreview, setPdfPreview] = useState<{ isOpen: boolean; title: string; url?: string } | null>(null);
 
@@ -241,7 +242,8 @@ export const LearningContentStudio: React.FC = () => {
       description: assignDesc.trim() || '',
       deadline: assignDeadline,
       maxScore: 100,
-      allowedFileType: 'PDF'
+      allowedFileType: 'PDF',
+      submissionType: assignSubmissionType
     };
 
     updateLearningUnit({
@@ -503,6 +505,7 @@ export const LearningContentStudio: React.FC = () => {
                       onClick={() => {
                         setAssignTitle(`Tugas Unit ${activeSelectedUnit.unitNumber}: Judul Laporan`);
                         setAssignDesc('Upload dokumen laporan pengujian dalam format PDF (Maks. 25 MB).');
+                        setAssignSubmissionType('REPORT');
                         setIsAssignmentModalOpen(true);
                       }}
                       className="px-3 py-1 bg-amber-50 text-amber-800 hover:bg-amber-100 rounded-lg text-xs font-bold border border-amber-200 transition-colors"
@@ -763,6 +766,22 @@ export const LearningContentStudio: React.FC = () => {
                   required
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Jenis Berkas Pengumpulan
+                </label>
+                <select
+                  value={assignSubmissionType}
+                  onChange={e => setAssignSubmissionType(e.target.value as 'ASSIGNMENT' | 'REPORT' | 'POST_TEST')}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="ASSIGNMENT">Tugas Modul</option>
+                  <option value="REPORT">Laporan Praktik</option>
+                  <option value="POST_TEST">Post-Test</option>
+                </select>
+                <p className="mt-1 text-[10px] text-slate-500">Jenis ini menentukan tab PDF tempat berkas mahasiswa ditampilkan kepada instruktur.</p>
               </div>
 
               <div>

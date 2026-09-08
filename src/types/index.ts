@@ -121,6 +121,7 @@ export interface Assignment {
   deadline: string;
   maxScore: number;
   allowedFileType: 'PDF';
+  submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST';
 }
 
 export interface LearningUnit {
@@ -153,6 +154,7 @@ export interface Submission {
   storagePath?: string;
   submittedAt: string;
   status: 'SUBMITTED' | 'GRADED';
+  submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST' | 'REMEDIAL';
 }
 
 export type AttendanceStatus = 'HADIR' | 'IZIN' | 'SAKIT' | 'ALPA';

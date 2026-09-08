@@ -161,20 +161,21 @@ export const GradingWorkspace: React.FC = () => {
     );
   }, [submissions, activeTask, currentParticipant, activeSelectedPeriod]);
 
-  // A report preview must come from an uploaded student PDF. Prefer an
-  // assignment explicitly labelled as a report, then fall back to a filename
-  // containing "laporan" or "report". Never fabricate a PDF when none exists.
+  // A report preview must come from an uploaded student PDF. Prefer the
+  // explicit submission type, then the assignment label or filename.
   const reportSubmission = useMemo(() => {
     if (!currentParticipant || !activeSelectedPeriod) return undefined;
+    const explicitReport = studentSubmissions.find(submission => submission.submissionType === 'REPORT');
+    if (explicitReport) return explicitReport;
     const reportTaskIds = new Set(
       periodUnitsWithAssignments
         .filter(unit => /laporan|report/i.test(unit.assignment?.title || ''))
         .map(unit => unit.assignment!.id)
     );
-    const explicitReport = studentSubmissions.find(submission =>
+    const labelledReport = studentSubmissions.find(submission =>
       reportTaskIds.has(submission.assignmentId) || /laporan|report/i.test(submission.fileName)
     );
-    if (explicitReport) return explicitReport;
+    if (labelledReport) return labelledReport;
 
     // When a course does not label its final assignment as a report, use the
     // highest-numbered unit submission as the report document.
@@ -182,9 +183,13 @@ export const GradingWorkspace: React.FC = () => {
     return studentSubmissions.find(submission => submission.assignmentId === finalAssignmentId);
   }, [currentParticipant, activeSelectedPeriod, periodUnitsWithAssignments, studentSubmissions]);
 
-  const postTestFileUrl = existingAssessment?.postTestFileUrl && /^https?:\/\//i.test(existingAssessment.postTestFileUrl)
+  const postTestSubmission = useMemo(
+    () => studentSubmissions.find(submission => submission.submissionType === 'POST_TEST'),
+    [studentSubmissions]
+  );
+  const postTestFileUrl = postTestSubmission?.fileUrl || (existingAssessment?.postTestFileUrl && /^https?:\/\//i.test(existingAssessment.postTestFileUrl)
     ? existingAssessment.postTestFileUrl
-    : undefined;
+    : undefined);
 
   // Active Course Sub-CPMKs & Rubrics (OBE Quality Component - PRD Section 45, 46)
   const qualityItems = useMemo(() => {
@@ -620,7 +625,7 @@ export const GradingWorkspace: React.FC = () => {
                 }`} />
                 <span className="font-bold truncate">
                   {activeDocType === 'POST_TEST'
-                    ? (postTestFileUrl ? 'PDF Post-Test Mahasiswa' : 'Belum ada PDF post-test')
+                    ? (postTestSubmission?.fileName || (postTestFileUrl ? 'PDF Post-Test Mahasiswa' : 'Belum ada PDF post-test'))
                     : activeDocType === 'ASSIGNMENT'
                     ? (activeAssignmentSubmission?.fileName || 'Belum ada PDF tugas')
                     : (reportSubmission?.fileName || 'Belum ada PDF laporan')}
@@ -1280,10 +1285,10 @@ export const GradingWorkspace: React.FC = () => {
                     </div>
                     <div>
                       <span className="text-xs font-bold text-slate-900 block truncate max-w-xs">
-                        {postTestFileUrl ? 'PDF Post-Test Mahasiswa' : 'Belum ada PDF post-test'}
+                        {postTestSubmission?.fileName || (postTestFileUrl ? 'PDF Post-Test Mahasiswa' : 'Belum ada PDF post-test')}
                       </span>
                       <span className="text-[10px] text-slate-500">
-                        {postTestFileUrl ? 'Berkas post-test tersimpan di Supabase Storage.' : 'Belum ada PDF post-test yang diunggah mahasiswa.'}
+                        {postTestFileUrl ? `Dokumen PDF post-test${postTestSubmission?.fileSize ? ` • ${postTestSubmission.fileSize}` : ''} tersimpan di Supabase Storage.` : 'Belum ada PDF post-test yang diunggah mahasiswa.'}
                       </span>
                     </div>
                   </div>

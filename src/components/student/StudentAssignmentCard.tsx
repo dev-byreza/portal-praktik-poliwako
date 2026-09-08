@@ -65,7 +65,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
     if (!selectedFile) return;
     setIsUploading(true);
     try {
-      const result = await submitAssignment(assignment.id, selectedFile);
+      const result = await submitAssignment(assignment.id, selectedFile, assignment.submissionType || 'ASSIGNMENT');
       if (result.success) setSelectedFile(null);
     } finally {
       setIsUploading(false);
