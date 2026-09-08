@@ -621,16 +621,6 @@ export class ApiService {
         }
         if (error) throw error;
 
-        const persistedAssignmentId = savedAssignment.id;
-        const { data: persistedAssignment, error: verifyAssignmentError } = await supabase
-          .from('assignments')
-          .select('id')
-          .eq('id', persistedAssignmentId)
-          .maybeSingle();
-        if (verifyAssignmentError) throw verifyAssignmentError;
-        if (!persistedAssignment) {
-          throw new Error('Tugas berhasil dikirim tetapi tidak ditemukan saat verifikasi ulang Supabase.');
-        }
       }
 
       if (savedAssignment) {
@@ -659,6 +649,17 @@ export class ApiService {
           ({ error } = await supabase.from('assignments').upsert(legacyPayload));
         }
         if (error) throw error;
+
+        const persistedAssignmentId = savedAssignment.id;
+        const { data: persistedAssignment, error: verifyAssignmentError } = await supabase
+          .from('assignments')
+          .select('id')
+          .eq('id', persistedAssignmentId)
+          .maybeSingle();
+        if (verifyAssignmentError) throw verifyAssignmentError;
+        if (!persistedAssignment) {
+          throw new Error('Tugas berhasil dikirim tetapi tidak ditemukan saat verifikasi ulang Supabase.');
+        }
       }
       const savedUnit = { ...unit, id: unitId, materials: savedMaterials, assignment: savedAssignment };
       const units = StorageService.getLearningUnits().filter(existing => existing.id !== unit.id && existing.id !== unitId);
