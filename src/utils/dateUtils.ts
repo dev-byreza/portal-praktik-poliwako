@@ -34,6 +34,22 @@ export function formatDeadline(deadline: string): string {
   }).format(parsed).replace(/\./g, ':') + ' WITA';
 }
 
+/** Format stored ISO timestamps in the global WITA timezone for users. */
+export function formatWitaDateTime(value: string): string {
+  if (!value) return '-';
+  const raw = String(value).trim();
+  const legacy = raw.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})(?::\d{2})?(?:\s*WITA)?$/i);
+  if (legacy) {
+    return `${Number(legacy[3])} ${['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'][Number(legacy[2]) - 1]} ${legacy[1]}, pukul ${legacy[4]}.${legacy[5]} WITA`;
+  }
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw;
+  return new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Makassar', day: 'numeric', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: false
+  }).format(parsed).replace(/\./g, ':') + ' WITA';
+}
+
 export function formatPeriodRange(startDateStr: string, endDateStr: string): string {
   if (!startDateStr || !endDateStr) return '-';
   return `${formatIndonesianDate(startDateStr)} – ${formatIndonesianDate(endDateStr)}`;

@@ -13,7 +13,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { PDFViewerModal } from '../common/PDFViewerModal';
-import { formatDeadline } from '../../utils/dateUtils';
+import { formatDeadline, formatWitaDateTime } from '../../utils/dateUtils';
 
 interface StudentAssignmentCardProps {
   assignment: Assignment;
@@ -113,7 +113,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    {submission.fileSize} • Diunggah pada {submission.submittedAt}
+                    {submission.fileSize} • Diunggah pada {formatWitaDateTime(submission.submittedAt)}
                   </p>
                 </div>
               </div>
@@ -225,7 +225,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
           fileUrl={submission.fileUrl}
           fileSize={submission.fileSize}
           authorName={currentStudent?.name}
-          submittedAt={submission.submittedAt}
+          submittedAt={formatWitaDateTime(submission.submittedAt)}
         />
       )}
     </>

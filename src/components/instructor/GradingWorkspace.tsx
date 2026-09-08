@@ -33,7 +33,7 @@ import {
   EyeOff,
   FileCheck
 } from 'lucide-react';
-import { formatDeadline } from '../../utils/dateUtils';
+import { formatDeadline, formatWitaDateTime } from '../../utils/dateUtils';
 import { getCourseRubrics, reconcileRubricScores } from '../../utils/courseRubrics';
 import { Badge } from '../common/Badge';
 
@@ -1188,7 +1188,7 @@ export const GradingWorkspace: React.FC = () => {
                               </span>
                               <span className="text-[10px] text-slate-500">
                                 {studentSubmission
-                                  ? `Dokumen PDF Tugas • ${studentSubmission.fileSize} • Diunggah: ${studentSubmission.submittedAt}`
+                                  ? `Dokumen PDF Tugas • ${studentSubmission.fileSize} • Diunggah: ${formatWitaDateTime(studentSubmission.submittedAt)}`
                                   : 'Belum ada PDF yang diunggah mahasiswa.'}
                               </span>
                             </div>
@@ -1548,7 +1548,7 @@ export const GradingWorkspace: React.FC = () => {
                         {reportSubmission?.fileName || 'Belum ada PDF laporan'}
                       </span>
                       <span className="text-[10px] text-slate-500">
-                        {reportSubmission ? `Dokumen PDF laporan • ${reportSubmission.fileSize} • Diunggah: ${reportSubmission.submittedAt}` : 'Belum ada PDF laporan yang diunggah mahasiswa.'}
+                        {reportSubmission ? `Dokumen PDF laporan • ${reportSubmission.fileSize} • Diunggah: ${formatWitaDateTime(reportSubmission.submittedAt)}` : 'Belum ada PDF laporan yang diunggah mahasiswa.'}
                       </span>
                     </div>
                   </div>
