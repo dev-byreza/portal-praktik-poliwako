@@ -961,6 +961,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
               <StudentFinalProjectCard
                 isUnlocked={isLearningComplete}
                 driveUrl={activePeriod?.finalProjectDriveUrl}
+                description={activePeriod?.finalProjectDescription}
               />
             )}
 

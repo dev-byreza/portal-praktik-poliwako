@@ -16,11 +16,13 @@ import confetti from 'canvas-confetti';
 interface StudentFinalProjectCardProps {
   isUnlocked: boolean;
   driveUrl?: string;
+  description?: string;
 }
 
 export const StudentFinalProjectCard: React.FC<StudentFinalProjectCardProps> = ({
   isUnlocked,
-  driveUrl = 'https://drive.google.com/drive/folders/poliwako-cnc-final'
+  driveUrl = '',
+  description = ''
 }) => {
   const { studentSession, participants, confirmFinalProject, showToast } = useApp();
   const [isChecked, setIsChecked] = useState(false);
@@ -71,7 +73,7 @@ export const StudentFinalProjectCard: React.FC<StudentFinalProjectCardProps> = (
           Pengumpulan Proyek Akhir (Final Project)
         </h3>
         <p className="text-xs text-slate-300 mt-1 max-w-xl leading-relaxed">
-          Seluruh unit pembelajaran telah tuntas (100%). Silakan upload seluruh folder file pekerjaan CAD/CAM, simulasi NC, dan dokumentasi foto benda kerja Anda ke Google Drive yang disediakan.
+          {description || 'Seluruh unit pembelajaran telah tuntas (100%). Silakan upload seluruh folder file pekerjaan CAD/CAM, simulasi NC, dan dokumentasi foto benda kerja Anda ke Google Drive yang disediakan.'}
         </p>
 
         {/* Google Drive Link Button */}
@@ -82,21 +84,25 @@ export const StudentFinalProjectCard: React.FC<StudentFinalProjectCardProps> = (
             </div>
             <div>
               <h4 className="text-xs font-bold text-white">Google Drive Folder Pengumpulan</h4>
-              <p className="text-[11px] text-slate-300 font-mono truncate max-w-xs sm:max-w-md mt-0.5">
-                {driveUrl}
+              <p className="text-[11px] text-slate-300 truncate max-w-xs sm:max-w-md mt-0.5">
+                {driveUrl || 'Link Google Drive belum diatur oleh instruktur'}
               </p>
             </div>
           </div>
 
-          <a
-            href={driveUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-cyan-500/20 shrink-0"
-          >
-            <span>Buka Google Drive</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
+          {driveUrl ? (
+            <a
+              href={driveUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-cyan-500/20 shrink-0"
+            >
+              <span>Buka Google Drive</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          ) : (
+            <span className="rounded-lg border border-white/20 px-4 py-2 text-xs font-semibold text-slate-400">Menunggu link Drive</span>
+          )}
         </div>
 
         {/* Confirmation Form */}
