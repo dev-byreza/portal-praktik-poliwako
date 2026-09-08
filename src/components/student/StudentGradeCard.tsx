@@ -55,7 +55,7 @@ export const StudentGradeCard: React.FC = () => {
     submitStudentRemedial(
       remedialId,
       selectedRemedialFile.name,
-      'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+      ''
     );
     setSelectedRemedialFile(null);
   };

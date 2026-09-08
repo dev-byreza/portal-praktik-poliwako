@@ -500,7 +500,9 @@ export class ApiService {
         unitNumber: u.unit_number,
         title: u.title,
         description: u.description || '',
-        materials: (u.learning_materials || []).map((m: any) => ({
+        materials: (u.learning_materials || [])
+          .filter((m: any) => !/dummy\.pdf/i.test(m.content_url || ''))
+          .map((m: any) => ({
           id: m.id,
           unitId: m.unit_id,
           title: m.title,
@@ -508,7 +510,7 @@ export class ApiService {
           contentUrl: m.content_url || undefined,
           contentText: m.content_text || undefined,
           fileSize: m.file_size || undefined,
-        })),
+          })),
         assignment: u.assignments?.[0]
           ? {
               id: u.assignments[0].id,

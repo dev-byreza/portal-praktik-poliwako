@@ -194,15 +194,19 @@ export const LearningContentStudio: React.FC = () => {
   const handleAddMaterial = (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeSelectedUnit) return;
+    if ((matType === 'PDF' || matType === 'YOUTUBE' || matType === 'EXTERNAL_LINK') && !matUrl.trim()) {
+      showToast('URL Wajib Diisi', 'Masukkan URL file atau konten yang benar. PDF dummy tidak digunakan.', 'error');
+      return;
+    }
 
     const newMat: LearningMaterial = {
       id: `mat-${Date.now()}`,
       unitId: activeSelectedUnit.id,
       title: matTitle.trim() || 'Materi Pembelajaran',
       type: matType,
-      contentUrl: matUrl.trim() || (matType === 'PDF' ? 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf' : undefined),
+      contentUrl: matUrl.trim() || undefined,
       contentText: matText.trim(),
-      fileSize: matType === 'PDF' ? '2.4 MB' : undefined
+      fileSize: undefined
     };
 
     const updatedMaterials = [...activeSelectedUnit.materials, newMat];

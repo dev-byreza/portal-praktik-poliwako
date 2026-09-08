@@ -111,8 +111,6 @@ export const GradingWorkspace: React.FC = () => {
     );
   }, [submissions, activeSelectedPeriod, currentParticipant]);
 
-  const [selectedSubmissionId, setSelectedSubmissionId] = useState<string>('');
-  const activeSubmission = studentSubmissions.find(s => s.id === selectedSubmissionId) || studentSubmissions[0];
 
   // Derived tasks from Learning Units with assignments for the selected period
   const periodUnitsWithAssignments = useMemo(() => {
@@ -162,6 +160,25 @@ export const GradingWorkspace: React.FC = () => {
            s.periodId === activeSelectedPeriod.id
     );
   }, [submissions, activeTask, currentParticipant, activeSelectedPeriod]);
+
+  // A report preview must come from an uploaded student PDF. Prefer an
+  // assignment explicitly labelled as a report, then fall back to a filename
+  // containing "laporan" or "report". Never fabricate a PDF when none exists.
+  const reportSubmission = useMemo(() => {
+    if (!currentParticipant || !activeSelectedPeriod) return undefined;
+    const reportTaskIds = new Set(
+      periodUnitsWithAssignments
+        .filter(unit => /laporan|report/i.test(unit.assignment?.title || ''))
+        .map(unit => unit.assignment!.id)
+    );
+    return studentSubmissions.find(submission =>
+      reportTaskIds.has(submission.assignmentId) || /laporan|report/i.test(submission.fileName)
+    );
+  }, [currentParticipant, activeSelectedPeriod, periodUnitsWithAssignments, studentSubmissions]);
+
+  const postTestFileUrl = existingAssessment?.postTestFileUrl && /^https?:\/\//i.test(existingAssessment.postTestFileUrl)
+    ? existingAssessment.postTestFileUrl
+    : undefined;
 
   // Active Course Sub-CPMKs & Rubrics (OBE Quality Component - PRD Section 45, 46)
   const qualityItems = useMemo(() => {
@@ -363,7 +380,6 @@ export const GradingWorkspace: React.FC = () => {
     setIsPdfOpen(true);
     setActiveDocType('ASSIGNMENT');
     setActiveAssignmentId(assignmentId);
-    setSelectedSubmissionId(submission.id);
     showToast('Memuat Berkas Tugas', 'PDF asli untuk ' + (taskTitle || 'Tugas Praktik') + ' ditampilkan.', 'info');
   };
 
@@ -374,6 +390,10 @@ export const GradingWorkspace: React.FC = () => {
   };
 
   const handleInspectPostTestPdf = () => {
+    if (!postTestFileUrl) {
+      showToast('Berkas Belum Ada', 'Mahasiswa belum mengunggah PDF post-test.', 'info');
+      return;
+    }
     setIsPdfOpen(true);
     setActiveDocType('POST_TEST');
     showToast('Memuat Berkas Post-Test', 'Lembar hasil Post-Test mahasiswa ditampilkan di panel PDF sebelah kiri.', 'info');
@@ -396,6 +416,10 @@ export const GradingWorkspace: React.FC = () => {
   };
 
   const handleInspectReportPdf = () => {
+    if (!reportSubmission?.fileUrl) {
+      showToast('Berkas Belum Ada', 'Mahasiswa belum mengunggah PDF laporan.', 'info');
+      return;
+    }
     setIsPdfOpen(true);
     setActiveDocType('SUBMISSION');
     showToast('Memuat Berkas Laporan', 'Dokumen PDF Laporan Praktikum mahasiswa ditampilkan di panel PDF sebelah kiri.', 'info');
@@ -443,8 +467,6 @@ export const GradingWorkspace: React.FC = () => {
   const handleSaveAssessment = (navigateNext: boolean = false) => {
     if (!activeSelectedPeriod || !currentParticipant) return;
 
-    const postTestFileName = `${currentParticipant.student.nim}_PostTest_Komprehensif.pdf`;
-
     const newAssessment: Assessment = {
       id: existingAssessment?.id || `ass-${Date.now()}`,
       periodId: activeSelectedPeriod.id,
@@ -454,7 +476,7 @@ export const GradingWorkspace: React.FC = () => {
       subCpmkPracticeScore,
       assignmentScore,
       postTestScore,
-      postTestFileUrl: postTestFileName,
+      postTestFileUrl: existingAssessment?.postTestFileUrl,
       attitudeScore: attitudeAvg,
       creativityScore: creativityAvg,
       reportScore: reportAvg,
@@ -592,10 +614,10 @@ export const GradingWorkspace: React.FC = () => {
                 }`} />
                 <span className="font-bold truncate">
                   {activeDocType === 'POST_TEST'
-                    ? `${currentParticipant.student.nim}_PostTest_Komprehensif.pdf`
+                    ? (postTestFileUrl ? 'PDF Post-Test Mahasiswa' : 'Belum ada PDF post-test')
                     : activeDocType === 'ASSIGNMENT'
                     ? (activeAssignmentSubmission?.fileName || 'Belum ada PDF tugas')
-                    : (activeSubmission?.fileName || `${currentParticipant.student.nim}_Laporan_Praktikum.pdf`)}
+                    : (reportSubmission?.fileName || 'Belum ada PDF laporan')}
                 </span>
                 <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider shrink-0 ${
                   activeDocType === 'POST_TEST'
@@ -662,84 +684,19 @@ export const GradingWorkspace: React.FC = () => {
               >
                 <div>
                   {activeDocType === 'POST_TEST' ? (
-                    <div className="space-y-4">
-                      {/* Post-Test Header */}
-                      <div className="flex justify-between items-center border-b-2 border-amber-600 pb-2 mb-3">
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>
-                            <h4 className="font-black text-sm tracking-wider text-slate-900 uppercase">POLITEKNIK SOROWAKO</h4>
-                          </div>
-                          <p className="text-[10px] text-amber-800 font-bold uppercase">Lembar Evaluasi Uji Post-Test Praktik (Bobot 25%)</p>
-                        </div>
-                        <div className="text-right text-[10px] text-slate-500 font-mono">
-                          <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold text-[9px] block mb-0.5">RESMI POLIWAKO</span>
-                          NIM: {currentParticipant.student.nim}
-                        </div>
+                    postTestFileUrl ? (
+                      <iframe
+                        title="PDF Post-Test Mahasiswa"
+                        src={postTestFileUrl}
+                        className="h-full min-h-[520px] w-full rounded-xl border border-slate-200 bg-white"
+                      />
+                    ) : (
+                      <div className="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                        <FileText className="mb-3 h-10 w-10 text-slate-400" />
+                        <h4 className="text-sm font-bold text-slate-700">Belum ada PDF post-test</h4>
+                        <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">PDF post-test akan tampil setelah mahasiswa mengunggah berkas yang tersimpan di Supabase.</p>
                       </div>
-
-                      {/* Identitas Peserta Uji */}
-                      <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-200 text-[11px] space-y-1">
-                        <div className="flex justify-between">
-                          <span className="text-slate-500 font-medium">Praktikan:</span>
-                          <span className="font-bold text-slate-900">{currentParticipant.student.name} (Kelas {currentParticipant.student.className})</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500 font-medium">Mata Kuliah:</span>
-                          <span className="font-bold text-slate-800">{activeCourse?.name}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500 font-medium">Periode Pelaksanaan:</span>
-                          <span className="font-mono text-slate-800">{activeSelectedPeriod?.name}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500 font-medium">Status Berkas:</span>
-                          <span className="text-emerald-700 font-bold font-mono">✓ LULUS VERIFIKASI DOKUMEN</span>
-                        </div>
-                      </div>
-
-                      {/* Rincian Soal & Verifikasi Post-Test */}
-                      <div className="space-y-3 pt-1">
-                        <h5 className="font-bold text-xs text-slate-900 uppercase tracking-wide border-b pb-1 text-amber-900 flex items-center gap-1.5">
-                          <span>1. Hasil Jawaban Teori & Analisis G-Code</span>
-                          <span className="text-[10px] text-slate-400 font-normal">(Hal {pdfPage})</span>
-                        </h5>
-                        <p className="text-[11px] text-slate-700 leading-relaxed">
-                          Mahasiswa telah menjawab seluruh pertanyaan komprehensif mengenai kalkulasi spindle speed $S$, feedrate $F$, serta mitigasi resiko tabrakan pahat (collision avoidance).
-                        </p>
-
-                        <div className="p-3 bg-slate-900 text-slate-100 rounded-xl font-mono text-[10px] space-y-1">
-                          <p className="text-amber-400 font-bold"># VERIFIKASI POST-TEST INSPECTION SHEET:</p>
-                          <p>✓ Uji Teori K3 & SOP Bengkel : 100% Benar</p>
-                          <p>✓ Uji Sintaks G-Code (G00, G01, G02, G03) : 95% Sesuai</p>
-                          <p>✓ Kalibrasi Tool Offset & WCS Offset : Akurat (0.00 mm deviation)</p>
-                          <p>✓ Hasil Pemeriksaan Akhir Benda Kerja : MEMENUHI STANDAR ISO</p>
-                        </div>
-
-                        <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-1.5">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                            Catatan Verifikator Lab Mesin:
-                          </span>
-                          <p className="text-[11px] text-slate-700 italic leading-relaxed">
-                            "Mahasiswa mendemonstrasikan penguasaan materi komprehensif yang sangat baik pada siklus praktik 5 hari. Benda kerja post-test memenuhi standar toleransi gambar kerja."
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Tanda Tangan & Timestamp */}
-                      <div className="pt-4 border-t border-dashed border-slate-300 flex justify-between items-end text-[10px] text-slate-600">
-                        <div>
-                          <p className="font-bold text-slate-900">Sistem Portal Praktik Poliwako</p>
-                          <p className="font-mono text-slate-400">Verifikasi Digital: WITA-SEC-2026</p>
-                        </div>
-                        <div className="text-center">
-                          <div className="w-20 h-10 border border-dashed border-emerald-400 rounded bg-emerald-50 text-emerald-700 font-mono font-bold text-[9px] flex items-center justify-center mb-1">
-                            STAMP PASS
-                          </div>
-                          <p className="font-bold text-slate-800">Instruktur Praktik</p>
-                        </div>
-                      </div>
-                    </div>
+                    )
                   ) : activeDocType === 'ASSIGNMENT' ? (
                     activeAssignmentSubmission?.fileUrl ? (
                       <iframe
@@ -751,90 +708,20 @@ export const GradingWorkspace: React.FC = () => {
                       <div className="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
                         <FileText className="mb-3 h-10 w-10 text-slate-400" />
                         <h4 className="text-sm font-bold text-slate-700">Belum ada PDF tugas</h4>
-                        <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">PDF akan tampil di sini setelah mahasiswa mengunggahnya dan penyimpanan berhasil tersinkron ke Supabase.</p>
+                        <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">PDF akan tampil setelah mahasiswa mengunggahnya dan penyimpanan berhasil tersinkron ke Supabase.</p>
                       </div>
                     )
+                  ) : reportSubmission?.fileUrl ? (
+                    <iframe
+                      title={reportSubmission.fileName}
+                      src={reportSubmission.fileUrl}
+                      className="h-full min-h-[520px] w-full rounded-xl border border-slate-200 bg-white"
+                    />
                   ) : (
-                    <div>
-                      <div className="flex justify-between items-center border-b-2 border-slate-900 pb-2 mb-4">
-                        <div>
-                          <h4 className="font-bold text-sm text-slate-900">POLITEKNIK SOROWAKO</h4>
-                          <p className="text-[10px] text-slate-500">Laporan Praktik Mahasiswa</p>
-                        </div>
-                        <div className="text-right text-[10px] text-slate-500 font-mono">
-                          NIM: {currentParticipant.student.nim}
-                        </div>
-                      </div>
-
-                      <div className="bg-slate-50 p-3 rounded border border-slate-200 mb-4 text-[11px]">
-                        <p><strong>Praktikan:</strong> {currentParticipant.student.name} (Kelas {currentParticipant.student.className})</p>
-                        <p><strong>Mata Kuliah:</strong> {activeCourse?.name}</p>
-                        <p><strong>Waktu Submit:</strong> {activeSubmission?.submittedAt || '10 September 2026'}</p>
-                      </div>
-
-                      {pdfPage === 1 && (
-                        <div className="space-y-3 text-[11px] text-slate-700 leading-relaxed">
-                          <h5 className="font-bold text-slate-900 uppercase border-b pb-1">1. Program Kode G & Lintasan CAM</h5>
-                          <p>Berikut adalah baris program NC hasil kalkulasi feedrate dan cutting parameters:</p>
-                          <div className="bg-slate-900 text-emerald-400 font-mono text-[10px] p-3 rounded">
-                            <p>O2401 (POLIWAKO-MILLING)</p>
-                            <p>G21 G90 G54 G00 X0. Y0. S3200 M03</p>
-                            <p>G43 H01 Z10. M08</p>
-                            <p>G01 Z-2.0 F300</p>
-                            <p>G01 X80.0 Y0. F750</p>
-                            <p>G02 X90.0 Y10.0 R10.0</p>
-                            <p>G01 Y60.0</p>
-                            <p>M30</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {pdfPage === 2 && (
-                        <div className="space-y-3 text-[11px] text-slate-700 leading-relaxed">
-                          <h5 className="font-bold text-slate-900 uppercase border-b pb-1">2. Lembar Inspeksi Toleransi Dimensi</h5>
-                          <table className="w-full border-collapse border border-slate-300 text-[10px]">
-                            <thead>
-                              <tr className="bg-slate-100 font-bold border-b border-slate-300">
-                                <th className="p-1 border-r">Fitur</th>
-                                <th className="p-1 border-r">Nominal</th>
-                                <th className="p-1 border-r">Toleransi</th>
-                                <th className="p-1 border-r">Hasil Aktual</th>
-                                <th className="p-1">Status</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr className="border-b">
-                                <td className="p-1 border-r">Panjang X</td>
-                                <td className="p-1 border-r">100.00</td>
-                                <td className="p-1 border-r">±0.05</td>
-                                <td className="p-1 border-r font-mono">100.02</td>
-                                <td className="p-1 text-emerald-600 font-bold">PASS</td>
-                              </tr>
-                              <tr className="border-b">
-                                <td className="p-1 border-r">Lebar Y</td>
-                                <td className="p-1 border-r">80.00</td>
-                                <td className="p-1 border-r">±0.05</td>
-                                <td className="p-1 border-r font-mono">79.98</td>
-                                <td className="p-1 text-emerald-600 font-bold">PASS</td>
-                              </tr>
-                              <tr>
-                                <td className="p-1 border-r">Roughness (Ra)</td>
-                                <td className="p-1 border-r">1.6 µm</td>
-                                <td className="p-1 border-r">Max 1.6</td>
-                                <td className="p-1 border-r font-mono">1.21 µm</td>
-                                <td className="p-1 text-emerald-600 font-bold">PASS</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-
-                      {pdfPage === 3 && (
-                        <div className="space-y-3 text-[11px] text-slate-700 leading-relaxed">
-                          <h5 className="font-bold text-slate-900 uppercase border-b pb-1">3. Evaluasi & Keselamatan Kerja</h5>
-                          <p>Seluruh proses pemotongan aluminium Al6061 telah mematuhi standar APD bengkel. Tidak terjadi tabrakan pahat (crash) dan dimensi akhir sesuai ketentuan gambar kerja.</p>
-                        </div>
-                      )}
+                    <div className="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                      <FileText className="mb-3 h-10 w-10 text-slate-400" />
+                      <h4 className="text-sm font-bold text-slate-700">Belum ada PDF laporan</h4>
+                      <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">PDF laporan akan tampil setelah mahasiswa mengunggah berkas laporan yang tersimpan di Supabase.</p>
                     </div>
                   )}
                 </div>
@@ -1387,10 +1274,10 @@ export const GradingWorkspace: React.FC = () => {
                     </div>
                     <div>
                       <span className="text-xs font-bold text-slate-900 block truncate max-w-xs">
-                        {currentParticipant.student.nim}_PostTest_Komprehensif.pdf
+                        {postTestFileUrl ? 'PDF Post-Test Mahasiswa' : 'Belum ada PDF post-test'}
                       </span>
                       <span className="text-[10px] text-slate-500">
-                        Dokumen PDF Hasil Uji Komprehensif • 2.4 MB
+                        {postTestFileUrl ? 'Berkas post-test tersimpan di Supabase Storage.' : 'Belum ada PDF post-test yang diunggah mahasiswa.'}
                       </span>
                     </div>
                   </div>
@@ -1398,7 +1285,8 @@ export const GradingWorkspace: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleInspectPostTestPdf()}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-xl border flex items-center gap-1.5 transition-all shadow-xs ${
+                    disabled={!postTestFileUrl}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-xl border flex items-center gap-1.5 transition-all shadow-xs disabled:cursor-not-allowed disabled:opacity-50 ${
                       activeDocType === 'POST_TEST'
                         ? 'bg-amber-600 text-white border-amber-600'
                         : 'bg-white text-amber-800 border-amber-300 hover:bg-amber-100'
@@ -1643,10 +1531,10 @@ export const GradingWorkspace: React.FC = () => {
                     </div>
                     <div>
                       <span className="text-xs font-bold text-slate-900 block truncate max-w-xs">
-                        {activeSubmission?.fileName || `${currentParticipant.student.nim}_Laporan_Praktikum.pdf`}
+                        {reportSubmission?.fileName || 'Belum ada PDF laporan'}
                       </span>
                       <span className="text-[10px] text-slate-500">
-                        Dokumen PDF Laporan Praktikum • {activeSubmission?.fileSize || '3.2 MB'}
+                        {reportSubmission ? `Dokumen PDF laporan • ${reportSubmission.fileSize} • Diunggah: ${reportSubmission.submittedAt}` : 'Belum ada PDF laporan yang diunggah mahasiswa.'}
                       </span>
                     </div>
                   </div>
@@ -1654,7 +1542,8 @@ export const GradingWorkspace: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleInspectReportPdf()}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-xl border flex items-center gap-1.5 transition-all shadow-xs ${
+                    disabled={!reportSubmission?.fileUrl}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-xl border flex items-center gap-1.5 transition-all shadow-xs disabled:cursor-not-allowed disabled:opacity-50 ${
                       activeDocType === 'SUBMISSION'
                         ? 'bg-amber-600 text-white border-amber-600'
                         : 'bg-white text-amber-800 border-amber-300 hover:bg-amber-100'

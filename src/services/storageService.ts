@@ -292,7 +292,15 @@ export class StorageService {
   }
 
   static getLearningUnits(): LearningUnit[] {
-    return getItem<LearningUnit[]>(STORAGE_KEYS.LEARNING_UNITS, INITIAL_LEARNING_UNITS);
+    const units = getItem<LearningUnit[]>(STORAGE_KEYS.LEARNING_UNITS, INITIAL_LEARNING_UNITS);
+    const cleaned = units.map(unit => ({
+      ...unit,
+      materials: (unit.materials || []).filter(material => !/dummy\.pdf/i.test(material.contentUrl || ''))
+    }));
+    if (cleaned.some((unit, index) => cleaned[index].materials.length !== (units[index].materials || []).length)) {
+      this.saveLearningUnits(cleaned);
+    }
+    return cleaned;
   }
 
   static saveLearningUnits(units: LearningUnit[]): void {
