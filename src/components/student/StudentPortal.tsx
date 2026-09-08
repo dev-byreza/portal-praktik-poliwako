@@ -391,6 +391,14 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     );
   }
 
+  React.useEffect(() => {
+    if (currentStudent && window.location.pathname.replace(/^\/+|\/+$/g, '') === 'mahasiswa') {
+      window.history.pushState(null, '', '/mahasiswa/unit');
+      sessionStorage.removeItem('poliwako_in_workspace');
+      setIsViewingCatalog(true);
+    }
+  }, [currentStudent]);
+
   // Catalog view (PRD Option B): If authenticated and viewing practice catalog
   if (isViewingCatalog) {
     return (
