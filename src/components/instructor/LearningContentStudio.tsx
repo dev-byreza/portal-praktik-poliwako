@@ -55,6 +55,7 @@ export const LearningContentStudio: React.FC = () => {
   const [selectedUnitId, setSelectedUnitId] = useState<string>('');
   const [isProjectLinkModalOpen, setIsProjectLinkModalOpen] = useState(false);
   const [projectDriveUrlInput, setProjectDriveUrlInput] = useState('');
+  const [projectDescriptionInput, setProjectDescriptionInput] = useState('');
 
   // Modals
   const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
@@ -116,6 +117,7 @@ export const LearningContentStudio: React.FC = () => {
   const handleOpenProjectLink = () => {
     if (!activeSelectedPeriod) return;
     setProjectDriveUrlInput(activeSelectedPeriod.finalProjectDriveUrl || '');
+    setProjectDescriptionInput(activeSelectedPeriod.finalProjectDescription || '');
     setIsProjectLinkModalOpen(true);
   };
 
@@ -123,7 +125,11 @@ export const LearningContentStudio: React.FC = () => {
     e.preventDefault();
     if (!activeSelectedPeriod) return;
     const url = projectDriveUrlInput.trim();
-    updatePeriod({ ...activeSelectedPeriod, finalProjectDriveUrl: url || undefined });
+    updatePeriod({
+      ...activeSelectedPeriod,
+      finalProjectDriveUrl: url || undefined,
+      finalProjectDescription: projectDescriptionInput.trim() || undefined,
+    });
     setIsProjectLinkModalOpen(false);
     showToast('Project Akhir Diperbarui', 'Link Google Drive project akhir berhasil disinkronkan.', 'success');
   };
@@ -449,6 +455,11 @@ export const LearningContentStudio: React.FC = () => {
                     </a>
                   ) : (
                     <p className="mt-1 text-[11px] text-emerald-700">Link Drive belum diatur</p>
+                  )}
+                  {activeSelectedPeriod.finalProjectDescription && (
+                    <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-emerald-800/80">
+                      {activeSelectedPeriod.finalProjectDescription}
+                    </p>
                   )}
                 </div>
                 <button
@@ -790,6 +801,16 @@ export const LearningContentStudio: React.FC = () => {
                     className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20"
                   />
                   <p className="mt-1.5 text-[11px] text-slate-500">Kosongkan jika project akhir belum memiliki folder Drive.</p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-700">Deskripsi Project Akhir</label>
+                  <textarea
+                    rows={4}
+                    value={projectDescriptionInput}
+                    onChange={e => setProjectDescriptionInput(e.target.value)}
+                    placeholder="Jelaskan project akhir, format berkas, dan instruksi pengumpulan..."
+                    className="w-full resize-y rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
                 </div>
                 <div className="flex justify-end gap-2">
                   <button type="button" onClick={() => setIsProjectLinkModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">Batal</button>

@@ -74,6 +74,7 @@ export const PracticePeriodManager: React.FC = () => {
   const [startDateInput, setStartDateInput] = useState<string>(getWitaDateString());
   const [periodNameInput, setPeriodNameInput] = useState<string>('');
   const [driveUrlInput, setDriveUrlInput] = useState<string>('');
+  const [projectDescriptionInput, setProjectDescriptionInput] = useState<string>('');
 
   // Edit Period Form states
   const [editNameInput, setEditNameInput] = useState<string>('');
@@ -81,6 +82,7 @@ export const PracticePeriodManager: React.FC = () => {
   const [editEndDateInput, setEditEndDateInput] = useState<string>('');
   const [editStatusInput, setEditStatusInput] = useState<'UPCOMING' | 'ACTIVE' | 'COMPLETED'>('UPCOMING');
   const [editDriveUrlInput, setEditDriveUrlInput] = useState<string>('');
+  const [editProjectDescriptionInput, setEditProjectDescriptionInput] = useState<string>('');
   const [autoCalculateEndDate, setAutoCalculateEndDate] = useState<boolean>(true);
 
   // Bulk NIM states (PRD Section 27)
@@ -151,6 +153,7 @@ export const PracticePeriodManager: React.FC = () => {
     setStartDateInput(suggestedStartDate);
     setPeriodNameInput(`Minggu Praktik ke-${nextNum}`);
     setDriveUrlInput('');
+    setProjectDescriptionInput('');
     setIsCreateModalOpen(true);
   };
 
@@ -162,6 +165,9 @@ export const PracticePeriodManager: React.FC = () => {
       startDate: startDateInput,
       endDate: calculatedEndDate,
       finalProjectDriveUrl: driveUrlInput
+        ? driveUrlInput.trim()
+        : undefined,
+      finalProjectDescription: projectDescriptionInput.trim() || undefined
     });
     if (newPeriod) {
       setSelectedPeriodId(newPeriod.id);
@@ -178,6 +184,7 @@ export const PracticePeriodManager: React.FC = () => {
     setEditEndDateInput(target.endDate);
     setEditStatusInput(target.status || computePeriodStatus(target.startDate, target.endDate, getWitaDateString()));
     setEditDriveUrlInput(target.finalProjectDriveUrl || '');
+    setEditProjectDescriptionInput(target.finalProjectDescription || '');
     setAutoCalculateEndDate(true);
     setIsEditModalOpen(true);
   };
@@ -216,7 +223,8 @@ export const PracticePeriodManager: React.FC = () => {
       endDate: finalEndDate,
       status: editStatusInput,
       autoStatus: true,
-      finalProjectDriveUrl: editDriveUrlInput
+      finalProjectDriveUrl: editDriveUrlInput.trim() || undefined,
+      finalProjectDescription: editProjectDescriptionInput.trim() || undefined
     };
     updatePeriod(updated);
     setIsEditModalOpen(false);
@@ -663,6 +671,19 @@ export const PracticePeriodManager: React.FC = () => {
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Deskripsi Project Akhir
+                </label>
+                <textarea
+                  rows={3}
+                  value={projectDescriptionInput}
+                  onChange={e => setProjectDescriptionInput(e.target.value)}
+                  placeholder="Instruksi dan keterangan project akhir..."
+                  className="w-full resize-y px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button
                   type="button"
@@ -815,6 +836,19 @@ export const PracticePeriodManager: React.FC = () => {
                   onChange={e => setEditDriveUrlInput(e.target.value)}
                   placeholder="https://drive.google.com/drive/folders/..."
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Deskripsi Project Akhir
+                </label>
+                <textarea
+                  rows={3}
+                  value={editProjectDescriptionInput}
+                  onChange={e => setEditProjectDescriptionInput(e.target.value)}
+                  placeholder="Instruksi dan keterangan project akhir..."
+                  className="w-full resize-y px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
 
