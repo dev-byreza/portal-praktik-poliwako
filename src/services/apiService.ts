@@ -621,10 +621,11 @@ export class ApiService {
         }
         if (error) throw error;
 
+        const persistedAssignmentId = savedAssignment.id;
         const { data: persistedAssignment, error: verifyAssignmentError } = await supabase
           .from('assignments')
           .select('id')
-          .eq('id', savedAssignment.id)
+          .eq('id', persistedAssignmentId)
           .maybeSingle();
         if (verifyAssignmentError) throw verifyAssignmentError;
         if (!persistedAssignment) {
