@@ -56,6 +56,20 @@ export const App: React.FC = () => {
         c => c.slug.toLowerCase() === coursePathSlug || c.slug.toLowerCase() === courseParam
       );
 
+      // On a hard refresh the Supabase course list arrives asynchronously.
+      // Keep canonical student routes in the student shell while that list is
+      // loading; only show 404 after courses have been loaded and no slug
+      // matches.
+      const isCanonicalStudentRoute = pathParts[0] === 'mahasiswa'
+        && ['unit', 'final-project', 'nilai'].includes(pathParts[1])
+        && Boolean(pathParts[2]);
+      if (!matchedCourse && isCanonicalStudentRoute && courses.length === 0) {
+        setActiveRoute('STUDENT');
+        setRole('STUDENT');
+        setCurrentSlug(pathParts[2] || '');
+        return;
+      }
+
       if (matchedCourse) {
         setActiveRoute('STUDENT');
         setRole('STUDENT');
