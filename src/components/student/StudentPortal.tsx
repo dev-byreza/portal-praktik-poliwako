@@ -621,6 +621,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
             
             {/* Flexible / Sticky Top Header Bar (Course Outline Toggle + Previous/Next) */}
             <div className="bg-white border-b border-slate-200/90 px-4 sm:px-6 py-2.5 flex items-center justify-between shrink-0 z-20 shadow-xs">
+              {!isOutlineOpen && (
               <button
                 type="button"
                 onClick={() => setIsOutlineOpen(prev => !prev)}
@@ -635,6 +636,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                 <span className="hidden sm:inline">{isOutlineOpen ? 'Tutup Course Outline' : 'Buka Course Outline'}</span>
                 <span className="sm:hidden">{isOutlineOpen ? 'Tutup menu' : 'Buka menu'}</span>
               </button>
+              )}
 
               <div className="flex items-center gap-3 text-xs sm:text-sm font-medium text-slate-600">
                 <button
