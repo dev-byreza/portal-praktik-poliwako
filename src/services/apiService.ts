@@ -380,8 +380,9 @@ export class ApiService {
         finalProjectSubmittedAt: p.final_project_submitted_at || undefined,
         finalProjectConfirmed: p.final_project_confirmed || false,
       }));
-    } catch {
-      return StorageService.getParticipants();
+    } catch (error) {
+      console.error('Error loading participants from Supabase:', error);
+      return [];
     }
   }
 
