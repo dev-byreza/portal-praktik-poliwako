@@ -249,7 +249,7 @@ export class ApiService {
     }
     try {
       const { data, error } = await supabase.from('students').select('*').order('nim', { ascending: true });
-      if (error || !data) return StorageService.getStudents();
+      if (error || !data || data.length === 0) return StorageService.getStudents();
       return data.map((s: any) => ({
         id: s.id,
         nim: s.nim,
