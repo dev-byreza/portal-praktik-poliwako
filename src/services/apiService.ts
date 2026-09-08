@@ -600,6 +600,9 @@ export class ApiService {
         id: await databaseId(unit.assignment.id, `assignment:${unit.id}`),
         unitId,
       } : undefined;
+      const usesUnitCountdown = unit.countdownEnabled !== undefined
+        || unit.countdownMinutes !== undefined
+        || unit.countdownStartedAt !== undefined;
       const unitPayload = {
         id: unitId,
         period_id: unit.periodId,
@@ -613,6 +616,9 @@ export class ApiService {
       let { error: unitError } = await supabase.from('learning_units').upsert(unitPayload);
       // Keep older databases usable until the unit countdown migration is applied.
       if (unitError && /countdown_|column .* does not exist/i.test(unitError.message || '')) {
+        if (usesUnitCountdown) {
+          throw new Error('Countdown unit belum tersinkron: kolom countdown belum tersedia di Supabase. Terapkan migrasi 0006_unit_countdown.sql terlebih dahulu.');
+        }
         const legacyUnitPayload = { ...unitPayload };
         delete (legacyUnitPayload as any).countdown_enabled;
         delete (legacyUnitPayload as any).countdown_minutes;
@@ -620,6 +626,20 @@ export class ApiService {
         ({ error: unitError } = await supabase.from('learning_units').upsert(legacyUnitPayload));
       }
       if (unitError) throw unitError;
+
+      const verifyUnitFields = usesUnitCountdown
+        ? 'id, title, description, countdown_enabled, countdown_minutes, countdown_started_at'
+        : 'id, title, description';
+      const { data: persistedUnit, error: verifyUnitError } = await supabase
+        .from('learning_units')
+        .select(verifyUnitFields)
+        .eq('id', unitId)
+        .maybeSingle();
+      if (verifyUnitError) throw verifyUnitError;
+      if (!persistedUnit) throw new Error('Unit berhasil disimpan tetapi tidak ditemukan saat verifikasi ulang Supabase.');
+      if (usesUnitCountdown && Boolean((persistedUnit as any).countdown_enabled) !== Boolean(unit.countdownEnabled)) {
+        throw new Error('Countdown unit gagal diverifikasi setelah disimpan ke Supabase.');
+      }
 
       const materialRows = savedMaterials.map(material => ({
         id: material.id,
