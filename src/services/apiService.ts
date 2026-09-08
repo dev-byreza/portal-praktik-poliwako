@@ -660,6 +660,14 @@ export class ApiService {
         if (!persistedAssignment) {
           throw new Error('Tugas berhasil dikirim tetapi tidak ditemukan saat verifikasi ulang Supabase.');
         }
+      } else {
+        // Removing an assignment from the unit must also remove its persisted
+        // row; otherwise the next LMS sync will hydrate the deleted task again.
+        const { error: assignmentDeleteError } = await supabase
+          .from('assignments')
+          .delete()
+          .eq('unit_id', unitId);
+        if (assignmentDeleteError) throw assignmentDeleteError;
       }
       const savedUnit = { ...unit, id: unitId, materials: savedMaterials, assignment: savedAssignment };
       const units = StorageService.getLearningUnits().filter(existing => existing.id !== unit.id && existing.id !== unitId);
