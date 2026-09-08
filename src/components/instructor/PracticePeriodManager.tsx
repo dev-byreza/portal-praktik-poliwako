@@ -32,6 +32,20 @@ import {
   computePeriodStatus
 } from '../../utils/dateUtils';
 
+const getAutomaticProgressStatus = (
+  participant: PracticeParticipant,
+  periodStatus: PracticePeriod['status']
+): PracticeParticipant['progressStatus'] => {
+  // Preserve terminal student milestones while deriving the base status from
+  // the synchronized practice-period status.
+  if (participant.progressStatus === 'PUBLISHED' || participant.progressStatus === 'ASSESSED' || participant.progressStatus === 'PROJECT_SUBMITTED') {
+    return participant.progressStatus;
+  }
+  if (periodStatus === 'UPCOMING') return 'NOT_STARTED';
+  if (periodStatus === 'COMPLETED') return 'LEARNING_COMPLETE';
+  return 'IN_PROGRESS';
+};
+
 export const PracticePeriodManager: React.FC = () => {
   const {
     activeCourseId,
@@ -45,7 +59,6 @@ export const PracticePeriodManager: React.FC = () => {
     deletePeriod,
     syncAllPeriodsStatus,
     addParticipantsBulk,
-    updateParticipant,
     removeParticipant,
     showToast
   } = useApp();
@@ -545,24 +558,7 @@ export const PracticePeriodManager: React.FC = () => {
                             </td>
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-2">
-                                <Badge status={part.progressStatus} size="sm" />
-                                <select
-                                  value={part.progressStatus}
-                                  onChange={e => updateParticipant({
-                                    ...part,
-                                    progressStatus: e.target.value as PracticeParticipant['progressStatus']
-                                  })}
-                                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-700 outline-none focus:border-blue-500"
-                                  aria-label={`Ubah status ${part.student.name}`}
-                                  title="Ubah status progres peserta"
-                                >
-                                  <option value="NOT_STARTED">Belum mulai</option>
-                                  <option value="IN_PROGRESS">Sedang berjalan</option>
-                                  <option value="LEARNING_COMPLETE">Belajar selesai</option>
-                                  <option value="PROJECT_SUBMITTED">Proyek dikumpulkan</option>
-                                  <option value="ASSESSED">Sudah dinilai</option>
-                                  <option value="PUBLISHED">Nilai dipublikasikan</option>
-                                </select>
+                                <Badge status={getAutomaticProgressStatus(part, activeSelectedPeriod.status)} size="sm" />
                               </div>
                             </td>
                             <td className="py-3 px-4 text-right">
