@@ -117,7 +117,7 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
           
           {/* CARD 1: PORTAL MAHASISWA */}
           <div
-            onClick={() => onSelectRole('STUDENT', '/mahasiswa/unit')}
+            onClick={() => onSelectRole('STUDENT', '/mahasiswa')}
             className="group relative backdrop-blur-2xl bg-slate-900/75 hover:bg-slate-900/95 rounded-3xl p-6 sm:p-7 border border-white/15 hover:border-cyan-400/60 ring-1 ring-cyan-500/20 hover:ring-2 hover:ring-cyan-400/40 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] hover:shadow-[0_25px_60px_-15px_rgba(56,189,248,0.25)] transition-all duration-300 cursor-pointer flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden md:aspect-[4/2.5] min-h-[290px]"
           >
             {/* Top Specular Glow */}
