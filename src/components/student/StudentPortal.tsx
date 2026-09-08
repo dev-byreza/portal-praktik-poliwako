@@ -487,13 +487,13 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                 <span>Ganti Praktik</span>
               </button>
 
-              <div className="bg-slate-800/80 border border-slate-700/80 px-2.5 py-1.5 rounded-xl flex items-center gap-2.5 shadow-xs">
+              <div className="bg-slate-800/80 border border-slate-700/80 px-2.5 py-1.5 rounded-xl flex items-center gap-2.5 shadow-xs min-w-0 flex-1 md:flex-none md:max-w-none">
                 <div className="w-7 h-7 rounded-lg bg-teal-500/20 text-teal-300 border border-teal-500/30 flex items-center justify-center font-bold text-xs shrink-0">
                   {currentStudent.name.charAt(0)}
                 </div>
                 <div className="min-w-0">
                   <h4 className="text-xs font-bold text-white leading-tight truncate">{currentStudent.name}</h4>
-                  <p className="text-[10px] text-slate-400 font-mono leading-tight">
+                <p className="text-[10px] text-slate-400 font-mono leading-tight truncate whitespace-nowrap" title={`NIM: ${currentStudent.nim} • Kelas ${currentStudent.className}`}>
                     NIM: {currentStudent.nim} • Kelas {currentStudent.className}
                   </p>
                 </div>
@@ -503,7 +503,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                   title="Keluar dari sesi mahasiswa"
                 >
                   <LogOut className="w-3 h-3" />
-                  <span>Keluar</span>
+                  <span className="hidden sm:inline">Keluar</span>
                 </button>
               </div>
             </div>

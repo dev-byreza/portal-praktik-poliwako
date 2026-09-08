@@ -99,29 +99,29 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
 
       {/* Student Session Bar (Aligned Full Width) */}
       <div className="relative z-10 sticky top-0 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 shadow-md shrink-0">
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-2.5 sm:py-3 flex items-center justify-between gap-3">
+        <div className="w-full px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-3">
           
           {/* Logo Institusi Poliwako */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <div className="w-10 h-10 rounded-xl bg-white/10 p-1.5 flex items-center justify-center shadow-md shadow-cyan-500/10 ring-1 ring-white/20 shrink-0">
               <img src="/logo-poliwako.webp" alt="Logo Poliwako" className="w-full h-full object-contain" />
             </div>
-            <div>
-              <p className="font-bold text-white text-xs sm:text-sm tracking-tight">Portal Praktik Poliwako</p>
+            <div className="min-w-0">
+              <p className="font-bold text-white text-xs sm:text-sm tracking-tight truncate">Portal Praktik Poliwako</p>
               <p className="text-[10px] text-slate-400 font-medium hidden sm:block">Politeknik Sorowako • Outcome-Based Education (OBE)</p>
             </div>
           </div>
 
           {/* Student Profile Card & Logout */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0 max-w-[54%] sm:max-w-none">
             {currentStudent && (
-              <div className="flex items-center gap-2.5 bg-slate-800/80 border border-slate-700/80 px-3 py-1.5 rounded-xl shadow-xs">
+              <div className="flex items-center gap-2 sm:gap-2.5 bg-slate-800/80 border border-slate-700/80 px-2 sm:px-3 py-1.5 rounded-xl shadow-xs min-w-0 max-w-[44vw] sm:max-w-none">
                 <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-bold text-xs text-white shadow-xs">
                   {currentStudent.name.charAt(0)}
                 </div>
-                <div className="text-left">
-                  <p className="text-xs font-semibold text-slate-200 leading-tight">{currentStudent.name}</p>
-                  <p className="text-[10px] text-slate-400 leading-tight">
+                <div className="text-left min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-slate-200 leading-tight truncate" title={currentStudent.name}>{currentStudent.name}</p>
+                  <p className="text-[10px] text-slate-400 leading-tight truncate whitespace-nowrap">
                     NIM: <span className="font-mono text-cyan-300">{currentStudent.nim}</span> • Kelas {currentStudent.className}
                   </p>
                 </div>
@@ -130,11 +130,11 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
 
             <button
               onClick={clearStudentIdentity}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/20 hover:border-red-500/40 text-xs font-medium transition-all shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/20 hover:border-red-500/40 text-xs font-medium transition-all shadow-xs cursor-pointer shrink-0"
               title="Keluar dari sesi portal"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span>Keluar</span>
+              <span className="hidden sm:inline">Keluar</span>
             </button>
           </div>
 
