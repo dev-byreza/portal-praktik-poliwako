@@ -380,8 +380,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
             isEmbedded={true}
           />
         </div>
-        <footer className="relative z-10 w-full shrink-0 border-t border-slate-700 bg-slate-950/95 px-4 py-3 text-center text-[10px] sm:text-xs text-slate-300"><div className="flex flex-wrap items-center justify-center gap-2.5"><span className="text-slate-400 text-[10px] sm:text-xs">Product by</span><a href="https://github.com/dev-byreza" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-slate-700/80 bg-slate-800/90 px-3 py-1.5 text-white shadow-sm transition-all hover:bg-slate-700/90"><img src="https://github.com/dev-byreza.png" alt="dev-byreza" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/20" /><span className="text-xs font-semibold">dev-byreza</span><span className="text-[10px] text-slate-400">GitHub</span></a></div></footer>
-      </div>
+</div>
     );
   }
 
@@ -880,10 +879,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
         </div>
       </div>
-
-      <footer className="relative z-10 shrink-0 border-t border-slate-700 bg-slate-950/95 px-4 py-3 text-center text-[10px] sm:text-xs text-slate-300 shadow-[0_-8px_24px_rgba(2,6,23,0.35)] backdrop-blur-md"><div className="flex flex-wrap items-center justify-center gap-2.5"><span className="text-slate-400 text-[10px] sm:text-xs">Product by</span><a href="https://github.com/dev-byreza" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-slate-700/80 bg-slate-800/90 px-3 py-1.5 text-white shadow-sm transition-all hover:bg-slate-700/90"><img src="https://github.com/dev-byreza.png" alt="dev-byreza" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/20" /><span className="text-xs font-semibold">dev-byreza</span><span className="text-[10px] text-slate-400">GitHub</span></a></div></footer>
-
-      {/* Student Identity Modal */}
+{/* Student Identity Modal */}
       <StudentIdentityModal
         isOpen={isIdentityModalOpen}
         onClose={() => setIsIdentityModalOpen(false)}
