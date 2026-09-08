@@ -22,7 +22,8 @@ import {
   Layers,
   Sparkles,
   PanelLeftClose,
-  PanelLeft
+  PanelLeft,
+  X
 } from 'lucide-react';
 
 interface InstructorSidebarProps {
@@ -92,10 +93,13 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
 
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
+          className="hidden md:block p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
           title={isCollapsed ? 'Perluas Sidebar' : 'Ciutkan Sidebar'}
         >
           {isCollapsed ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+        </button>
+        <button type="button" onClick={() => onCloseMobile?.()} aria-label="Tutup menu navigasi" className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0">
+          <X className="w-5 h-5" />
         </button>
       </div>
 
