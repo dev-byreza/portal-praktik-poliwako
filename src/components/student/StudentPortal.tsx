@@ -467,7 +467,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                   </h1>
                   {activePeriod && (
                     <span className="text-[11px] text-slate-400">
-                      Praktik: <strong className="text-cyan-300 font-medium">{activePeriod.name}</strong> ({formatPeriodRange(activePeriod.startDate, activePeriod.endDate)})
+                      Praktik: <strong className="text-cyan-300 font-medium">{activePeriod.name.replace(/\s*\([^)]*\)/, '')}</strong> ({formatPeriodRange(activePeriod.startDate, activePeriod.endDate)})
                     </span>
                   )}
                 </div>
