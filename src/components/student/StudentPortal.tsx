@@ -61,7 +61,11 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     setActiveTabState(tab);
     if (typeof window !== 'undefined' && !isViewingCatalog) {
       const suffix = tab === 'FINAL_PROJECT' ? 'final-project' : tab === 'GRADE' ? 'nilai' : 'unit';
-      const target = `/mahasiswa/unit/${selectedCourseSlug}/${suffix}`;
+      const target = suffix === 'unit'
+        ? `/mahasiswa/unit/${selectedCourseSlug}`
+        : suffix === 'final-project'
+          ? `/mahasiswa/final-project/${selectedCourseSlug}`
+          : `/mahasiswa/nilai/${selectedCourseSlug}`;
       if (window.location.pathname !== target) window.history.pushState(null, '', target);
     }
   };
@@ -106,9 +110,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     const syncStudentSlug = () => {
       const parts = window.location.pathname.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
       if (parts[0] !== 'mahasiswa') return;
-      const isUnitRoute = parts[1] === 'unit';
-      const slug = isUnitRoute ? parts[2] : parts[1];
-      const section = isUnitRoute ? parts[3] : parts[2];
+      const isCanonicalRoute = ['unit', 'final-project', 'nilai'].includes(parts[1]);
+      const slug = isCanonicalRoute ? parts[2] : parts[1];
+      const section = isCanonicalRoute ? parts[1] : parts[2];
       setIsViewingCatalog(!slug);
       if (slug) setSelectedCourseSlug(slug);
       if (section === 'final-project') setActiveTabState('FINAL_PROJECT');
@@ -126,7 +130,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                          periods.find(p => p.courseId === targetCourse?.id);
     setSelectedCourseSlug(slug);
     setIsViewingCatalog(false);
-    window.history.pushState(null, '', `/mahasiswa/unit/${slug}/unit`);
+    window.history.pushState(null, '', `/mahasiswa/unit/${slug}`);
     sessionStorage.setItem('poliwako_in_workspace', 'true');
     if (currentStudent && targetCourse && targetPeriod) {
       setStudentIdentity(currentStudent.id, targetCourse.slug, targetPeriod.id);
