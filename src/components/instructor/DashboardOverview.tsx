@@ -299,7 +299,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       
       {/* Welcome & Command Center Header */}
       <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
-        <div className="relative z-10">
+        <div className="relative z-10 flex-1 min-w-0">
           <div className="flex items-center gap-2 px-3 py-1 bg-cyan-500/20 text-cyan-300 rounded-full text-xs font-semibold w-fit border border-cyan-500/30 mb-3">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Command Center Instruktur</span>
@@ -307,7 +307,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
             {activeCourse?.name || 'Portal Praktik Poliwako'}
           </h1>
-          <p className="text-xs text-blue-200 mt-1 max-w-xl leading-relaxed">
+          <p className="text-xs text-blue-200 mt-1 max-w-none lg:max-w-4xl leading-relaxed">
             {activeCourse?.description || 'Kelola pembelajaran praktik, progres mahasiswa, kehadiran, rubrik OBE, dan rekap penilaian terintegrasi.'}
           </p>
 
