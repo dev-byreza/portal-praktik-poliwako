@@ -37,6 +37,15 @@ const databaseId = async (id: string, kind: string): Promise<string> => {
   const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
   return [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20)].join('-');
 };
+const normalizeDeadline = (value: string): string => {
+  const raw = String(value || '').trim();
+  if (!raw) return new Date().toISOString();
+  const normalized = raw
+    .replace(/\s*WITA\s*$/i, '+08:00')
+    .replace(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})(?::(\d{2}))?([+-]\d{2}:\d{2})?$/, (_match: string, date: string, time: string, seconds?: string, timezone?: string) => `${date}T${time}:${seconds || '00'}${timezone || ''}`);
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+};
 
 export class ApiService {
   static isLiveBackend(): boolean {
@@ -597,7 +606,7 @@ export class ApiService {
           period_id: savedAssignment.periodId || unit.periodId,
           title: savedAssignment.title,
           description: savedAssignment.description || '',
-          deadline: savedAssignment.deadline,
+          deadline: normalizeDeadline(savedAssignment.deadline),
           max_score: savedAssignment.maxScore,
           allowed_file_type: savedAssignment.allowedFileType || 'PDF',
           submission_type: savedAssignment.submissionType || 'ASSIGNMENT',
