@@ -662,6 +662,41 @@ export class ApiService {
     })));
   }
 
+  static async getAssessments(): Promise<Assessment[]> {
+    if (!this.isLiveBackend() || !supabase) return StorageService.getAssessments();
+    try {
+      const { data, error } = await supabase.from('assessments').select('*');
+      if (error || !data) return [];
+      return data.map((row: any) => ({
+        id: row.id,
+        periodId: row.period_id,
+        studentId: row.student_id,
+        qualityScore: Number(row.quality_score || 0),
+        entryBehaviorScore: row.entry_behavior_score == null ? undefined : Number(row.entry_behavior_score),
+        subCpmkPracticeScore: row.sub_cpmk_practice_score == null ? undefined : Number(row.sub_cpmk_practice_score),
+        assignmentScore: row.assignment_score == null ? undefined : Number(row.assignment_score),
+        postTestScore: row.post_test_score == null ? undefined : Number(row.post_test_score),
+        postTestFileUrl: row.post_test_file_url || undefined,
+        attitudeScore: Number(row.attitude_score || 0),
+        creativityScore: Number(row.creativity_score || 0),
+        reportScore: Number(row.report_score || 0),
+        finalScore: Number(row.final_score || 0),
+        qualityScores: row.quality_scores || [],
+        attitudeScores: row.attitude_scores || [],
+        creativityScores: row.creativity_scores || [],
+        reportScores: row.report_scores || [],
+        feedback: row.feedback || '',
+        isPublished: Boolean(row.is_published),
+        publishedAt: row.published_at || undefined,
+        gradedAt: row.graded_at,
+        updatedAt: row.updated_at,
+      }));
+    } catch (error) {
+      console.warn('Unable to load assessments from Supabase:', error);
+      return [];
+    }
+  }
+
   static async saveSubmission(submission: Submission): Promise<void> {
     if (this.isLiveBackend() && supabase) {
       const submissionPayload = {

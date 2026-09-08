@@ -198,7 +198,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
 
     // Submissions count
     const studentIds = new Set(filteredParticipants.map(p => p.studentId));
-    const relevantSubmissions = submissions.filter(s => studentIds.has(s.studentId));
+    const periodIds = new Set(filteredParticipants.map(p => p.periodId));
+    const relevantSubmissions = submissions.filter(s => studentIds.has(s.studentId) && periodIds.has(s.periodId));
 
     // Daily progression synchronized with 5-day practice stages & rekap
     const dailyItems = [

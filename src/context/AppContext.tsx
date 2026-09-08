@@ -194,7 +194,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!isLiveBackend) return;
         const authInstructorId = await ApiService.getCurrentInstructorId();
         const courseScope = authInstructorId || (role === 'STUDENT' && !isInstructorLoggedIn ? undefined : null);
-        const [liveCourses, liveStudents, livePeriods, liveParticipants, liveUnits, liveAttendance, liveSubmissions, liveInstructorDirectory] = await Promise.all([
+        const [liveCourses, liveStudents, livePeriods, liveParticipants, liveUnits, liveAttendance, liveSubmissions, liveAssessments, liveInstructorDirectory] = await Promise.all([
           courseScope === null ? Promise.resolve([]) : ApiService.getCourses(courseScope),
           ApiService.getStudents(),
           ApiService.getPeriods(),
@@ -202,6 +202,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ApiService.getLearningUnits(),
           ApiService.getAttendance(),
           ApiService.getSubmissions(),
+          ApiService.getAssessments(),
           ApiService.getInstructorDirectory(),
         ]);
         if (!isMounted) return;
@@ -241,6 +242,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (liveUnits) setLearningUnits(liveUnits);
         if (liveAttendance) setAttendance(liveAttendance);
         if (liveSubmissions) setSubmissions(liveSubmissions);
+        if (liveAssessments) setAssessments(liveAssessments);
         if (liveInstructorDirectory) setInstructorDirectory(liveInstructorDirectory);
       } catch (e) {
         console.warn('Sync from Supabase notice:', e);
