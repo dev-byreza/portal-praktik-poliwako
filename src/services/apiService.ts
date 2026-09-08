@@ -351,6 +351,7 @@ export class ApiService {
         if (error) throw error;
       } catch (err) {
         console.error('Error syncing period to Supabase:', err);
+        throw err;
       }
     }
   }
@@ -375,6 +376,7 @@ export class ApiService {
         if (error) throw error;
       } catch (err) {
         console.error('Error batch syncing periods to Supabase:', err);
+        throw err;
       }
     }
   }
