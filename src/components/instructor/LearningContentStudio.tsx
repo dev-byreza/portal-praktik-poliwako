@@ -67,6 +67,7 @@ export const LearningContentStudio: React.FC = () => {
   const [matTitle, setMatTitle] = useState('');
   const [matUrl, setMatUrl] = useState('');
   const [matText, setMatText] = useState('');
+  const [editingMaterial, setEditingMaterial] = useState<LearningMaterial | null>(null);
 
   const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
   const [assignTitle, setAssignTitle] = useState('');
@@ -208,7 +209,7 @@ export const LearningContentStudio: React.FC = () => {
     }
 
     const newMat: LearningMaterial = {
-      id: newStudioEntityId('mat'),
+      id: editingMaterial?.id || newStudioEntityId('mat'),
       unitId: activeSelectedUnit.id,
       title: matTitle.trim() || 'Materi Pembelajaran',
       type: matType,
@@ -217,7 +218,9 @@ export const LearningContentStudio: React.FC = () => {
       fileSize: undefined
     };
 
-    const updatedMaterials = [...activeSelectedUnit.materials, newMat];
+    const updatedMaterials = editingMaterial
+      ? activeSelectedUnit.materials.map(material => material.id === editingMaterial.id ? newMat : material)
+      : [...activeSelectedUnit.materials, newMat];
     updateLearningUnit({
       ...activeSelectedUnit,
       materials: updatedMaterials
@@ -227,7 +230,17 @@ export const LearningContentStudio: React.FC = () => {
     setMatTitle('');
     setMatUrl('');
     setMatText('');
-    showToast('Materi Ditambahkan', `Materi "${newMat.title}" berhasil disimpan ke Unit ${activeSelectedUnit.unitNumber}.`, 'success');
+    showToast(editingMaterial ? 'Materi Diperbarui' : 'Materi Ditambahkan', `Materi "${newMat.title}" berhasil disimpan ke Unit ${activeSelectedUnit.unitNumber}.`, 'success');
+    setEditingMaterial(null);
+  };
+
+  const handleOpenEditMaterial = (material: LearningMaterial) => {
+    setEditingMaterial(material);
+    setMatType(material.type);
+    setMatTitle(material.title);
+    setMatUrl(material.contentUrl || '');
+    setMatText(material.contentText || '');
+    setIsMaterialModalOpen(true);
   };
 
   const handleDeleteMaterial = (matId: string) => {
@@ -430,6 +443,8 @@ export const LearningContentStudio: React.FC = () => {
                   </button>
                   <button
                     onClick={() => {
+                      setEditingMaterial(null);
+                      setMatType('PDF');
                       setMatTitle('');
                       setMatUrl('');
                       setMatText('');
@@ -482,13 +497,22 @@ export const LearningContentStudio: React.FC = () => {
                         </div>
                       </div>
 
-                      <button
-                        onClick={() => handleDeleteMaterial(mat.id)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 rounded transition-colors"
-                        title="Hapus Materi"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => handleOpenEditMaterial(mat)}
+                          className="p-1.5 text-slate-400 hover:text-blue-600 rounded transition-colors"
+                          title="Edit Materi"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteMaterial(mat.id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded transition-colors"
+                          title="Hapus Materi"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ))}
 
@@ -633,7 +657,7 @@ export const LearningContentStudio: React.FC = () => {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-fadeIn">
           <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden flex flex-col">
             <div className="p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
-              <h3 className="text-base font-bold text-white">Tambah Lampiran Materi</h3>
+              <h3 className="text-base font-bold text-white">{editingMaterial ? 'Edit Lampiran Materi' : 'Tambah Lampiran Materi'}</h3>
               <button onClick={() => setIsMaterialModalOpen(false)} className="text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
@@ -740,7 +764,7 @@ export const LearningContentStudio: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-600/30"
                 >
-                  Simpan Materi
+                  {editingMaterial ? 'Simpan Perubahan' : 'Simpan Materi'}
                 </button>
               </div>
             </form>
