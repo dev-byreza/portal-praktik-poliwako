@@ -153,8 +153,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isInstructorLoggedIn, setIsInstructorLoggedIn] = useState<boolean>(() => StorageService.isInstructorLoggedIn());
   const [role, setRole] = useState<UserRole>(() => (StorageService.isInstructorLoggedIn() ? 'INSTRUCTOR' : 'STUDENT'));
   const [instructor, setInstructor] = useState<InstructorProfile>(StorageService.getInstructor());
-  const [courses, setCourses] = useState<Course[]>(StorageService.getCourses());
-  const [activeCourseId, setActiveCourseIdState] = useState<string>(StorageService.getActiveCourseId());
+  // Supabase is authoritative in live mode. Do not paint the previous account's local course cache while the authenticated scope is loading.
+  const [courses, setCourses] = useState<Course[]>(() => (isLiveBackend ? [] : StorageService.getCourses()));
+  const [activeCourseId, setActiveCourseIdState] = useState<string>(() => (isLiveBackend ? '' : StorageService.getActiveCourseId()));
   const [students, setStudents] = useState<Student[]>(StorageService.getStudents());
   const [periods, setPeriods] = useState<PracticePeriod[]>(StorageService.getPeriods());
   const [participants, setParticipants] = useState<PracticeParticipant[]>(StorageService.getParticipants());

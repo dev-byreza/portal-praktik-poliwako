@@ -130,8 +130,9 @@ export class ApiService {
         })),
       }));
     } catch (err) {
-      console.warn('Fallback to local storage for getCourses:', err);
-      return StorageService.getCourses();
+      // Never fall back to the shared local cache in live mode: it may belong to a different instructor account.
+      console.warn('Unable to load scoped courses from Supabase:', err);
+      return [];
     }
   }
 
