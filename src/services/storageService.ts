@@ -253,15 +253,19 @@ export class StorageService {
     setItem(STORAGE_KEYS.COURSES, courses);
   }
 
-  static getActiveCourseId(): string {
-    const courses = this.getCourses();
-    const savedId = getItem<string>(STORAGE_KEYS.ACTIVE_COURSE_ID, courses[0]?.id || '');
+  static getActiveCourseId(instructorId?: string, availableCourses?: Course[]): string {
+    const courses = availableCourses || this.getCourses();
+    const scopedKey = instructorId ? `${STORAGE_KEYS.ACTIVE_COURSE_ID}:${instructorId}` : STORAGE_KEYS.ACTIVE_COURSE_ID;
+    let savedId = getItem<string>(scopedKey, '');
+    // Preserve the old single-account key when upgrading existing sessions.
+    if (!savedId && instructorId) savedId = getItem<string>(STORAGE_KEYS.ACTIVE_COURSE_ID, '');
     if (courses.some(c => c.id === savedId)) return savedId;
     return courses[0]?.id || '';
   }
 
-  static setActiveCourseId(id: string): void {
-    setItem(STORAGE_KEYS.ACTIVE_COURSE_ID, id);
+  static setActiveCourseId(id: string, instructorId?: string): void {
+    const key = instructorId ? `${STORAGE_KEYS.ACTIVE_COURSE_ID}:${instructorId}` : STORAGE_KEYS.ACTIVE_COURSE_ID;
+    setItem(key, id);
   }
 
   static getPeriods(): PracticePeriod[] {

@@ -165,7 +165,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   });
   // Supabase is authoritative in live mode. Do not paint the previous account's local course cache while the authenticated scope is loading.
   const [courses, setCourses] = useState<Course[]>(() => (isLiveBackend ? [] : StorageService.getCourses()));
-  const [activeCourseId, setActiveCourseIdState] = useState<string>(() => (isLiveBackend ? '' : StorageService.getActiveCourseId()));
+  const [activeCourseId, setActiveCourseIdState] = useState<string>(() => (
+    isLiveBackend
+      ? StorageService.getActiveCourseId(instructor.id)
+      : StorageService.getActiveCourseId()
+  ));
   const [students, setStudents] = useState<Student[]>(StorageService.getStudents());
   const [periods, setPeriods] = useState<PracticePeriod[]>(StorageService.getPeriods());
   const [participants, setParticipants] = useState<PracticeParticipant[]>(() => (isLiveBackend ? [] : StorageService.getParticipants()));
@@ -203,7 +207,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!isMounted) return;
         if (liveCourses) {
           setCourses(liveCourses);
-          if (liveCourses.length === 0) setActiveCourseIdState('');
+          if (liveCourses.length === 0) {
+            setActiveCourseIdState('');
+          } else if (authInstructorId || isInstructorLoggedIn) {
+            const scopedInstructorId = authInstructorId || instructor.id;
+            const restoredId = StorageService.getActiveCourseId(scopedInstructorId, liveCourses);
+            setActiveCourseIdState(restoredId);
+            if (restoredId) StorageService.setActiveCourseId(restoredId, scopedInstructorId);
+          }
         }
         if (liveStudents) setStudents(liveStudents);
 
@@ -300,7 +311,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const setActiveCourseId = (id: string) => {
     setActiveCourseIdState(id);
-    StorageService.setActiveCourseId(id);
+    StorageService.setActiveCourseId(id, isInstructorLoggedIn ? instructor.id : undefined);
   };
 
   const activeCourse = useMemo(() => {
@@ -366,7 +377,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ]);
       setCourses(liveCourses);
       setStudents(liveStudents);
-      if (liveCourses[0]) setActiveCourseIdState(liveCourses[0].id);
+      if (liveCourses[0]) {
+        const restoredId = StorageService.getActiveCourseId(authInstructorId, liveCourses);
+        setActiveCourseIdState(restoredId);
+        StorageService.setActiveCourseId(restoredId, authInstructorId);
+      }
     }
     setInstructor(updated);
     StorageService.saveInstructor(updated);
@@ -440,7 +455,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ]);
         setCourses(liveCourses);
         setStudents(liveStudents);
-        if (liveCourses[0]) setActiveCourseIdState(liveCourses[0].id);
+        if (liveCourses[0]) {
+          const restoredId = StorageService.getActiveCourseId(authInstructorId, liveCourses);
+          setActiveCourseIdState(restoredId);
+          StorageService.setActiveCourseId(restoredId, authInstructorId);
+        }
       }
       showToast('Pendaftaran Berhasil', `Selamat datang, ${newProfile.name}! Akun Anda telah aktif.`, 'success');
       return { success: true, message: 'Akun instruktur berhasil didaftarkan!' };
