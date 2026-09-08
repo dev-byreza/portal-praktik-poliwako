@@ -1421,6 +1421,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
       return p;
     }));
+
+    ApiService.saveAssessment(assessment).catch(error => {
+      console.error('Error syncing assessment:', error);
+      showToast('Sinkronisasi Nilai Gagal', 'Nilai tersimpan sementara di halaman ini, tetapi belum masuk Supabase.', 'error');
+    });
   };
 
   // Publish Grade with Attendance Blockage Check (PRD Section 56 & 58)
@@ -1456,6 +1461,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setAssessments(updatedAssessments);
 
+    // Persist the published flag and timestamp for every assessment that was
+    // actually published, so the student portal sees the same state.
+    updatedAssessments
+      .filter(assessment => assessment.periodId === periodId && assessment.isPublished)
+      .forEach(assessment => {
+        ApiService.saveAssessment(assessment).catch(error => {
+          console.error('Error syncing published assessment:', error);
+          showToast('Sinkronisasi Publikasi Gagal', 'Sebagian status publikasi belum tersimpan ke Supabase.', 'error');
+        });
+      });
+
     // Update participant statuses
     setParticipants(prev => prev.map(p => {
       if (p.periodId === periodId) {
@@ -1477,7 +1493,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const unpublishPeriodGrades = (periodId: string) => {
-    setAssessments(prev => prev.map(a => a.periodId === periodId ? { ...a, isPublished: false } : a));
+    const updatedAssessments = assessments.map(a => a.periodId === periodId ? { ...a, isPublished: false } : a);
+    setAssessments(updatedAssessments);
+    updatedAssessments.filter(a => a.periodId === periodId).forEach(assessment => {
+      ApiService.saveAssessment(assessment).catch(error => console.error('Error syncing unpublished assessment:', error));
+    });
     setParticipants(prev => prev.map(p => {
       if (p.periodId === periodId && p.progressStatus === 'PUBLISHED') {
         return { ...p, progressStatus: 'ASSESSED' };

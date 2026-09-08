@@ -480,7 +480,9 @@ export const GradingWorkspace: React.FC = () => {
     if (!activeSelectedPeriod || !currentParticipant) return;
 
     const newAssessment: Assessment = {
-      id: existingAssessment?.id || `ass-${Date.now()}`,
+      id: existingAssessment?.id || (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `ass-${Date.now()}`),
       periodId: activeSelectedPeriod.id,
       studentId: currentParticipant.studentId,
       qualityScore: compositeQualityScore,
@@ -499,8 +501,8 @@ export const GradingWorkspace: React.FC = () => {
       reportScores,
       feedback: customFeedback.trim() || autoFeedback,
       isPublished: existingAssessment?.isPublished || false,
-      gradedAt: new Date().toLocaleDateString('id-ID'),
-      updatedAt: new Date().toLocaleDateString('id-ID')
+      gradedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     saveAssessment(newAssessment);
