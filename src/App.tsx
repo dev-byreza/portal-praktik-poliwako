@@ -208,7 +208,6 @@ export const App: React.FC = () => {
       {/* Shared View Footer - Product by dev-byreza (Aktif di halaman login & gate) */}
       {(activeRoute === 'ROOT_SELECTOR' ||
         activeRoute === 'NOT_FOUND' ||
-        (activeRoute === 'STUDENT' && (!studentSession || !currentStudent)) ||
         (activeRoute === 'INSTRUCTOR' && !isInstructorLoggedIn)) && (
         <footer className="bg-slate-900 border-t border-slate-800/80 py-3 shrink-0 text-xs relative z-20">
           <div className="max-w-7xl mx-auto px-4 flex items-center justify-center gap-3">

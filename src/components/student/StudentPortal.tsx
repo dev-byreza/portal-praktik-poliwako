@@ -380,7 +380,8 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
             isEmbedded={true}
           />
         </div>
-</div>
+        <footer className="w-full shrink-0 border-t border-slate-800 bg-slate-900 px-4 py-3 text-center"><div className="flex flex-wrap items-center justify-center gap-2.5"><span className="text-slate-400 text-[10px] sm:text-xs">Product by</span><a href="https://github.com/dev-byreza" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-slate-700/80 bg-slate-800/90 px-3 py-1.5 text-white shadow-sm transition-all hover:bg-slate-700/90"><img src="https://github.com/dev-byreza.png" alt="dev-byreza" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/20" /><span className="text-xs font-semibold">dev-byreza</span><span className="text-[10px] text-slate-400">GitHub</span></a></div></footer>
+      </div>
     );
   }
 
@@ -873,6 +874,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
             )}
 
               </div>
+              <footer className="mt-8 border-t border-slate-200 pt-5 pb-2 text-center"><div className="flex flex-wrap items-center justify-center gap-2.5"><span className="text-slate-400 text-[10px] sm:text-xs">Product by</span><a href="https://github.com/dev-byreza" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-slate-700/80 bg-slate-800/90 px-3 py-1.5 text-white shadow-sm transition-all hover:bg-slate-700/90"><img src="https://github.com/dev-byreza.png" alt="dev-byreza" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/20" /><span className="text-xs font-semibold">dev-byreza</span><span className="text-[10px] text-slate-400">GitHub</span></a></div></footer>
             </div>
 
           </div>
