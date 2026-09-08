@@ -41,10 +41,10 @@ const SUB_CPMK_IDS = {
 };
 
 const PERIOD_IDS = [
-  'e3d4e5f6-d002-4000-8000-000000000201', // Gelombang 1 (Minggu 34)
-  'e3d4e5f6-d002-4000-8000-000000000202', // Gelombang 2 (Minggu 36)
-  'e3d4e5f6-d002-4000-8000-000000000203', // Gelombang 3 (Minggu 38)
-  'e3d4e5f6-d002-4000-8000-000000000204', // Gelombang 4 (Minggu 40)
+  'e3d4e5f6-d002-4000-8000-000000000201', // Gelombang 1 (Minggu 33)
+  'e3d4e5f6-d002-4000-8000-000000000202', // Gelombang 2 (Minggu 35)
+  'e3d4e5f6-d002-4000-8000-000000000203', // Gelombang 3 (Minggu 37)
+  'e3d4e5f6-d002-4000-8000-000000000204', // Gelombang 4 (Minggu 39)
   'e3d4e5f6-d002-4000-8000-000000000205', // Gelombang 5 (Minggu 43)
 ];
 
@@ -66,12 +66,12 @@ const STUDENTS_2C = [
   { nim: '22503006', name: 'Ananda Hexa Maulana', className: '2C' },
   { nim: '22503007', name: 'Andi Jumharyansah', className: '2C' },
   { nim: '22503008', name: 'Anugrah Pratama', className: '2C' },
-  { nim: '22503009', name: 'Athika Fauziah Setyaputri', className: '2C' },
+  { nim: '22503009', name: 'Athika Fauziah Satyaputri', className: '2C' },
   { nim: '22503010', name: 'Deswita Dwianggia', className: '2C' },
   { nim: '22503011', name: 'Devi Purnama Sari', className: '2C' },
   { nim: '22503012', name: 'Dwilma Sophie Sisiliano', className: '2C' },
   { nim: '22503013', name: 'Effer Cliff Mandalele', className: '2C' },
-  { nim: '22503014', name: 'Eilsa', className: '2C' },
+  { nim: '22503014', name: 'Elisa', className: '2C' },
   { nim: '22503015', name: 'Fikri Hasan Bungasae', className: '2C' },
   { nim: '22503016', name: 'Gizza Ramadhani', className: '2C' },
   { nim: '22503017', name: 'Ikram Arif Ananda', className: '2C' },
@@ -85,9 +85,9 @@ const STUDENTS_2C = [
   { nim: '22503025', name: 'Muh. Rajab Hidayah An', className: '2C' },
   { nim: '22503026', name: 'Nabil Ardiansyah', className: '2C' },
   { nim: '22503028', name: 'Nita', className: '2C' },
-  { nim: '22503029', name: 'Nur Ainun Alfifa', className: '2C' },
+  { nim: '22503029', name: 'Nur Ainun Alifda', className: '2C' },
   { nim: '22503030', name: 'Nur Hikma', className: '2C' },
-  { nim: '22503031', name: 'Rasya Ahmad Al Fariezi.A', className: '2C' },
+  { nim: '22503031', name: 'Rasya Ahmad Al Farezi.A', className: '2C' },
   { nim: '22503032', name: 'Rezal Pabiaran', className: '2C' },
   { nim: '22503033', name: 'Silvia Nur Azizah', className: '2C' },
   { nim: '22503034', name: 'Valentin Merrandan', className: '2C' },
@@ -278,37 +278,37 @@ async function main() {
     {
       id: PERIOD_IDS[0],
       course_id: COURSE_ID,
-      name: 'Gelombang 1 (Minggu 34)',
+      name: 'Gelombang 1 (Minggu 33)',
       period_number: 1,
-      start_date: '2026-08-17',
-      end_date: '2026-08-21',
+      start_date: '2026-08-10',
+      end_date: '2026-08-14',
       status: 'COMPLETED',
     },
     {
       id: PERIOD_IDS[1],
       course_id: COURSE_ID,
-      name: 'Gelombang 2 (Minggu 36)',
+      name: 'Gelombang 2 (Minggu 35)',
       period_number: 2,
-      start_date: '2026-08-31',
-      end_date: '2026-09-04',
+      start_date: '2026-08-24',
+      end_date: '2026-08-28',
       status: 'COMPLETED',
     },
     {
       id: PERIOD_IDS[2],
       course_id: COURSE_ID,
-      name: 'Gelombang 3 (Minggu 38)',
+      name: 'Gelombang 3 (Minggu 37)',
       period_number: 3,
-      start_date: '2026-09-14',
-      end_date: '2026-09-18',
+      start_date: '2026-09-07',
+      end_date: '2026-09-11',
       status: 'ACTIVE',
     },
     {
       id: PERIOD_IDS[3],
       course_id: COURSE_ID,
-      name: 'Gelombang 4 (Minggu 40)',
+      name: 'Gelombang 4 (Minggu 39)',
       period_number: 4,
-      start_date: '2026-09-28',
-      end_date: '2026-10-02',
+      start_date: '2026-09-21',
+      end_date: '2026-09-25',
       status: 'UPCOMING',
     },
     {

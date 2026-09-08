@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Assessment, CriterionScore, Submission, RubricCriterion } from '../../types';
+import { Assessment, CriterionScore, Submission } from '../../types';
 import {
   calculateQualityCompositeScore,
   calculateWeightedFinalScore,
@@ -33,6 +33,7 @@ import {
   EyeOff,
   FileCheck
 } from 'lucide-react';
+import { getCourseRubrics, reconcileRubricScores } from '../../utils/courseRubrics';
 import { Badge } from '../common/Badge';
 
 export const GradingWorkspace: React.FC = () => {
@@ -193,53 +194,9 @@ export const GradingWorkspace: React.FC = () => {
     });
   }, [activeCourse]);
 
-  const DEFAULT_ATTITUDE_RUBRICS: RubricCriterion[] = useMemo(() => [
-    {
-      id: 'rub-cad1-s1',
-      name: 'Kedisiplinan Waktu & Kepatuhan APD / K3',
-      category: 'ATTITUDE',
-      description: 'Ketepatan waktu kehadiran, kepatuhan K3 bengkel/lab komputer, dan etika kerja.'
-    },
-    {
-      id: 'rub-cad1-s2',
-      name: 'Tanggung Jawab & Perawatan Fasilitas Lab CAD',
-      category: 'ATTITUDE',
-      description: 'Kerapian workstation, pemeliharaan software/hardware, dan kerja sama tim.'
-    }
-  ], []);
-
-  const DEFAULT_CREATIVITY_RUBRICS: RubricCriterion[] = useMemo(() => [
-    {
-      id: 'rub-cad1-c1',
-      name: 'Inisiatif Desain & Optimasi Fitur CAD',
-      category: 'CREATIVITY',
-      description: 'Kemampuan eksplorasi alternatif pemodelan 3D, efisiensi feature tree, dan inovasi bentuk.'
-    }
-  ], []);
-
-  const DEFAULT_REPORT_RUBRICS: RubricCriterion[] = useMemo(() => [
-    {
-      id: 'rub-cad1-r1',
-      name: 'Kelengkapan Laporan Praktik & Etiket Drafting',
-      category: 'REPORT',
-      description: 'Sistematika pelaporan, lembar kerja job sheet, serta kelengkapan dimensi toleransi ISO.'
-    }
-  ], []);
-
-  const attitudeRubrics = useMemo(() => {
-    const list = activeCourse?.qualityRubrics?.filter(r => r.category === 'ATTITUDE') || [];
-    return list.length > 0 ? list : DEFAULT_ATTITUDE_RUBRICS;
-  }, [activeCourse, DEFAULT_ATTITUDE_RUBRICS]);
-
-  const creativityRubrics = useMemo(() => {
-    const list = activeCourse?.qualityRubrics?.filter(r => r.category === 'CREATIVITY') || [];
-    return list.length > 0 ? list : DEFAULT_CREATIVITY_RUBRICS;
-  }, [activeCourse, DEFAULT_CREATIVITY_RUBRICS]);
-
-  const reportRubrics = useMemo(() => {
-    const list = activeCourse?.qualityRubrics?.filter(r => r.category === 'REPORT') || [];
-    return list.length > 0 ? list : DEFAULT_REPORT_RUBRICS;
-  }, [activeCourse, DEFAULT_REPORT_RUBRICS]);
+  const attitudeRubrics = useMemo(() => getCourseRubrics(activeCourse, 'ATTITUDE'), [activeCourse]);
+  const creativityRubrics = useMemo(() => getCourseRubrics(activeCourse, 'CREATIVITY'), [activeCourse]);
+  const reportRubrics = useMemo(() => getCourseRubrics(activeCourse, 'REPORT'), [activeCourse]);
 
   // Local Criterion Scores State
   const [qualityScores, setQualityScores] = useState<CriterionScore[]>([]);
@@ -267,19 +224,8 @@ export const GradingWorkspace: React.FC = () => {
       setPostTestScore(existingAssessment.postTestScore ?? 80);
       setReportScore(existingAssessment.reportScore ?? (existingAssessment.reportScores?.[0]?.score ?? 80));
 
-      // Restore or fallback attitude scores
-      if (existingAssessment.attitudeScores && existingAssessment.attitudeScores.length > 0) {
-        setAttitudeScores(existingAssessment.attitudeScores);
-      } else {
-        setAttitudeScores(defaultA);
-      }
-
-      // Restore or fallback creativity scores
-      if (existingAssessment.creativityScores && existingAssessment.creativityScores.length > 0) {
-        setCreativityScores(existingAssessment.creativityScores);
-      } else {
-        setCreativityScores(defaultC);
-      }
+      setAttitudeScores(reconcileRubricScores(attitudeRubrics, existingAssessment.attitudeScores, 100, 'Sangat Baik'));
+      setCreativityScores(reconcileRubricScores(creativityRubrics, existingAssessment.creativityScores, 75, 'Baik'));
 
       // Restore or fallback report scores
       if (existingAssessment.reportScores && existingAssessment.reportScores.length > 0) {
@@ -1601,6 +1547,7 @@ export const GradingWorkspace: React.FC = () => {
                         {activeScore}
                       </span>
                     </div>
+                    {rub.description && <p className="text-xs text-slate-500 leading-relaxed">{rub.description}</p>}
                     <div className="grid grid-cols-5 gap-1.5 pt-1">
                       {RUBRIC_LEVELS.map(lvl => (
                         <button
@@ -1668,6 +1615,7 @@ export const GradingWorkspace: React.FC = () => {
                           {activeScore}
                         </span>
                       </div>
+                      {rub.description && <p className="text-xs text-slate-500 leading-relaxed">{rub.description}</p>}
                       <div className="grid grid-cols-5 gap-1.5 pt-1">
                         {RUBRIC_LEVELS.map(lvl => (
                           <button

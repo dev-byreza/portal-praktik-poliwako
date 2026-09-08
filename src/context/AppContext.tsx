@@ -9,6 +9,8 @@ import {
   PracticePeriod,
   PracticeParticipant,
   LearningUnit,
+  LearningMaterial,
+  Assignment,
   UnitProgress,
   Submission,
   AttendanceRecord,
@@ -97,7 +99,7 @@ interface AppContextType {
   // Instructor Actions
   createCourse: (course: Partial<Course>) => Course;
   copyCourse: (sourceCourseId: string, newName: string, academicYear: string, semester: 'Ganjil' | 'Genap') => Course;
-  updateCourse: (course: Course) => void;
+  updateCourse: (course: Course) => Promise<void>;
   deleteCourse: (courseId: string) => void;
 
   createPeriod: (period: Partial<PracticePeriod>) => PracticePeriod;
@@ -117,6 +119,7 @@ interface AppContextType {
   createLearningUnit: (unit: Partial<LearningUnit>) => LearningUnit;
   updateLearningUnit: (unit: LearningUnit) => void;
   deleteLearningUnit: (unitId: string) => void;
+  copyLearningUnits: (sourceUnitIds: string[], targetPeriodIds: string[], overwrite?: boolean) => { copiedCount: number; targetCount: number };
 
   updateAttendanceCell: (periodId: string, studentId: string, day: 'day1' | 'day2' | 'day3' | 'day4' | 'day5', status: AttendanceStatus) => void;
   autoInitializeAttendanceForPeriod: (periodId: string) => Promise<void>;
@@ -767,9 +770,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return newCourse;
   };
 
-  const updateCourse = (updated: Course) => {
-    setCourses(prev => prev.map(c => c.id === updated.id ? updated : c));
-    showToast('Mata Kuliah Diperbarui', 'Pengaturan mata kuliah berhasil disimpan.', 'success');
+  const updateCourse = async (updated: Course) => {
+    const saved = await ApiService.saveCourse(updated);
+    const idMap = new Map([
+      ...updated.subCpmks.map((s, i) => [s.id, saved.subCpmks[i].id] as const),
+      ...updated.qualityRubrics.map((r, i) => [r.id, saved.qualityRubrics[i].id] as const),
+    ]);
+    const coursePeriodIds = new Set(periods.filter(p => p.courseId === saved.id).map(p => p.id));
+    // Keep locally stored assessment scores attached when legacy IDs become UUIDs.
+    setAssessments(prev => prev.map(a => {
+      if (!coursePeriodIds.has(a.periodId)) return a;
+      const remap = (scores: Assessment['qualityScores']) => scores?.map(s => ({
+        ...s, criterionId: idMap.get(s.criterionId) || s.criterionId,
+      }));
+      return { ...a, qualityScores: remap(a.qualityScores), attitudeScores: remap(a.attitudeScores),
+        creativityScores: remap(a.creativityScores), reportScores: remap(a.reportScores) };
+    }));
+    setCourses(prev => prev.map(c => c.id === saved.id ? saved : c));
   };
 
   const deleteCourse = (courseId: string) => {
@@ -1082,6 +1099,78 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteLearningUnit = (unitId: string) => {
     setLearningUnits(prev => prev.filter(u => u.id !== unitId));
     showToast('Unit Dihapus', 'Unit pembelajaran telah dihapus.', 'info');
+  };
+
+  const copyLearningUnits = (
+    sourceUnitIds: string[],
+    targetPeriodIds: string[],
+    overwrite: boolean = false
+  ): { copiedCount: number; targetCount: number } => {
+    const selectedSourceUnits = learningUnits
+      .filter(u => sourceUnitIds.includes(u.id))
+      .sort((a, b) => a.unitNumber - b.unitNumber);
+
+    if (selectedSourceUnits.length === 0 || targetPeriodIds.length === 0) {
+      showToast('Peringatan', 'Pilih minimal satu modul dan satu minggu/periode tujuan.', 'warning');
+      return { copiedCount: 0, targetCount: 0 };
+    }
+
+    const newUnitsToInsert: LearningUnit[] = [];
+
+    targetPeriodIds.forEach(targetPeriodId => {
+      const existingUnitsInTarget = overwrite
+        ? []
+        : learningUnits.filter(u => u.periodId === targetPeriodId);
+
+      let nextUnitNumber = existingUnitsInTarget.length + 1;
+
+      selectedSourceUnits.forEach(srcUnit => {
+        const newUnitId = `unit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        const clonedMaterials: LearningMaterial[] = srcUnit.materials.map(m => ({
+          ...m,
+          id: `mat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          unitId: newUnitId
+        }));
+
+        const clonedAssignment: Assignment | undefined = srcUnit.assignment
+          ? {
+              ...srcUnit.assignment,
+              id: `assign-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              unitId: newUnitId,
+              periodId: targetPeriodId
+            }
+          : undefined;
+
+        newUnitsToInsert.push({
+          id: newUnitId,
+          periodId: targetPeriodId,
+          unitNumber: nextUnitNumber++,
+          title: srcUnit.title,
+          description: srcUnit.description,
+          materials: clonedMaterials,
+          assignment: clonedAssignment
+        });
+      });
+    });
+
+    setLearningUnits(prev => {
+      let filtered = prev;
+      if (overwrite) {
+        filtered = prev.filter(u => !targetPeriodIds.includes(u.periodId));
+      }
+      return [...filtered, ...newUnitsToInsert];
+    });
+
+    showToast(
+      'Modul Berhasil Disalin',
+      `${selectedSourceUnits.length} modul berhasil disalin ke ${targetPeriodIds.length} minggu tujuan.`,
+      'success'
+    );
+
+    return {
+      copiedCount: selectedSourceUnits.length,
+      targetCount: targetPeriodIds.length
+    };
   };
 
   // Attendance Matrix Update & Realtime Sync
@@ -1435,6 +1524,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         createLearningUnit,
         updateLearningUnit,
         deleteLearningUnit,
+        copyLearningUnits,
         updateAttendanceCell,
         autoInitializeAttendanceForPeriod,
         setAllPeriodAttendanceStatus,

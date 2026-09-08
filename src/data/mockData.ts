@@ -3,6 +3,9 @@
 // Program Studi: Rekayasa Perancangan Mekanik
 // Mata Kuliah: CAD 1.1 (Kelas 1C) - Tahun Akademik 2026/2027 Semester Gasal
 
+import { rpmPeriodStatus } from '../utils/rpmSchedule';
+import officialRpm from './official-rpm-2026.json';
+
 import {
   InstructorProfile,
   Student,
@@ -38,16 +41,16 @@ export const INITIAL_STUDENTS: Student[] = [
   { id: 'std-22603007', nim: '22603007', name: 'Ayu Anugrah', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
   { id: 'std-22603008', nim: '22603008', name: 'Ayu Irmayanti', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
   { id: 'std-22603009', nim: '22603009', name: 'Bunga Cahya Putri Jenal', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
-  { id: 'std-22603010', nim: '22603010', name: 'Daniel Adian Sura Parinding', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22603010', nim: '22603010', name: 'Daniel Adlan Sura Parinding', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
   { id: 'std-22603011', nim: '22603011', name: 'Dede Irawan', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
-  { id: 'std-22603012', nim: '22603012', name: 'Faiya Aisyah Naswah', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22603012', nim: '22603012', name: 'Falya Aisyah Naswah', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
   { id: 'std-22603013', nim: '22603013', name: 'Haura Hafizhah', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
   { id: 'std-22603014', nim: '22603014', name: 'Juan Farand', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
   { id: 'std-22603015', nim: '22603015', name: 'Khumaira Khaerunnisa', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
   { id: 'std-22603016', nim: '22603016', name: 'M. Fauzan Adhitya Pratama H', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
   { id: 'std-22603017', nim: '22603017', name: 'Muh. Anugrah Sesar', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
   { id: 'std-22603018', nim: '22603018', name: 'Muh. Diaz Raditya B.', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
-  { id: 'std-22603019', nim: '22603019', name: 'Muh. Fakhrul Al Farezy Rozadin', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22603019', nim: '22603019', name: 'Muh. Fakhrul Al Farezqy Rozadin', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
   { id: 'std-22603020', nim: '22603020', name: 'Muh. Raihan Aryan', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
   { id: 'std-22603021', nim: '22603021', name: 'Muhammad Abyan Zaky', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
   { id: 'std-22603022', nim: '22603022', name: 'Muhammad Agam Haq', className: '1C', createdAt: '2026-08-01T08:00:00.000Z' },
@@ -101,6 +104,42 @@ export const INITIAL_STUDENTS: Student[] = [
   { id: 'std-22502034', nim: '22502034', name: 'Phika Surtiani', className: '2D - TRPF', createdAt: '2026-09-01T08:00:00.000Z' },
   { id: 'std-22502035', nim: '22502035', name: 'Salwa Amelia', className: '2D - TRPF', createdAt: '2026-09-01T08:00:00.000Z' },
   { id: 'std-22502036', nim: '22502036', name: 'Zahran Adnan', className: '2D - TRPF', createdAt: '2026-09-01T08:00:00.000Z' },
+  // 35 Mahasiswa Real Kelas 2C - RPM (Politeknik Sorowako)
+  { id: 'std-22503001', nim: '22503001', name: 'Afdhal Nur Fauzan', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503002', nim: '22503002', name: 'Ahmad Nabil', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503003', nim: '22503003', name: 'Ainun Musdalifah', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503004', nim: '22503004', name: 'Al Aura Anandita', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503005', nim: '22503005', name: 'Al-Mubara', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503006', nim: '22503006', name: 'Ananda Hexa Maulana', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503007', nim: '22503007', name: 'Andi Jumharyansah', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503008', nim: '22503008', name: 'Anugrah Pratama', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503009', nim: '22503009', name: 'Athika Fauziah Satyaputri', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503010', nim: '22503010', name: 'Deswita Dwianggia', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503011', nim: '22503011', name: 'Devi Purnama Sari', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503012', nim: '22503012', name: 'Dwilma Sophie Sisiliano', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503013', nim: '22503013', name: 'Effer Cliff Mandalele', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503014', nim: '22503014', name: 'Elisa', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503015', nim: '22503015', name: 'Fikri Hasan Bungasae', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503016', nim: '22503016', name: 'Gizza Ramadhani', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503017', nim: '22503017', name: 'Ikram Arif Ananda', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503018', nim: '22503018', name: 'Jayanti Lestari Lambe', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503019', nim: '22503019', name: 'M. Alief Kurniawan', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503020', nim: '22503020', name: 'Meylani Ayu Nathasa', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503021', nim: '22503021', name: 'Muh. Januar Farouq', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503022', nim: '22503022', name: 'Muh. Muzammil Musta', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503023', nim: '22503023', name: 'Muh. Naufal Al Khair', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503024', nim: '22503024', name: 'Muh. Nendra Arif', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503025', nim: '22503025', name: 'Muh. Rajab Hidayah An', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503026', nim: '22503026', name: 'Nabil Ardiansyah', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503028', nim: '22503028', name: 'Nita', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503029', nim: '22503029', name: 'Nur Ainun Alifda', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503030', nim: '22503030', name: 'Nur Hikma', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503031', nim: '22503031', name: 'Rasya Ahmad Al Farezi.A', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503032', nim: '22503032', name: 'Rezal Pabiaran', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503033', nim: '22503033', name: 'Silvia Nur Azizah', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503034', nim: '22503034', name: 'Valentin Merrandan', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503035', nim: '22503035', name: 'Yhogi Oktavianus Iksel', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
+  { id: 'std-22503036', nim: '22503036', name: 'Zahra Atifah Zal-Sabila', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
   // Akun Dummy Tester Mahasiswa
   {
     id: 'std-tester-001',
@@ -282,10 +321,124 @@ export const INITIAL_COURSES: Course[] = [
         description: 'Kerapian format laporan, etiket standar Politeknik Sorowako, dan kelengkapan lembar instruksi kerja fabrikasi.'
       }
     ]
+  },
+  {
+    id: 'c3d4e5f6-d002-4000-8000-000000000001',
+    instructorId: 'inst-rezaf',
+    name: 'Praktik DPP 2',
+    code: '338RM1P',
+    academicYear: '2026/2027',
+    semester: 'Ganjil',
+    slug: 'dpp-2-rpm',
+    department: 'Rekayasa Perancangan Mekanik',
+    description: 'Praktik Desain Pemodelan Parametrik 2 (DPP 2) Program Studi Rekayasa Perancangan Mekanik (RPM) Politeknik Sorowako. Meliputi metodologi perancangan produk manufaktur presisi, rekayasa nilai (value engineering), pemilihan material dan standard parts teknik, pemodelan 3D mekanikal presisi, analisis kelayakan perakitan (Design for Assembly - DFA) dan manufaktur (Design for Manufacturing - DFM), pembuatan prototype fungsional, serta penyusunan dokumen gambar kerja teknik manufaktur standar ISO.',
+    status: 'PUBLISHED',
+    createdAt: '2026-08-01T08:00:00.000Z',
+    subCpmks: [
+      {
+        id: 'c3d4e5f6-d002-4000-8000-000000000101',
+        code: 'Sub-CPMK 1',
+        description: 'Mampu mengidentifikasi kebutuhan spesifikasi teknis produk, menyusun Product Design Specification (PDS), serta mengembangkan alternatif konsep desain produk mekanik presisi.',
+        weightPercent: 20
+      },
+      {
+        id: 'c3d4e5f6-d002-4000-8000-000000000102',
+        code: 'Sub-CPMK 2',
+        description: 'Mampu menerapkan kaidah Design for Manufacturing (DFM) dan Design for Assembly (DFA) dalam pemilihan komponen mekanik presisi, material teknik, dan metode proses manufaktur.',
+        weightPercent: 25
+      },
+      {
+        id: 'c3d4e5f6-d002-4000-8000-000000000103',
+        code: 'Sub-CPMK 3',
+        description: 'Mampu membuat pemodelan 3D CAD parametrik perakitan produk mekanikal presisi lengkap dengan analisis toleransi geometri (GD&T ISO 1101) dan bebas tabrakan (zero collision).',
+        weightPercent: 30
+      },
+      {
+        id: 'c3d4e5f6-d002-4000-8000-000000000104',
+        code: 'Sub-CPMK 4',
+        description: 'Mampu menghasilkan prototype fungsional mekanik, menyusun Bill of Materials (BOM) terstruktur, dan menyajikan laporan rekayasa perancangan standar industri manufaktur.',
+        weightPercent: 25
+      }
+    ],
+    qualityRubrics: [
+      {
+        id: 'f3d4e5f6-d002-4000-8000-000000000401',
+        subCpmkId: 'c3d4e5f6-d002-4000-8000-000000000101',
+        name: 'Ketajaman Analisis Spesifikasi Teknis & Kelengkapan PDS',
+        category: 'QUALITY',
+        description: 'Kejelasan batasan desain, kriteria kinerja mekanik, beban operasional, dan kepatuhan standar industri.'
+      },
+      {
+        id: 'f3d4e5f6-d002-4000-8000-000000000402',
+        subCpmkId: 'c3d4e5f6-d002-4000-8000-000000000102',
+        name: 'Efisiensi Desain Berdasarkan Kaidah DFM & DFA',
+        category: 'QUALITY',
+        description: 'Kemudahan perakitan (jumlah part minimal, tool access) dan kemudahan proses permesinan/fabrikasi komponen.'
+      },
+      {
+        id: 'f3d4e5f6-d002-4000-8000-000000000403',
+        subCpmkId: 'c3d4e5f6-d002-4000-8000-000000000102',
+        name: 'Kesesuaian Pemilihan Material & Standar Komponen Komersial',
+        category: 'QUALITY',
+        description: 'Rasionalitas pemilihan grade material (baja paduan, alumunium, polimer) dan penggunaan fastener/bearing standar DIN/ISO.'
+      },
+      {
+        id: 'f3d4e5f6-d002-4000-8000-000000000404',
+        subCpmkId: 'c3d4e5f6-d002-4000-8000-000000000103',
+        name: 'Akurasi Pemodelan 3D Assembly & Integritas Kinematika',
+        category: 'QUALITY',
+        description: 'Akurasi mates/constraints perakitan, mekanisme bebas interferensi gerakan, dan ketepatan rantai toleransi dimensi.'
+      },
+      {
+        id: 'f3d4e5f6-d002-4000-8000-000000000405',
+        subCpmkId: 'c3d4e5f6-d002-4000-8000-000000000103',
+        name: 'Standar Penerapan Toleransi Geometri (GD&T ISO 1101)',
+        category: 'QUALITY',
+        description: 'Penerapan datum, toleransi bentuk, orientasi, dan lokasi (posisi, runout, kesilindrisan) sesuai fungsi kerja part.'
+      },
+      {
+        id: 'f3d4e5f6-d002-4000-8000-000000000406',
+        subCpmkId: 'c3d4e5f6-d002-4000-8000-000000000104',
+        name: 'Kualitas Gambar Kerja Manufaktur 2D & Akurasi BOM',
+        category: 'QUALITY',
+        description: 'Kelengkapan proyeksi, potongan kompleks, detail ulir/chamfer, simbol kekasaran permukaan Ra, dan Bill of Materials.'
+      },
+      {
+        id: 'f3d4e5f6-d002-4000-8000-000000000407',
+        subCpmkId: 'c3d4e5f6-d002-4000-8000-000000000104',
+        name: 'Kinerja Prototype Fungsional & Presentasi Rekayasa',
+        category: 'QUALITY',
+        description: 'Keberhasilan operasional prototipe mekanik, pemenuhan kriteria PDS, dan profesionalisme penyajian laporan teknis.'
+      },
+      {
+        id: 'f3d4e5f6-d002-4000-8000-000000000408',
+        name: 'Kedisiplinan Waktu & Kepatuhan APD / K3',
+        category: 'ATTITUDE',
+        description: 'Ketepatan waktu kehadiran WITA, kepatuhan K3 bengkel/lab komputer, dan etika kerja.'
+      },
+      {
+        id: 'f3d4e5f6-d002-4000-8000-000000000409',
+        name: 'Tanggung Jawab & Perawatan Fasilitas Lab CAD',
+        category: 'ATTITUDE',
+        description: 'Kerapian workstation, pemeliharaan software/hardware, dan kerja sama tim.'
+      },
+      {
+        id: 'f3d4e5f6-d002-4000-8000-000000000410',
+        name: 'Inisiatif Desain & Optimasi Fitur CAD',
+        category: 'CREATIVITY',
+        description: 'Kemampuan eksplorasi alternatif pemodelan 3D, efisiensi feature tree, dan inovasi bentuk.'
+      },
+      {
+        id: 'f3d4e5f6-d002-4000-8000-000000000411',
+        name: 'Kelengkapan Laporan Praktik & Etiket Drafting',
+        category: 'REPORT',
+        description: 'Sistematika pelaporan, lembar kerja job sheet, serta kelengkapan dimensi toleransi ISO.'
+      }
+    ]
   }
 ];
 
-// 4 Gelombang Periode Praktik CAD 1.1 Sesuai Kalender Akademik Poliwako 2026
+// 3 Gelombang Periode Praktik CAD 1.1 Sesuai Kalender Akademik Poliwako 2026
 export const INITIAL_PERIODS: PracticePeriod[] = [
   {
     id: 'per-cad1-1-g1',
@@ -391,375 +544,27 @@ export const INITIAL_PERIODS: PracticePeriod[] = [
     finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad2-g6',
     createdAt: '2026-09-01T08:00:00.000Z'
   },
+  ...officialRpm.courses.find(c => c.code === 'DPP')!.periods.map(p => ({
+    id: `e3d4e5f6-d002-4000-8000-00000000020${p.periodNumber}`,
+    courseId: 'c3d4e5f6-d002-4000-8000-000000000001',
+    name: p.name, periodNumber: p.periodNumber, startDate: p.startDate, endDate: p.endDate,
+    status: rpmPeriodStatus(p.startDate, p.endDate), autoStatus: true, createdAt: '2026-08-01T08:00:00.000Z',
+  })),
 ];
 
 // Distribusi Peserta Real CAD 1.1 Berdasarkan Jadwal Resmi Kelas 1C
 export const INITIAL_PARTICIPANTS: PracticeParticipant[] = [
-  // --- Gelombang 1 (Minggu 34: 17-21 Agustus 2026) ---
-  {
-    id: 'part-g1-01',
-    periodId: 'per-cad1-1-g1',
-    studentId: 'std-22603003',
-    student: INITIAL_STUDENTS[2], // Affan Farsyah
-    enrolledAt: '2026-08-15T08:00:00.000Z',
-    progressStatus: 'LEARNING_COMPLETE',
-    finalProjectSubmittedAt: '2026-08-21T15:30:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g1-02',
-    periodId: 'per-cad1-1-g1',
-    studentId: 'std-22603004',
-    student: INITIAL_STUDENTS[3], // Afiqah Azwa Safrina
-    enrolledAt: '2026-08-15T08:00:00.000Z',
-    progressStatus: 'LEARNING_COMPLETE',
-    finalProjectSubmittedAt: '2026-08-21T15:45:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g1-03',
-    periodId: 'per-cad1-1-g1',
-    studentId: 'std-22603006',
-    student: INITIAL_STUDENTS[5], // Anesya Nurhawizah
-    enrolledAt: '2026-08-15T08:00:00.000Z',
-    progressStatus: 'LEARNING_COMPLETE',
-    finalProjectSubmittedAt: '2026-08-21T16:00:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g1-04',
-    periodId: 'per-cad1-1-g1',
-    studentId: 'std-22603010',
-    student: INITIAL_STUDENTS[9], // Daniel Adian Sura Parinding
-    enrolledAt: '2026-08-15T08:00:00.000Z',
-    progressStatus: 'LEARNING_COMPLETE',
-    finalProjectSubmittedAt: '2026-08-21T15:10:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g1-05',
-    periodId: 'per-cad1-1-g1',
-    studentId: 'std-22603012',
-    student: INITIAL_STUDENTS[11], // Faiya Aisyah Naswah
-    enrolledAt: '2026-08-15T08:00:00.000Z',
-    progressStatus: 'LEARNING_COMPLETE',
-    finalProjectSubmittedAt: '2026-08-21T16:20:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g1-06',
-    periodId: 'per-cad1-1-g1',
-    studentId: 'std-22603015',
-    student: INITIAL_STUDENTS[14], // Khumaira Khaerunnisa
-    enrolledAt: '2026-08-15T08:00:00.000Z',
-    progressStatus: 'LEARNING_COMPLETE',
-    finalProjectSubmittedAt: '2026-08-21T15:50:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g1-07',
-    periodId: 'per-cad1-1-g1',
-    studentId: 'std-22603020',
-    student: INITIAL_STUDENTS[19], // Muh. Raihan Aryan
-    enrolledAt: '2026-08-15T08:00:00.000Z',
-    progressStatus: 'LEARNING_COMPLETE',
-    finalProjectSubmittedAt: '2026-08-21T16:30:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g1-08',
-    periodId: 'per-cad1-1-g1',
-    studentId: 'std-22603021',
-    student: INITIAL_STUDENTS[20], // Muhammad Abyan Zaky
-    enrolledAt: '2026-08-15T08:00:00.000Z',
-    progressStatus: 'LEARNING_COMPLETE',
-    finalProjectSubmittedAt: '2026-08-21T15:15:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g1-09',
-    periodId: 'per-cad1-1-g1',
-    studentId: 'std-22603025',
-    student: INITIAL_STUDENTS[24], // Ranita Rosa Putri
-    enrolledAt: '2026-08-15T08:00:00.000Z',
-    progressStatus: 'LEARNING_COMPLETE',
-    finalProjectSubmittedAt: '2026-08-21T16:40:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g1-10',
-    periodId: 'per-cad1-1-g1',
-    studentId: 'std-22603027',
-    student: INITIAL_STUDENTS[26], // Rizky Ramadhani A.
-    enrolledAt: '2026-08-15T08:00:00.000Z',
-    progressStatus: 'LEARNING_COMPLETE',
-    finalProjectSubmittedAt: '2026-08-21T16:05:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g1-11',
-    periodId: 'per-cad1-1-g1',
-    studentId: 'std-22603030',
-    student: INITIAL_STUDENTS[29], // Saskia Uhti Ramadhani
-    enrolledAt: '2026-08-15T08:00:00.000Z',
-    progressStatus: 'LEARNING_COMPLETE',
-    finalProjectSubmittedAt: '2026-08-21T15:35:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g1-12',
-    periodId: 'per-cad1-1-g1',
-    studentId: 'std-22603035',
-    student: INITIAL_STUDENTS[34], // Winda Tri Lestari
-    enrolledAt: '2026-08-15T08:00:00.000Z',
-    progressStatus: 'LEARNING_COMPLETE',
-    finalProjectSubmittedAt: '2026-08-21T16:15:00.000Z',
-    finalProjectConfirmed: true
-  },
-
-  // --- Gelombang 2 (Minggu 36: 31 Agustus - 4 September 2026) ---
-  {
-    id: 'part-g2-01',
-    periodId: 'per-cad1-1-g2',
-    studentId: 'std-22603001',
-    student: INITIAL_STUDENTS[0], // Achmad Fawzan
-    enrolledAt: '2026-08-28T08:00:00.000Z',
-    progressStatus: 'IN_PROGRESS',
-    finalProjectSubmittedAt: '2026-09-04T14:30:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g2-02',
-    periodId: 'per-cad1-1-g2',
-    studentId: 'std-22603005',
-    student: INITIAL_STUDENTS[4], // Andika Azis
-    enrolledAt: '2026-08-28T08:00:00.000Z',
-    progressStatus: 'IN_PROGRESS',
-    finalProjectSubmittedAt: '2026-09-04T15:10:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g2-03',
-    periodId: 'per-cad1-1-g2',
-    studentId: 'std-22603007',
-    student: INITIAL_STUDENTS[6], // Ayu Anugrah
-    enrolledAt: '2026-08-28T08:00:00.000Z',
-    progressStatus: 'IN_PROGRESS',
-    finalProjectSubmittedAt: '2026-09-04T15:45:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g2-04',
-    periodId: 'per-cad1-1-g2',
-    studentId: 'std-22603011',
-    student: INITIAL_STUDENTS[10], // Dede Irawan
-    enrolledAt: '2026-08-28T08:00:00.000Z',
-    progressStatus: 'IN_PROGRESS',
-    finalProjectSubmittedAt: '2026-09-04T16:00:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g2-05',
-    periodId: 'per-cad1-1-g2',
-    studentId: 'std-22603013',
-    student: INITIAL_STUDENTS[12], // Haura Hafizhah
-    enrolledAt: '2026-08-28T08:00:00.000Z',
-    progressStatus: 'IN_PROGRESS',
-    finalProjectSubmittedAt: '2026-09-04T14:50:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g2-06',
-    periodId: 'per-cad1-1-g2',
-    studentId: 'std-22603016',
-    student: INITIAL_STUDENTS[15], // M. Fauzan Adhitya Pratama H
-    enrolledAt: '2026-08-28T08:00:00.000Z',
-    progressStatus: 'IN_PROGRESS',
-    finalProjectSubmittedAt: '2026-09-04T15:30:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g2-07',
-    periodId: 'per-cad1-1-g2',
-    studentId: 'std-22603018',
-    student: INITIAL_STUDENTS[17], // Muh. Diaz Raditya B.
-    enrolledAt: '2026-08-28T08:00:00.000Z',
-    progressStatus: 'IN_PROGRESS',
-    finalProjectSubmittedAt: '2026-09-04T16:15:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g2-08',
-    periodId: 'per-cad1-1-g2',
-    studentId: 'std-22603024',
-    student: INITIAL_STUDENTS[23], // Nadya Zalzabila
-    enrolledAt: '2026-08-28T08:00:00.000Z',
-    progressStatus: 'IN_PROGRESS',
-    finalProjectSubmittedAt: '2026-09-04T15:20:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g2-09',
-    periodId: 'per-cad1-1-g2',
-    studentId: 'std-22603028',
-    student: INITIAL_STUDENTS[27], // Rudhi Adhana Zet
-    enrolledAt: '2026-08-28T08:00:00.000Z',
-    progressStatus: 'IN_PROGRESS',
-    finalProjectSubmittedAt: '2026-09-04T16:30:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g2-10',
-    periodId: 'per-cad1-1-g2',
-    studentId: 'std-22603031',
-    student: INITIAL_STUDENTS[30], // Sayyef Al Islam
-    enrolledAt: '2026-08-28T08:00:00.000Z',
-    progressStatus: 'IN_PROGRESS',
-    finalProjectSubmittedAt: '2026-09-04T15:55:00.000Z',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g2-11',
-    periodId: 'per-cad1-1-g2',
-    studentId: 'std-22603036',
-    student: INITIAL_STUDENTS[35], // Yulfikatrin Yuyun
-    enrolledAt: '2026-08-28T08:00:00.000Z',
-    progressStatus: 'IN_PROGRESS',
-    finalProjectSubmittedAt: '2026-09-04T16:45:00.000Z',
-    finalProjectConfirmed: true
-  },
-
-  // --- Gelombang 3 (Minggu 37: 7-11 September 2026) ---
-  {
-    id: 'part-g3-01',
-    periodId: 'per-cad1-1-g3',
-    studentId: 'std-22603008',
-    student: INITIAL_STUDENTS[7], // Ayu Irmayanti
-    enrolledAt: '2026-09-05T08:00:00.000Z',
-    progressStatus: 'NOT_STARTED',
-    finalProjectConfirmed: false
-  },
-  {
-    id: 'part-g3-02',
-    periodId: 'per-cad1-1-g3',
-    studentId: 'std-22603009',
-    student: INITIAL_STUDENTS[8], // Bunga Cahya Putri Jenal
-    enrolledAt: '2026-09-05T08:00:00.000Z',
-    progressStatus: 'NOT_STARTED',
-    finalProjectConfirmed: false
-  },
-  {
-    id: 'part-g3-03',
-    periodId: 'per-cad1-1-g3',
-    studentId: 'std-22603014',
-    student: INITIAL_STUDENTS[13], // Juan Farand
-    enrolledAt: '2026-09-05T08:00:00.000Z',
-    progressStatus: 'NOT_STARTED',
-    finalProjectConfirmed: false
-  },
-  {
-    id: 'part-g3-04',
-    periodId: 'per-cad1-1-g3',
-    studentId: 'std-22603017',
-    student: INITIAL_STUDENTS[16], // Muh. Anugrah Sesar
-    enrolledAt: '2026-09-05T08:00:00.000Z',
-    progressStatus: 'NOT_STARTED',
-    finalProjectConfirmed: false
-  },
-  {
-    id: 'part-g3-05',
-    periodId: 'per-cad1-1-g3',
-    studentId: 'std-22603022',
-    student: INITIAL_STUDENTS[21], // Muhammad Agam Haq
-    enrolledAt: '2026-09-05T08:00:00.000Z',
-    progressStatus: 'NOT_STARTED',
-    finalProjectConfirmed: false
-  },
-  {
-    id: 'part-g3-06',
-    periodId: 'per-cad1-1-g3',
-    studentId: 'std-22603026',
-    student: INITIAL_STUDENTS[25], // Rausyan Fikran
-    enrolledAt: '2026-09-05T08:00:00.000Z',
-    progressStatus: 'NOT_STARTED',
-    finalProjectConfirmed: false
-  },
-  {
-    id: 'part-g3-07',
-    periodId: 'per-cad1-1-g3',
-    studentId: 'std-22603029',
-    student: INITIAL_STUDENTS[28], // Salsabila Aprilia Sukardi
-    enrolledAt: '2026-09-05T08:00:00.000Z',
-    progressStatus: 'NOT_STARTED',
-    finalProjectConfirmed: false
-  },
-  {
-    id: 'part-g3-08',
-    periodId: 'per-cad1-1-g3',
-    studentId: 'std-22603032',
-    student: INITIAL_STUDENTS[31], // Tazkia Kausara
-    enrolledAt: '2026-09-05T08:00:00.000Z',
-    progressStatus: 'NOT_STARTED',
-    finalProjectConfirmed: false
-  },
-  {
-    id: 'part-g3-09',
-    periodId: 'per-cad1-1-g3',
-    studentId: 'std-22603034',
-    student: INITIAL_STUDENTS[33], // William Gredi Sidwel Alinsky
-    enrolledAt: '2026-09-05T08:00:00.000Z',
-    progressStatus: 'NOT_STARTED',
-    finalProjectConfirmed: false
-  },
-
-  // --- Tambahan Peserta Gelombang 3 (Minggu 38: 14-18 September 2026) ---
-  {
-    id: 'part-g3-10',
-    periodId: 'per-cad1-1-g3',
-    studentId: 'std-22603002',
-    student: INITIAL_STUDENTS[1], // Ade Meilan Alifia Sulaeman
-    enrolledAt: '2026-09-14T08:00:00.000Z',
-    progressStatus: 'IN_PROGRESS',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g3-11',
-    periodId: 'per-cad1-1-g3',
-    studentId: 'std-22603019',
-    student: INITIAL_STUDENTS[18], // Muh. Fakhrul Al Farezy Rozadin
-    enrolledAt: '2026-09-14T08:00:00.000Z',
-    progressStatus: 'IN_PROGRESS',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g3-12',
-    periodId: 'per-cad1-1-g3',
-    studentId: 'std-22603023',
-    student: INITIAL_STUDENTS[22], // Muhammad Aidil Ahmadi
-    enrolledAt: '2026-09-14T08:00:00.000Z',
-    progressStatus: 'IN_PROGRESS',
-    finalProjectConfirmed: true
-  },
-  {
-    id: 'part-g3-13',
-    periodId: 'per-cad1-1-g3',
-    studentId: 'std-22603033',
-    student: INITIAL_STUDENTS[32], // Wahidatul Hasanah
-    enrolledAt: '2026-09-14T08:00:00.000Z',
-    progressStatus: 'IN_PROGRESS',
-    finalProjectConfirmed: true
-  },
-  // Participant Tester di Gelombang Aktif CAD 1.1
-  {
-    id: 'part-g2-tester',
-    periodId: 'per-cad1-1-g2',
-    studentId: 'std-tester-001',
-    student: INITIAL_STUDENTS[36], // Tester
-    enrolledAt: '2026-08-31T08:00:00.000Z',
-    progressStatus: 'IN_PROGRESS',
-    finalProjectConfirmed: false
-  },
-  // --- Peserta Praktik CAD 2 Prodi TRPF (6 Gelombang Sesuai Matriks) ---
+  ...officialRpm.courses.flatMap(course => course.periods.flatMap(period => period.nims.map(nim => {
+    const student = INITIAL_STUDENTS.find(s => s.nim === nim)!;
+    const periodId = course.code === 'DPP'
+      ? `e3d4e5f6-d002-4000-8000-00000000020${period.periodNumber}`
+      : `per-cad1-1-g${period.periodNumber}`;
+    return {
+      id: `part-${course.code}-g${period.periodNumber}-${nim}`, periodId,
+      studentId: student.id, student, enrolledAt: period.startDate + 'T00:00:00.000Z',
+      progressStatus: 'NOT_STARTED' as const, finalProjectConfirmed: false,
+    };
+  }))),
   // Gelombang 1 CAD 2
   { id: 'part-cad2-g1-01', periodId: 'c2b2c3d4-cad2-4000-8000-000000000201', studentId: 'std-22502003', student: INITIAL_STUDENTS.find(s => s.nim === '22502003')!, enrolledAt: '2026-09-07T08:00:00.000Z', progressStatus: 'IN_PROGRESS', finalProjectConfirmed: true },
   { id: 'part-cad2-g1-02', periodId: 'c2b2c3d4-cad2-4000-8000-000000000201', studentId: 'std-22502007', student: INITIAL_STUDENTS.find(s => s.nim === '22502007')!, enrolledAt: '2026-09-07T08:00:00.000Z', progressStatus: 'IN_PROGRESS', finalProjectConfirmed: true },

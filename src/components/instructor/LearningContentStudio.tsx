@@ -16,7 +16,14 @@ import {
   X,
   Layers,
   Calendar,
-  Sparkles
+  Sparkles,
+  Copy,
+  ArrowRight,
+  CheckSquare,
+  Square,
+  Check,
+  AlertCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { PDFViewerModal } from '../common/PDFViewerModal';
 import { ModalPortal } from '../common/ModalPortal';
@@ -30,16 +37,24 @@ export const LearningContentStudio: React.FC = () => {
     createLearningUnit,
     updateLearningUnit,
     deleteLearningUnit,
+    copyLearningUnits,
     showToast
   } = useApp();
 
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
   const [selectedUnitId, setSelectedUnitId] = useState<string>('');
-  
+
   // Modals
   const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState<LearningUnit | null>(null);
-  
+
+  // Copy to Other Week Modal states
+  const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
+  const [selectedUnitIdsToCopy, setSelectedUnitIdsToCopy] = useState<string[]>([]);
+  const [selectedTargetPeriodIds, setSelectedTargetPeriodIds] = useState<string[]>([]);
+  const [copyMode, setCopyMode] = useState<'APPEND' | 'REPLACE'>('APPEND');
+  const [autoRedirectAfterCopy, setAutoRedirectAfterCopy] = useState(true);
+
   const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
   const [matType, setMatType] = useState<'RICHTEXT' | 'PDF' | 'YOUTUBE' | 'EXTERNAL_LINK'>('PDF');
   const [matTitle, setMatTitle] = useState('');
@@ -117,6 +132,65 @@ export const LearningContentStudio: React.FC = () => {
     setIsUnitModalOpen(false);
   };
 
+  // Other periods available in the active course (excluding source period)
+  const otherCoursePeriods = useMemo(() => {
+    if (!activeSelectedPeriod) return [];
+    return coursePeriods.filter(p => p.id !== activeSelectedPeriod.id);
+  }, [coursePeriods, activeSelectedPeriod]);
+
+  const handleOpenCopyModal = (preselectedUnit?: LearningUnit) => {
+    if (!activeSelectedPeriod) return;
+
+    if (preselectedUnit) {
+      setSelectedUnitIdsToCopy([preselectedUnit.id]);
+    } else {
+      setSelectedUnitIdsToCopy(periodUnits.map(u => u.id));
+    }
+
+    if (otherCoursePeriods.length === 1) {
+      setSelectedTargetPeriodIds([otherCoursePeriods[0].id]);
+    } else {
+      setSelectedTargetPeriodIds([]);
+    }
+
+    setCopyMode('APPEND');
+    setIsCopyModalOpen(true);
+  };
+
+  const handleToggleUnitToCopy = (unitId: string) => {
+    setSelectedUnitIdsToCopy(prev =>
+      prev.includes(unitId) ? prev.filter(id => id !== unitId) : [...prev, unitId]
+    );
+  };
+
+  const handleToggleSelectAllUnits = () => {
+    if (selectedUnitIdsToCopy.length === periodUnits.length) {
+      setSelectedUnitIdsToCopy([]);
+    } else {
+      setSelectedUnitIdsToCopy(periodUnits.map(u => u.id));
+    }
+  };
+
+  const handleToggleTargetPeriod = (periodId: string) => {
+    setSelectedTargetPeriodIds(prev =>
+      prev.includes(periodId) ? prev.filter(id => id !== periodId) : [...prev, periodId]
+    );
+  };
+
+  const handleExecuteCopy = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedUnitIdsToCopy.length === 0 || selectedTargetPeriodIds.length === 0) return;
+
+    copyLearningUnits(selectedUnitIdsToCopy, selectedTargetPeriodIds, copyMode === 'REPLACE');
+
+    const firstTarget = selectedTargetPeriodIds[0];
+    setIsCopyModalOpen(false);
+
+    if (autoRedirectAfterCopy && firstTarget) {
+      setSelectedPeriodId(firstTarget);
+    }
+  };
+
   const handleAddMaterial = (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeSelectedUnit) return;
@@ -186,7 +260,7 @@ export const LearningContentStudio: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      
+
       {/* Header */}
       <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -218,6 +292,16 @@ export const LearningContentStudio: React.FC = () => {
           </div>
 
           <button
+            onClick={() => handleOpenCopyModal()}
+            disabled={periodUnits.length === 0}
+            className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 hover:text-blue-600 font-bold text-xs rounded-xl border border-slate-300 shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Salin modul dari minggu ini ke minggu lain"
+          >
+            <Copy className="w-4 h-4 text-blue-600" />
+            <span>Salin ke Minggu Lain</span>
+          </button>
+
+          <button
             onClick={handleOpenCreateUnit}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-600/30 transition-all flex items-center gap-1.5"
           >
@@ -229,7 +313,7 @@ export const LearningContentStudio: React.FC = () => {
 
       {/* Workspace Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
+
         {/* Left Column: Units List (4 cols) */}
         <div className="lg:col-span-4 space-y-2.5">
           <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-500 px-1">
@@ -257,6 +341,16 @@ export const LearningContentStudio: React.FC = () => {
                     <p className="text-[11px] text-slate-500 truncate mt-1">{unit.description || 'Tidak ada deskripsi'}</p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenCopyModal(unit);
+                      }}
+                      className="p-1 text-slate-400 hover:text-blue-600 rounded transition-colors"
+                      title="Salin Unit ini ke Minggu Lain"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -301,7 +395,7 @@ export const LearningContentStudio: React.FC = () => {
         <div className="lg:col-span-8 space-y-6">
           {activeSelectedUnit ? (
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
-              
+
               {/* Unit Info Header */}
               <div className="flex items-start justify-between gap-4 pb-6 border-b border-slate-100">
                 <div>
@@ -313,6 +407,14 @@ export const LearningContentStudio: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => handleOpenCopyModal(activeSelectedUnit)}
+                    className="px-3.5 py-2 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-bold rounded-xl border border-slate-200 transition-colors flex items-center gap-1.5"
+                    title="Salin unit ini ke minggu lain"
+                  >
+                    <Copy className="w-4 h-4 text-blue-600" />
+                    <span>Salin Unit Ini</span>
+                  </button>
                   <button
                     onClick={() => {
                       setMatTitle('');
@@ -714,6 +816,307 @@ export const LearningContentStudio: React.FC = () => {
             title={pdfPreview.title}
             fileUrl={pdfPreview.url}
           />
+        </ModalPortal>
+      )}
+
+      {/* Modal Copy ke Minggu Lain */}
+      {isCopyModalOpen && activeSelectedPeriod && (
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-fadeIn overflow-y-auto">
+            <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden flex flex-col my-8 max-h-[90vh]">
+
+              {/* Header */}
+              <div className="p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-400">
+                    <Copy className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      Salin Modul ke Minggu Lain
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Sumber: <span className="text-blue-400 font-semibold">{activeSelectedPeriod.name}</span>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsCopyModalOpen(false)}
+                  className="p-1 text-slate-400 hover:text-white rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Form Content */}
+              <form onSubmit={handleExecuteCopy} className="p-6 overflow-y-auto space-y-6 flex-1">
+
+                {/* Step 1: Modul Sumber */}
+                <div>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 inline-flex items-center justify-center text-[10px] font-bold">1</span>
+                      <span>Pilih Modul yang Ingin Disalin</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleToggleSelectAllUnits}
+                      className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                    >
+                      {selectedUnitIdsToCopy.length === periodUnits.length
+                        ? 'Batalkan Semua'
+                        : `Pilih Semua (${periodUnits.length} Modul)`}
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 max-h-52 overflow-y-auto pr-1 border border-slate-200 rounded-2xl p-2 bg-slate-50/50">
+                    {periodUnits.map(u => {
+                      const isChecked = selectedUnitIdsToCopy.includes(u.id);
+                      return (
+                        <div
+                          key={u.id}
+                          onClick={() => handleToggleUnitToCopy(u.id)}
+                          className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                            isChecked
+                              ? 'bg-blue-50/90 border-blue-400 shadow-sm text-slate-900'
+                              : 'bg-white border-slate-200 hover:border-slate-300 text-slate-600'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {}}
+                              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 pointer-events-none"
+                            />
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                                  Unit {u.unitNumber}
+                                </span>
+                                <h4 className="text-xs font-bold text-slate-900 truncate">{u.title}</h4>
+                              </div>
+                              {u.description && (
+                                <p className="text-[11px] text-slate-500 truncate mt-0.5">{u.description}</p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0 text-[10px]">
+                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
+                              {u.materials.length} Materi
+                            </span>
+                            {u.assignment && (
+                              <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">
+                                Tugas PDF
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {periodUnits.length === 0 && (
+                      <div className="p-4 text-center text-xs text-slate-400">
+                        Tidak ada modul pada minggu ini untuk disalin.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Step 2: Minggu / Periode Tujuan */}
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5 mb-2.5">
+                    <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 inline-flex items-center justify-center text-[10px] font-bold">2</span>
+                    <span>Pilih Minggu / Periode Tujuan</span>
+                  </label>
+
+                  {otherCoursePeriods.length === 0 ? (
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 text-amber-900">
+                      <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="text-xs">
+                        <p className="font-bold">Belum ada minggu / periode lain di mata kuliah ini.</p>
+                        <p className="text-amber-700 mt-1">
+                          Tambahkan periode praktik baru terlebih dahulu melalui menu <strong>Kelola Periode & Jadwal</strong> agar dapat menyalin modul ke minggu tersebut.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {otherCoursePeriods.map(targetPeriod => {
+                        const isChecked = selectedTargetPeriodIds.includes(targetPeriod.id);
+                        const targetUnitsCount = learningUnits.filter(u => u.periodId === targetPeriod.id).length;
+
+                        return (
+                          <div
+                            key={targetPeriod.id}
+                            onClick={() => handleToggleTargetPeriod(targetPeriod.id)}
+                            className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                              isChecked
+                                ? 'bg-blue-50/90 border-blue-500 shadow-sm ring-1 ring-blue-500/30'
+                                : 'bg-white border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {}}
+                                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 pointer-events-none"
+                              />
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <h4 className="text-xs font-bold text-slate-900">{targetPeriod.name}</h4>
+                                  <span
+                                    className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                      targetPeriod.status === 'ACTIVE'
+                                        ? 'bg-emerald-100 text-emerald-800'
+                                        : targetPeriod.status === 'COMPLETED'
+                                        ? 'bg-slate-100 text-slate-600'
+                                        : 'bg-blue-100 text-blue-800'
+                                    }`}
+                                  >
+                                    {targetPeriod.status === 'ACTIVE'
+                                      ? 'Sedang Aktif'
+                                      : targetPeriod.status === 'COMPLETED'
+                                      ? 'Selesai'
+                                      : 'Mendatang'}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-slate-500 mt-0.5">
+                                  Jadwal: {targetPeriod.startDate} s/d {targetPeriod.endDate}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="text-right shrink-0">
+                              <span
+                                className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                                  targetUnitsCount === 0
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-slate-100 text-slate-600 border border-slate-200'
+                                }`}
+                              >
+                                {targetUnitsCount === 0 ? 'Masih Kosong' : `${targetUnitsCount} Modul Ada`}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Step 3: Opsi Penanganan Unit yang Sudah Ada */}
+                {otherCoursePeriods.length > 0 && (
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5 mb-2.5">
+                      <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 inline-flex items-center justify-center text-[10px] font-bold">3</span>
+                      <span>Metode Penempatan Modul</span>
+                    </label>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div
+                        onClick={() => setCopyMode('APPEND')}
+                        className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                          copyMode === 'APPEND'
+                            ? 'bg-blue-50/80 border-blue-500 ring-2 ring-blue-500/20'
+                            : 'bg-white border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="copyMode"
+                            checked={copyMode === 'APPEND'}
+                            onChange={() => setCopyMode('APPEND')}
+                            className="text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-xs font-bold text-slate-900">Tambahkan (Append)</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-1 pl-5 leading-relaxed">
+                          Modul akan ditambahkan melanjutkan urutan unit modul yang sudah ada tanpa menghapus modul sebelumnya.
+                        </p>
+                      </div>
+
+                      <div
+                        onClick={() => setCopyMode('REPLACE')}
+                        className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                          copyMode === 'REPLACE'
+                            ? 'bg-rose-50/80 border-rose-500 ring-2 ring-rose-500/20'
+                            : 'bg-white border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="copyMode"
+                            checked={copyMode === 'REPLACE'}
+                            onChange={() => setCopyMode('REPLACE')}
+                            className="text-rose-600 focus:ring-rose-500"
+                          />
+                          <span className="text-xs font-bold text-rose-900">Gantikan (Replace / Timpa)</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-1 pl-5 leading-relaxed">
+                          Hapus seluruh modul lama yang ada di minggu tujuan dan gantikan persis dengan modul yang disalin.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Redirect checkbox & Summary */}
+                {otherCoursePeriods.length > 0 && (
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={autoRedirectAfterCopy}
+                        onChange={e => setAutoRedirectAfterCopy(e.target.checked)}
+                        className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                      />
+                      <span className="text-xs font-semibold text-slate-800">
+                        Buka otomatis periode/minggu tujuan setelah selesai disalin
+                      </span>
+                    </label>
+
+                    <div className="text-[11px] text-slate-600 flex items-center gap-2 pt-2 border-t border-slate-200">
+                      <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
+                      <span>
+                        Akan menyalin <strong>{selectedUnitIdsToCopy.length} modul</strong> ke{' '}
+                        <strong>{selectedTargetPeriodIds.length} minggu tujuan</strong>. Semua file PDF, link video, teks materi, dan instruksi penugasan akan terduplikasi secara independen.
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Footer Buttons */}
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsCopyModalOpen(false)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={
+                      otherCoursePeriods.length === 0 ||
+                      selectedUnitIdsToCopy.length === 0 ||
+                      selectedTargetPeriodIds.length === 0
+                    }
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-md shadow-blue-600/30 transition-all flex items-center gap-1.5"
+                  >
+                    <Copy className="w-4 h-4" />
+                    <span>
+                      Salin {selectedUnitIdsToCopy.length} Modul Sekarang
+                    </span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         </ModalPortal>
       )}
 

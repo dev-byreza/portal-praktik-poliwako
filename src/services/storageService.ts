@@ -1,4 +1,5 @@
 // Reactive LocalStorage & Mock Persistence Service
+import { reconcileRpmSchedule } from '../utils/rpmSchedule';
 
 import {
   InstructorProfile,
@@ -230,6 +231,16 @@ export class StorageService {
         }
       }
     });
+    // Ensure DPP 2 is available
+    const dppCourseId = 'c3d4e5f6-d002-4000-8000-000000000001';
+    if (!courses.some(c => c.id === dppCourseId)) {
+      const dppInitial = INITIAL_COURSES.find(c => c.id === dppCourseId);
+      if (dppInitial) {
+        courses.push(dppInitial);
+        changed = true;
+      }
+    }
+
     if (changed) {
       this.saveCourses(courses);
     }
@@ -252,7 +263,22 @@ export class StorageService {
   }
 
   static getPeriods(): PracticePeriod[] {
-    return getItem<PracticePeriod[]>(STORAGE_KEYS.PERIODS, INITIAL_PERIODS);
+    let periods = getItem<PracticePeriod[]>(STORAGE_KEYS.PERIODS, INITIAL_PERIODS);
+    let changed = false;
+
+    // Check if DPP 2 periods are missing
+    const dppCourseId = 'c3d4e5f6-d002-4000-8000-000000000001';
+    const hasDpp = periods.some(p => p.courseId === dppCourseId);
+    if (!hasDpp) {
+      const dppInitials = INITIAL_PERIODS.filter(p => p.courseId === dppCourseId);
+      periods = [...periods, ...dppInitials];
+      changed = true;
+    }
+
+    if (changed) {
+      this.savePeriods(periods);
+    }
+    return periods;
   }
 
   static savePeriods(periods: PracticePeriod[]): void {
@@ -330,5 +356,33 @@ export class StorageService {
 
   static setStudentSession(session: { studentId: string; courseSlug: string; periodId: string } | null): void {
     setItem(STORAGE_KEYS.CURRENT_STUDENT_SESSION, session);
+  }
+}
+
+// Migrate existing browser data once; do not reset accounts, rubrics or learning records.
+const RPM_SCHEDULE_VERSION = 'poliwako_rpm_schedule_2026_pdf_v1';
+if (typeof window !== 'undefined' && !localStorage.getItem(RPM_SCHEDULE_VERSION)) {
+  try {
+    const before = {
+      students: getItem<Student[]>(STORAGE_KEYS.STUDENTS, INITIAL_STUDENTS),
+      periods: getItem<PracticePeriod[]>(STORAGE_KEYS.PERIODS, INITIAL_PERIODS),
+      participants: getItem<PracticeParticipant[]>(STORAGE_KEYS.PARTICIPANTS, INITIAL_PARTICIPANTS),
+    };
+    const corrected = reconcileRpmSchedule(before.students, before.periods, before.participants);
+    const activityKeys = [STORAGE_KEYS.ATTENDANCE, STORAGE_KEYS.ASSESSMENTS, STORAGE_KEYS.SUBMISSIONS, STORAGE_KEYS.REMEDIALS, STORAGE_KEYS.UNIT_PROGRESS];
+    const hasActivityToMove = activityKeys.some(key => getItem<Record<string, unknown>[]>(key, []).some(row =>
+      corrected.moves.some(move => move.studentId === row.studentId && (move.from === row.periodId || key === STORAGE_KEYS.UNIT_PROGRESS))));
+    if (hasActivityToMove) {
+      // The live backend is authoritative; never guess how to move existing coursework.
+      corrected.participants = before.participants.map(p => ({ ...p, student: corrected.students.find(s => s.id === p.studentId) || p.student }));
+      console.warn('Data peserta lokal memiliki aktivitas. Gunakan hasil sinkronisasi server untuk pembagian gelombang.');
+    }
+    localStorage.setItem(RPM_SCHEDULE_VERSION + '_backup', JSON.stringify(before));
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(corrected.students));
+    localStorage.setItem(STORAGE_KEYS.PERIODS, JSON.stringify(corrected.periods));
+    localStorage.setItem(STORAGE_KEYS.PARTICIPANTS, JSON.stringify(corrected.participants));
+    localStorage.setItem(RPM_SCHEDULE_VERSION, 'true');
+  } catch (error) {
+    console.error('Koreksi cache jadwal RPM belum selesai:', error);
   }
 }

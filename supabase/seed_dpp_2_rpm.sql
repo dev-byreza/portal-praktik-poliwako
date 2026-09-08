@@ -46,12 +46,12 @@ BEGIN
         (v_instructor_id, '22503006', 'Ananda Hexa Maulana', '2C'),
         (v_instructor_id, '22503007', 'Andi Jumharyansah', '2C'),
         (v_instructor_id, '22503008', 'Anugrah Pratama', '2C'),
-        (v_instructor_id, '22503009', 'Athika Fauziah Setyaputri', '2C'),
+        (v_instructor_id, '22503009', 'Athika Fauziah Satyaputri', '2C'),
         (v_instructor_id, '22503010', 'Deswita Dwianggia', '2C'),
         (v_instructor_id, '22503011', 'Devi Purnama Sari', '2C'),
         (v_instructor_id, '22503012', 'Dwilma Sophie Sisiliano', '2C'),
         (v_instructor_id, '22503013', 'Effer Cliff Mandalele', '2C'),
-        (v_instructor_id, '22503014', 'Eilsa', '2C'),
+        (v_instructor_id, '22503014', 'Elisa', '2C'),
         (v_instructor_id, '22503015', 'Fikri Hasan Bungasae', '2C'),
         (v_instructor_id, '22503016', 'Gizza Ramadhani', '2C'),
         (v_instructor_id, '22503017', 'Ikram Arif Ananda', '2C'),
@@ -65,9 +65,9 @@ BEGIN
         (v_instructor_id, '22503025', 'Muh. Rajab Hidayah An', '2C'),
         (v_instructor_id, '22503026', 'Nabil Ardiansyah', '2C'),
         (v_instructor_id, '22503028', 'Nita', '2C'),
-        (v_instructor_id, '22503029', 'Nur Ainun Alfifa', '2C'),
+        (v_instructor_id, '22503029', 'Nur Ainun Alifda', '2C'),
         (v_instructor_id, '22503030', 'Nur Hikma', '2C'),
-        (v_instructor_id, '22503031', 'Rasya Ahmad Al Fariezi.A', '2C'),
+        (v_instructor_id, '22503031', 'Rasya Ahmad Al Farezi.A', '2C'),
         (v_instructor_id, '22503032', 'Rezal Pabiaran', '2C'),
         (v_instructor_id, '22503033', 'Silvia Nur Azizah', '2C'),
         (v_instructor_id, '22503034', 'Valentin Merrandan', '2C'),
@@ -118,10 +118,10 @@ BEGIN
     -- 5. Insert 5 Gelombang Periode Praktik DPP 2
     INSERT INTO public.practice_periods (id, course_id, name, period_number, start_date, end_date, status)
     VALUES
-        (v_per1_id, v_course_id, 'Gelombang 1 (Minggu 34)', 1, '2026-08-17', '2026-08-21', 'COMPLETED'),
-        (v_per2_id, v_course_id, 'Gelombang 2 (Minggu 36)', 2, '2026-08-31', '2026-09-04', 'COMPLETED'),
-        (v_per3_id, v_course_id, 'Gelombang 3 (Minggu 38)', 3, '2026-09-14', '2026-09-18', 'ACTIVE'),
-        (v_per4_id, v_course_id, 'Gelombang 4 (Minggu 40)', 4, '2026-09-28', '2026-10-02', 'UPCOMING'),
+        (v_per1_id, v_course_id, 'Gelombang 1 (Minggu 33)', 1, '2026-08-10', '2026-08-14', 'COMPLETED'),
+        (v_per2_id, v_course_id, 'Gelombang 2 (Minggu 35)', 2, '2026-08-24', '2026-08-28', 'COMPLETED'),
+        (v_per3_id, v_course_id, 'Gelombang 3 (Minggu 37)', 3, '2026-09-07', '2026-09-11', 'ACTIVE'),
+        (v_per4_id, v_course_id, 'Gelombang 4 (Minggu 39)', 4, '2026-09-21', '2026-09-25', 'UPCOMING'),
         (v_per5_id, v_course_id, 'Gelombang 5 (Minggu 43)', 5, '2026-10-19', '2026-10-23', 'UPCOMING')
     ON CONFLICT (id) DO UPDATE SET
         name = EXCLUDED.name,

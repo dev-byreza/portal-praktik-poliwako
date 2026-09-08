@@ -16,7 +16,6 @@ DECLARE
     v_per1_id UUID := 'b1b2c3d4-cad1-4000-8000-000000000201'::UUID;
     v_per2_id UUID := 'b1b2c3d4-cad1-4000-8000-000000000202'::UUID;
     v_per3_id UUID := 'b1b2c3d4-cad1-4000-8000-000000000203'::UUID;
-    v_per4_id UUID := 'b1b2c3d4-cad1-4000-8000-000000000204'::UUID;
 BEGIN
     -- 1. Cari atau buat profile instruktur
     SELECT id INTO v_instructor_id
@@ -79,16 +78,16 @@ BEGIN
         (v_instructor_id, '22603007', 'Ayu Anugrah', '1C'),
         (v_instructor_id, '22603008', 'Ayu Irmayanti', '1C'),
         (v_instructor_id, '22603009', 'Bunga Cahya Putri Jenal', '1C'),
-        (v_instructor_id, '22603010', 'Daniel Adian Sura Parinding', '1C'),
+        (v_instructor_id, '22603010', 'Daniel Adlan Sura Parinding', '1C'),
         (v_instructor_id, '22603011', 'Dede Irawan', '1C'),
-        (v_instructor_id, '22603012', 'Faiya Aisyah Naswah', '1C'),
+        (v_instructor_id, '22603012', 'Falya Aisyah Naswah', '1C'),
         (v_instructor_id, '22603013', 'Haura Hafizhah', '1C'),
         (v_instructor_id, '22603014', 'Juan Farand', '1C'),
         (v_instructor_id, '22603015', 'Khumaira Khaerunnisa', '1C'),
         (v_instructor_id, '22603016', 'M. Fauzan Adhitya Pratama H', '1C'),
         (v_instructor_id, '22603017', 'Muh. Anugrah Sesar', '1C'),
         (v_instructor_id, '22603018', 'Muh. Diaz Raditya B.', '1C'),
-        (v_instructor_id, '22603019', 'Muh. Fakhrul Al Farezy Rozadin', '1C'),
+        (v_instructor_id, '22603019', 'Muh. Fakhrul Al Farezqy Rozadin', '1C'),
         (v_instructor_id, '22603020', 'Muh. Raihan Aryan', '1C'),
         (v_instructor_id, '22603021', 'Muhammad Abyan Zaky', '1C'),
         (v_instructor_id, '22603022', 'Muhammad Agam Haq', '1C'),
@@ -149,14 +148,13 @@ BEGIN
         weight_percent = EXCLUDED.weight_percent;
 
     -- ====================================================================
-    -- 5. INSERT 4 GELOMBANG PERIODE PRAKTIK CAD 1.1 (Minggu 34, 36, 37, 38)
+    -- 5. INSERT 3 GELOMBANG PERIODE PRAKTIK CAD 1.1 (Minggu 34, 36, 38)
     -- ====================================================================
     INSERT INTO public.practice_periods (id, course_id, name, period_number, start_date, end_date, status)
     VALUES
         (v_per1_id, v_course_id, 'Gelombang 1 (Minggu 34)', 1, '2026-08-17', '2026-08-21', 'COMPLETED'),
-        (v_per2_id, v_course_id, 'Gelombang 2 (Minggu 36)', 2, '2026-08-31', '2026-09-04', 'ACTIVE'),
-        (v_per3_id, v_course_id, 'Gelombang 3 (Minggu 37)', 3, '2026-09-07', '2026-09-11', 'UPCOMING'),
-        (v_per4_id, v_course_id, 'Gelombang 4 (Minggu 38)', 4, '2026-09-14', '2026-09-18', 'UPCOMING')
+        (v_per2_id, v_course_id, 'Gelombang 2 (Minggu 36)', 2, '2026-08-31', '2026-09-04', 'COMPLETED'),
+        (v_per3_id, v_course_id, 'Gelombang 3 (Minggu 38)', 3, '2026-09-14', '2026-09-18', 'UPCOMING')
     ON CONFLICT (id) DO UPDATE SET
         name = EXCLUDED.name,
         start_date = EXCLUDED.start_date,
@@ -166,36 +164,28 @@ BEGIN
     -- ====================================================================
     -- 6. ENROLL PESERTA PRAKTIK SESUAI PEMBAGIAN JADWAL RESMI
     -- ====================================================================
-    -- Gelombang 1 (Minggu 34: 12 Mahasiswa)
+    -- Gelombang 1 (Minggu 34): 12 mahasiswa, sesuai PDF
     INSERT INTO public.practice_participants (period_id, student_id, progress_status, final_project_confirmed)
-    SELECT v_per1_id, s.id, 'LEARNING_COMPLETE', TRUE
+    SELECT v_per1_id, s.id, 'NOT_STARTED', FALSE
     FROM public.students s
     WHERE s.instructor_id = v_instructor_id
       AND s.nim IN ('22603003', '22603004', '22603006', '22603010', '22603012', '22603015', '22603020', '22603021', '22603025', '22603027', '22603030', '22603035')
     ON CONFLICT (period_id, student_id) DO NOTHING;
 
-    -- Gelombang 2 (Minggu 36: 11 Mahasiswa)
+    -- Gelombang 2 (Minggu 36): 12 mahasiswa, sesuai PDF
     INSERT INTO public.practice_participants (period_id, student_id, progress_status, final_project_confirmed)
-    SELECT v_per2_id, s.id, 'IN_PROGRESS', TRUE
+    SELECT v_per2_id, s.id, 'NOT_STARTED', FALSE
     FROM public.students s
     WHERE s.instructor_id = v_instructor_id
-      AND s.nim IN ('22603001', '22603005', '22603007', '22603011', '22603013', '22603016', '22603018', '22603024', '22603028', '22603031', '22603036')
+      AND s.nim IN ('22603001', '22603005', '22603007', '22603011', '22603013', '22603016', '22603018', '22603024', '22603028', '22603031', '22603032', '22603036')
     ON CONFLICT (period_id, student_id) DO NOTHING;
 
-    -- Gelombang 3 (Minggu 37: 9 Mahasiswa)
+    -- Gelombang 3 (Minggu 38): 12 mahasiswa, sesuai PDF
     INSERT INTO public.practice_participants (period_id, student_id, progress_status, final_project_confirmed)
     SELECT v_per3_id, s.id, 'NOT_STARTED', FALSE
     FROM public.students s
     WHERE s.instructor_id = v_instructor_id
-      AND s.nim IN ('22603008', '22603009', '22603014', '22603017', '22603022', '22603026', '22603029', '22603032', '22603034')
-    ON CONFLICT (period_id, student_id) DO NOTHING;
-
-    -- Gelombang 4 (Minggu 38: 4 Mahasiswa)
-    INSERT INTO public.practice_participants (period_id, student_id, progress_status, final_project_confirmed)
-    SELECT v_per4_id, s.id, 'NOT_STARTED', FALSE
-    FROM public.students s
-    WHERE s.instructor_id = v_instructor_id
-      AND s.nim IN ('22603002', '22603019', '22603023', '22603033')
+      AND s.nim IN ('22603002', '22603008', '22603009', '22603014', '22603017', '22603019', '22603022', '22603023', '22603026', '22603029', '22603033', '22603034')
     ON CONFLICT (period_id, student_id) DO NOTHING;
 
     -- ====================================================================
@@ -222,6 +212,6 @@ BEGIN
         (v_per2_id, 'c1b2c3d4-cad1-4000-8000-000000000305'::UUID, 'Tugas Modul 5: Gambar Kerja Lengkap Etiket & Toleransi ISO', 'Karya akhir gambar kerja 2D standar industri manufaktur dalam format PDF.', NOW() + INTERVAL '21 days', 100, 'PDF')
     ON CONFLICT DO NOTHING;
 
-    RAISE NOTICE 'Seed CAD 1.1 Berhasil: Course, 36 Mahasiswa Kelas 1C, 4 Gelombang Periode, dan 5 Unit Modul Telah Didaftarkan!';
+    RAISE NOTICE 'Seed CAD 1.1 Berhasil: Course, 36 Mahasiswa Kelas 1C, 3 Gelombang Periode, dan 5 Unit Modul Telah Didaftarkan!';
 END $$;
 

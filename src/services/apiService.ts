@@ -129,31 +129,80 @@ export class ApiService {
     }
   }
 
-  static async saveCourse(course: Course): Promise<void> {
-    StorageService.saveCourses([
-      ...StorageService.getCourses().filter((c) => c.id !== course.id),
-      course,
-    ]);
-
+  static async saveCourse(course: Course): Promise<Course> {
+    let savedCourse = course;
     if (this.isLiveBackend() && supabase) {
-      try {
-        await supabase.from('courses').upsert({
-          id: course.id,
-          instructor_id: course.instructorId,
-          name: course.name,
-          code: course.code,
-          academic_year: course.academicYear,
-          semester: course.semester,
-          slug: course.slug,
-          description: course.description,
-          department: course.department,
-          status: course.status,
-          updated_at: new Date().toISOString(),
-        });
-      } catch (err) {
-        console.error('Error syncing course to Supabase:', err);
+      // Legacy local IDs are not UUIDs. Deterministic IDs make failed saves retryable.
+      const databaseId = async (id: string, kind: string): Promise<string> => {
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return id;
+        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(course.id + ':' + kind + ':' + id));
+        const bytes = new Uint8Array(digest).slice(0, 16);
+        bytes[6] = (bytes[6] & 15) | 128;
+        bytes[8] = (bytes[8] & 63) | 128;
+        const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+        return [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20)].join('-');
+      };
+      const subCpmks = await Promise.all(course.subCpmks.map(async s => ({ ...s, id: await databaseId(s.id, 'sub-cpmk') })));
+      const subIds = new Map(course.subCpmks.map((s, i) => [s.id, subCpmks[i].id]));
+      const qualityRubrics = await Promise.all(course.qualityRubrics.map(async r => ({
+        ...r,
+        id: await databaseId(r.id, 'rubric'),
+        subCpmkId: r.subCpmkId ? subIds.get(r.subCpmkId) : undefined,
+      })));
+      savedCourse = { ...course, subCpmks, qualityRubrics };
+
+      const { error: courseError } = await supabase.from('courses').upsert({
+        id: course.id,
+        instructor_id: course.instructorId,
+        name: course.name,
+        code: course.code,
+        academic_year: course.academicYear,
+        semester: course.semester,
+        slug: course.slug,
+        description: course.description,
+        department: course.department,
+        status: course.status,
+        updated_at: new Date().toISOString(),
+      }).select('id').single();
+      if (courseError) throw courseError;
+
+      const { data: previousSubCpmks, error: subReadError } = await supabase.from('course_sub_cpmk').select('id').eq('course_id', course.id);
+      if (subReadError) throw subReadError;
+      const { data: previousRubrics, error: rubricReadError } = await supabase.from('rubric_criteria').select('id').eq('course_id', course.id);
+      if (rubricReadError) throw rubricReadError;
+
+      if (subCpmks.length) {
+        const { error } = await supabase.from('course_sub_cpmk').upsert(subCpmks.map(s => ({
+          id: s.id, course_id: course.id, code: s.code, description: s.description,
+          weight_percent: s.weightPercent ?? null,
+        })));
+        if (error) throw error;
+      }
+      if (qualityRubrics.length) {
+        const { error } = await supabase.from('rubric_criteria').upsert(qualityRubrics.map(r => ({
+          id: r.id, course_id: course.id, sub_cpmk_id: r.subCpmkId ?? null,
+          name: r.name, category: r.category, description: r.description,
+        })));
+        if (error) throw error;
+      }
+
+      // Prune only removed rows from this course, after every upsert succeeds.
+      const removedRubrics = (previousRubrics || []).filter(r => !qualityRubrics.some(current => current.id === r.id)).map(r => r.id);
+      if (removedRubrics.length) {
+        const { error } = await supabase.from('rubric_criteria').delete().eq('course_id', course.id).in('id', removedRubrics);
+        if (error) throw error;
+      }
+      const removedSubCpmks = (previousSubCpmks || []).filter(s => !subCpmks.some(current => current.id === s.id)).map(s => s.id);
+      if (removedSubCpmks.length) {
+        const { error } = await supabase.from('course_sub_cpmk').delete().eq('course_id', course.id).in('id', removedSubCpmks);
+        if (error) throw error;
       }
     }
+
+    StorageService.saveCourses([
+      ...StorageService.getCourses().filter(c => c.id !== savedCourse.id), savedCourse,
+    ]);
+    return savedCourse;
   }
 
   // ====================================================================

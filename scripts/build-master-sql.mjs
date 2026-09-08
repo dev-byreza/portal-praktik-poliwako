@@ -11,7 +11,7 @@ const header = `-- =============================================================
 -- 3. Akun Real Instruktur: rezaf@politekniksorowako.ac.id (Pass: 732401#Jhe)
 -- 4. 36 Mahasiswa Real Kelas 1C (Rekayasa Perancangan Mekanik)
 -- 5. Mata Kuliah Real: CAD 1.1 beserta 3 Sub-CPMK & Rubrik Kualitas
--- 6. 4 Gelombang Periode Praktik (Minggu 34, 36, 37, 38) & Distribusi Peserta
+-- 6. 3 Gelombang Periode Praktik (Minggu 34, 36, 38) & Distribusi Peserta
 -- ====================================================================
 
 `;

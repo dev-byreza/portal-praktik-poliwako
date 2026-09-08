@@ -1,0 +1,520 @@
+{
+  "source": "Jadwal Praktik Sem.Gasal TA. 2026-2027 Prodi RPM (1).pdf",
+  "academicYear": "2026/2027",
+  "courses": [
+    {
+      "code": "DPP",
+      "className": "2C",
+      "students": [
+        {
+          "nim": "22503001",
+          "name": "Afdhal Nur Fauzan",
+          "className": "2C"
+        },
+        {
+          "nim": "22503002",
+          "name": "Ahmad Nabil",
+          "className": "2C"
+        },
+        {
+          "nim": "22503003",
+          "name": "Ainun Musdalifah",
+          "className": "2C"
+        },
+        {
+          "nim": "22503004",
+          "name": "Al Aura Anandita",
+          "className": "2C"
+        },
+        {
+          "nim": "22503005",
+          "name": "Al-Mubara",
+          "className": "2C"
+        },
+        {
+          "nim": "22503006",
+          "name": "Ananda Hexa Maulana",
+          "className": "2C"
+        },
+        {
+          "nim": "22503007",
+          "name": "Andi Jumharyansah",
+          "className": "2C"
+        },
+        {
+          "nim": "22503008",
+          "name": "Anugrah Pratama",
+          "className": "2C"
+        },
+        {
+          "nim": "22503009",
+          "name": "Athika Fauziah Satyaputri",
+          "className": "2C"
+        },
+        {
+          "nim": "22503010",
+          "name": "Deswita Dwianggia",
+          "className": "2C"
+        },
+        {
+          "nim": "22503011",
+          "name": "Devi Purnama Sari",
+          "className": "2C"
+        },
+        {
+          "nim": "22503012",
+          "name": "Dwilma Sophie Sisiliano",
+          "className": "2C"
+        },
+        {
+          "nim": "22503013",
+          "name": "Effer Cliff Mandalele",
+          "className": "2C"
+        },
+        {
+          "nim": "22503014",
+          "name": "Elisa",
+          "className": "2C"
+        },
+        {
+          "nim": "22503015",
+          "name": "Fikri Hasan Bungasae",
+          "className": "2C"
+        },
+        {
+          "nim": "22503016",
+          "name": "Gizza Ramadhani",
+          "className": "2C"
+        },
+        {
+          "nim": "22503017",
+          "name": "Ikram Arif Ananda",
+          "className": "2C"
+        },
+        {
+          "nim": "22503018",
+          "name": "Jayanti Lestari Lambe",
+          "className": "2C"
+        },
+        {
+          "nim": "22503019",
+          "name": "M. Alief Kurniawan",
+          "className": "2C"
+        },
+        {
+          "nim": "22503020",
+          "name": "Meylani Ayu Nathasa",
+          "className": "2C"
+        },
+        {
+          "nim": "22503021",
+          "name": "Muh. Januar Farouq",
+          "className": "2C"
+        },
+        {
+          "nim": "22503022",
+          "name": "Muh. Muzammil Musta",
+          "className": "2C"
+        },
+        {
+          "nim": "22503023",
+          "name": "Muh. Naufal Al Khair",
+          "className": "2C"
+        },
+        {
+          "nim": "22503024",
+          "name": "Muh. Nendra Arif",
+          "className": "2C"
+        },
+        {
+          "nim": "22503025",
+          "name": "Muh. Rajab Hidayah An",
+          "className": "2C"
+        },
+        {
+          "nim": "22503026",
+          "name": "Nabil Ardiansyah",
+          "className": "2C"
+        },
+        {
+          "nim": "22503028",
+          "name": "Nita",
+          "className": "2C"
+        },
+        {
+          "nim": "22503029",
+          "name": "Nur Ainun Alifda",
+          "className": "2C"
+        },
+        {
+          "nim": "22503030",
+          "name": "Nur Hikma",
+          "className": "2C"
+        },
+        {
+          "nim": "22503031",
+          "name": "Rasya Ahmad Al Farezi.A",
+          "className": "2C"
+        },
+        {
+          "nim": "22503032",
+          "name": "Rezal Pabiaran",
+          "className": "2C"
+        },
+        {
+          "nim": "22503033",
+          "name": "Silvia Nur Azizah",
+          "className": "2C"
+        },
+        {
+          "nim": "22503034",
+          "name": "Valentin Merrandan",
+          "className": "2C"
+        },
+        {
+          "nim": "22503035",
+          "name": "Yhogi Oktavianus Iksel",
+          "className": "2C"
+        },
+        {
+          "nim": "22503036",
+          "name": "Zahra Atifah Zal-Sabila",
+          "className": "2C"
+        }
+      ],
+      "periods": [
+        {
+          "periodNumber": 1,
+          "week": 33,
+          "name": "Gelombang 1 (Minggu 33)",
+          "startDate": "2026-08-10",
+          "endDate": "2026-08-14",
+          "nims": [
+            "22503003",
+            "22503008",
+            "22503010",
+            "22503013",
+            "22503018",
+            "22503026",
+            "22503029",
+            "22503031",
+            "22503035"
+          ]
+        },
+        {
+          "periodNumber": 2,
+          "week": 35,
+          "name": "Gelombang 2 (Minggu 35)",
+          "startDate": "2026-08-24",
+          "endDate": "2026-08-28",
+          "nims": [
+            "22503004",
+            "22503009",
+            "22503014",
+            "22503015",
+            "22503016",
+            "22503019",
+            "22503032",
+            "22503033",
+            "22503034"
+          ]
+        },
+        {
+          "periodNumber": 3,
+          "week": 37,
+          "name": "Gelombang 3 (Minggu 37)",
+          "startDate": "2026-09-07",
+          "endDate": "2026-09-11",
+          "nims": [
+            "22503001",
+            "22503002",
+            "22503005",
+            "22503023",
+            "22503024",
+            "22503028",
+            "22503030"
+          ]
+        },
+        {
+          "periodNumber": 4,
+          "week": 39,
+          "name": "Gelombang 4 (Minggu 39)",
+          "startDate": "2026-09-21",
+          "endDate": "2026-09-25",
+          "nims": [
+            "22503006",
+            "22503011",
+            "22503020",
+            "22503021",
+            "22503025"
+          ]
+        },
+        {
+          "periodNumber": 5,
+          "week": 43,
+          "name": "Gelombang 5 (Minggu 43)",
+          "startDate": "2026-10-19",
+          "endDate": "2026-10-23",
+          "nims": [
+            "22503007",
+            "22503012",
+            "22503017",
+            "22503022",
+            "22503036"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "CAD1.1",
+      "className": "1C",
+      "students": [
+        {
+          "nim": "22603001",
+          "name": "Achmad Fawzan",
+          "className": "1C"
+        },
+        {
+          "nim": "22603002",
+          "name": "Ade Meilan Alifia Sulaeman",
+          "className": "1C"
+        },
+        {
+          "nim": "22603003",
+          "name": "Affan Farsyah",
+          "className": "1C"
+        },
+        {
+          "nim": "22603004",
+          "name": "Afiqah Azwa Safrina",
+          "className": "1C"
+        },
+        {
+          "nim": "22603005",
+          "name": "Andika Azis",
+          "className": "1C"
+        },
+        {
+          "nim": "22603006",
+          "name": "Anesya Nurhawizah",
+          "className": "1C"
+        },
+        {
+          "nim": "22603007",
+          "name": "Ayu Anugrah",
+          "className": "1C"
+        },
+        {
+          "nim": "22603008",
+          "name": "Ayu Irmayanti",
+          "className": "1C"
+        },
+        {
+          "nim": "22603009",
+          "name": "Bunga Cahya Putri Jenal",
+          "className": "1C"
+        },
+        {
+          "nim": "22603010",
+          "name": "Daniel Adlan Sura Parinding",
+          "className": "1C"
+        },
+        {
+          "nim": "22603011",
+          "name": "Dede Irawan",
+          "className": "1C"
+        },
+        {
+          "nim": "22603012",
+          "name": "Falya Aisyah Naswah",
+          "className": "1C"
+        },
+        {
+          "nim": "22603013",
+          "name": "Haura Hafizhah",
+          "className": "1C"
+        },
+        {
+          "nim": "22603014",
+          "name": "Juan Farand",
+          "className": "1C"
+        },
+        {
+          "nim": "22603015",
+          "name": "Khumaira Khaerunnisa",
+          "className": "1C"
+        },
+        {
+          "nim": "22603016",
+          "name": "M. Fauzan Adhitya Pratama H",
+          "className": "1C"
+        },
+        {
+          "nim": "22603017",
+          "name": "Muh. Anugrah Sesar",
+          "className": "1C"
+        },
+        {
+          "nim": "22603018",
+          "name": "Muh. Diaz Raditya B.",
+          "className": "1C"
+        },
+        {
+          "nim": "22603019",
+          "name": "Muh. Fakhrul Al Farezqy Rozadin",
+          "className": "1C"
+        },
+        {
+          "nim": "22603020",
+          "name": "Muh. Raihan Aryan",
+          "className": "1C"
+        },
+        {
+          "nim": "22603021",
+          "name": "Muhammad Abyan Zaky",
+          "className": "1C"
+        },
+        {
+          "nim": "22603022",
+          "name": "Muhammad Agam Haq",
+          "className": "1C"
+        },
+        {
+          "nim": "22603023",
+          "name": "Muhammad Aidil Ahmadi",
+          "className": "1C"
+        },
+        {
+          "nim": "22603024",
+          "name": "Nadya Zalzabila",
+          "className": "1C"
+        },
+        {
+          "nim": "22603025",
+          "name": "Ranita Rosa Putri",
+          "className": "1C"
+        },
+        {
+          "nim": "22603026",
+          "name": "Rausyan Fikran",
+          "className": "1C"
+        },
+        {
+          "nim": "22603027",
+          "name": "Rizky Ramadhani A.",
+          "className": "1C"
+        },
+        {
+          "nim": "22603028",
+          "name": "Rudhi Adhana Zet",
+          "className": "1C"
+        },
+        {
+          "nim": "22603029",
+          "name": "Salsabila Aprilia Sukardi",
+          "className": "1C"
+        },
+        {
+          "nim": "22603030",
+          "name": "Saskia Uhti Ramadhani",
+          "className": "1C"
+        },
+        {
+          "nim": "22603031",
+          "name": "Sayyef Al Islam",
+          "className": "1C"
+        },
+        {
+          "nim": "22603032",
+          "name": "Tazkia Kausara",
+          "className": "1C"
+        },
+        {
+          "nim": "22603033",
+          "name": "Wahidatul Hasanah",
+          "className": "1C"
+        },
+        {
+          "nim": "22603034",
+          "name": "William Gredi Sidwel Alinsky",
+          "className": "1C"
+        },
+        {
+          "nim": "22603035",
+          "name": "Winda Tri Lestari",
+          "className": "1C"
+        },
+        {
+          "nim": "22603036",
+          "name": "Yulfikatrin Yuyun",
+          "className": "1C"
+        }
+      ],
+      "periods": [
+        {
+          "periodNumber": 1,
+          "week": 34,
+          "name": "Gelombang 1 (Minggu 34)",
+          "startDate": "2026-08-17",
+          "endDate": "2026-08-21",
+          "nims": [
+            "22603003",
+            "22603004",
+            "22603006",
+            "22603010",
+            "22603012",
+            "22603015",
+            "22603020",
+            "22603021",
+            "22603025",
+            "22603027",
+            "22603030",
+            "22603035"
+          ]
+        },
+        {
+          "periodNumber": 2,
+          "week": 36,
+          "name": "Gelombang 2 (Minggu 36)",
+          "startDate": "2026-08-31",
+          "endDate": "2026-09-04",
+          "nims": [
+            "22603001",
+            "22603005",
+            "22603007",
+            "22603011",
+            "22603013",
+            "22603016",
+            "22603018",
+            "22603024",
+            "22603028",
+            "22603031",
+            "22603032",
+            "22603036"
+          ]
+        },
+        {
+          "periodNumber": 3,
+          "week": 38,
+          "name": "Gelombang 3 (Minggu 38)",
+          "startDate": "2026-09-14",
+          "endDate": "2026-09-18",
+          "nims": [
+            "22603002",
+            "22603008",
+            "22603009",
+            "22603014",
+            "22603017",
+            "22603019",
+            "22603022",
+            "22603023",
+            "22603026",
+            "22603029",
+            "22603033",
+            "22603034"
+          ]
+        }
+      ]
+    }
+  ]
+}
