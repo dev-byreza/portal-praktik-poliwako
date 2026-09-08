@@ -282,6 +282,14 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     setRawMouse({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
 
+  React.useEffect(() => {
+    if (currentStudent && window.location.pathname.replace(/^\/+|\/+$/g, '') === 'mahasiswa') {
+      window.history.pushState(null, '', '/mahasiswa/unit');
+      sessionStorage.removeItem('poliwako_in_workspace');
+      setIsViewingCatalog(true);
+    }
+  }, [currentStudent]);
+
   // Gate check: If student is not authenticated, render login gate directly with interactive pointer-following animations & glassmorphism
   if (!currentStudent || !studentSession) {
     const spotlightX = rawMouse.x !== null ? `${rawMouse.x}px` : '50%';
@@ -390,14 +398,6 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
       </div>
     );
   }
-
-  React.useEffect(() => {
-    if (currentStudent && window.location.pathname.replace(/^\/+|\/+$/g, '') === 'mahasiswa') {
-      window.history.pushState(null, '', '/mahasiswa/unit');
-      sessionStorage.removeItem('poliwako_in_workspace');
-      setIsViewingCatalog(true);
-    }
-  }, [currentStudent]);
 
   // Catalog view (PRD Option B): If authenticated and viewing practice catalog
   if (isViewingCatalog) {
