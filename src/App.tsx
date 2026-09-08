@@ -46,9 +46,11 @@ export const App: React.FC = () => {
         return;
       }
 
-      // Case 2: Match course slug in URL path (e.g. /cad-1-1 or /pemesinan-cnc)
+      // Case 2: Match course slug in URL path (legacy /cad-1-1 or /mahasiswa/cad-1-1).
+      const pathParts = path.split('/').filter(Boolean);
+      const coursePathSlug = pathParts[0] === 'mahasiswa' ? pathParts[1] : pathParts[0];
       const matchedCourse = courses.find(
-        c => c.slug.toLowerCase() === path || c.slug.toLowerCase() === courseParam
+        c => c.slug.toLowerCase() === coursePathSlug || c.slug.toLowerCase() === courseParam
       );
 
       if (matchedCourse) {
@@ -64,6 +66,7 @@ export const App: React.FC = () => {
         path === 'mahasiswa' ||
         path === 'portal-mahasiswa' ||
         path === 'student' ||
+        (pathParts[0] === 'mahasiswa' && !pathParts[1]) ||
         roleParam === 'student' ||
         roleParam === 'mahasiswa'
       ) {
@@ -111,7 +114,9 @@ export const App: React.FC = () => {
       return;
     }
 
-    const matchedCourse = courses.find(c => c.slug.toLowerCase() === path);
+    const pathParts = path.split('/').filter(Boolean);
+    const coursePathSlug = pathParts[0] === 'mahasiswa' ? pathParts[1] : pathParts[0];
+    const matchedCourse = courses.find(c => c.slug.toLowerCase() === coursePathSlug);
     if (matchedCourse) {
       setActiveRoute('STUDENT');
       setRole('STUDENT');
@@ -120,7 +125,7 @@ export const App: React.FC = () => {
       return;
     }
 
-    if (path === 'mahasiswa' || path === 'portal-mahasiswa' || path === 'student') {
+    if (path === 'mahasiswa' || path === 'portal-mahasiswa' || path === 'student' || (pathParts[0] === 'mahasiswa' && !pathParts[1])) {
       setActiveRoute('STUDENT');
       setRole('STUDENT');
       return;

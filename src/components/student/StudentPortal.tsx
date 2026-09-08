@@ -56,7 +56,15 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
   const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false);
   const [selectedUnitId, setSelectedUnitId] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'UNITS' | 'FINAL_PROJECT' | 'GRADE'>('UNITS');
+  const [activeTab, setActiveTabState] = useState<'UNITS' | 'FINAL_PROJECT' | 'GRADE'>('UNITS');
+  const setActiveTab = (tab: 'UNITS' | 'FINAL_PROJECT' | 'GRADE') => {
+    setActiveTabState(tab);
+    if (typeof window !== 'undefined' && !isViewingCatalog) {
+      const suffix = tab === 'FINAL_PROJECT' ? 'final-project' : tab === 'GRADE' ? 'nilai' : 'unit';
+      const target = `/mahasiswa/${selectedCourseSlug}/${suffix}`;
+      if (window.location.pathname !== target) window.history.pushState(null, '', target);
+    }
+  };
   const [pdfModalDoc, setPdfModalDoc] = useState<{ isOpen: boolean; title: string; url?: string } | null>(null);
   const [isOutlineOpen, setIsOutlineOpen] = useState<boolean>(() => (typeof window === 'undefined' ? true : window.innerWidth >= 1024));
 
@@ -94,12 +102,28 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
   }, [learningUnits, activePeriod]);
 
   // Handler to switch course from catalog
+  React.useEffect(() => {
+    const syncStudentSlug = () => {
+      const parts = window.location.pathname.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
+      if (parts[0] !== 'mahasiswa') return;
+      setIsViewingCatalog(!parts[1]);
+      if (parts[1]) setSelectedCourseSlug(parts[1]);
+      if (parts[2] === 'final-project') setActiveTabState('FINAL_PROJECT');
+      else if (parts[2] === 'nilai') setActiveTabState('GRADE');
+      else if (parts[2] === 'unit') setActiveTabState('UNITS');
+    };
+    window.addEventListener('popstate', syncStudentSlug);
+    syncStudentSlug();
+    return () => window.removeEventListener('popstate', syncStudentSlug);
+  }, []);
+
   const handleSelectCourse = (slug: string) => {
     const targetCourse = courses.find(c => c.slug === slug);
     const targetPeriod = periods.find(p => p.courseId === targetCourse?.id && p.status === 'ACTIVE') ||
                          periods.find(p => p.courseId === targetCourse?.id);
     setSelectedCourseSlug(slug);
     setIsViewingCatalog(false);
+    window.history.pushState(null, '', `/mahasiswa/${slug}/unit`);
     sessionStorage.setItem('poliwako_in_workspace', 'true');
     if (currentStudent && targetCourse && targetPeriod) {
       setStudentIdentity(currentStudent.id, targetCourse.slug, targetPeriod.id);
@@ -109,6 +133,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
   const handleOpenCatalog = () => {
     sessionStorage.removeItem('poliwako_in_workspace');
     setIsViewingCatalog(true);
+    window.history.pushState(null, '', '/mahasiswa');
   };
 
   const handleLogout = () => {
