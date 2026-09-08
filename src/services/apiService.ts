@@ -532,6 +532,69 @@ export class ApiService {
     }
   }
 
+  /** Persist a unit and its related materials/assignment for instructor edits. */
+  static async saveLearningUnit(unit: LearningUnit): Promise<void> {
+    if (this.isLiveBackend() && supabase) {
+      const { error: unitError } = await supabase.from('learning_units').upsert({
+        id: unit.id,
+        period_id: unit.periodId,
+        unit_number: unit.unitNumber,
+        title: unit.title,
+        description: unit.description || '',
+      });
+      if (unitError) throw unitError;
+
+      const materialRows = unit.materials.map(material => ({
+        id: material.id,
+        unit_id: unit.id,
+        title: material.title,
+        type: material.type,
+        content_url: material.contentUrl || null,
+        content_text: material.contentText || null,
+        file_size: material.fileSize || null,
+      }));
+      const { data: existingMaterials, error: materialReadError } = await supabase
+        .from('learning_materials').select('id').eq('unit_id', unit.id);
+      if (materialReadError) throw materialReadError;
+      const retainedMaterialIds = new Set(materialRows.map(material => material.id));
+      const removedMaterialIds = (existingMaterials || []).map((material: any) => material.id)
+        .filter((id: string) => !retainedMaterialIds.has(id));
+      if (removedMaterialIds.length) {
+        const { error } = await supabase.from('learning_materials').delete().in('id', removedMaterialIds);
+        if (error) throw error;
+      }
+      if (materialRows.length) {
+        const { error } = await supabase.from('learning_materials').upsert(materialRows);
+        if (error) throw error;
+      }
+
+      if (unit.assignment) {
+        const { error } = await supabase.from('assignments').upsert({
+          id: unit.assignment.id,
+          unit_id: unit.id,
+          period_id: unit.assignment.periodId || unit.periodId,
+          title: unit.assignment.title,
+          description: unit.assignment.description || '',
+          deadline: unit.assignment.deadline,
+          max_score: unit.assignment.maxScore,
+          allowed_file_type: unit.assignment.allowedFileType || 'PDF',
+          submission_type: unit.assignment.submissionType || 'ASSIGNMENT',
+        });
+        if (error) throw error;
+      }
+    }
+    const units = StorageService.getLearningUnits().filter(existing => existing.id !== unit.id);
+    StorageService.saveLearningUnits([...units, unit]);
+  }
+
+  static async deleteLearningUnit(unitId: string): Promise<void> {
+    if (this.isLiveBackend() && supabase) {
+      const { error } = await supabase.from('learning_units').delete().eq('id', unitId);
+      if (error) throw error;
+    }
+    StorageService.saveLearningUnits(StorageService.getLearningUnits().filter(unit => unit.id !== unitId));
+  }
+
   // ====================================================================
   // SUBMISSIONS & ASSESSMENTS
   // ====================================================================

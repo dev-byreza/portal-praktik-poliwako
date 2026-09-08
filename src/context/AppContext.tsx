@@ -878,8 +878,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ...u,
         id: `unit-${Date.now()}-${Math.random()}`,
         periodId: newPeriod.id,
-        materials: u.materials.map(m => ({ ...m, id: `mat-${Date.now()}-${Math.random()}` })),
-        assignment: u.assignment ? { ...u.assignment, id: `assign-${Date.now()}-${Math.random()}`, periodId: newPeriod.id } : undefined
+        materials: u.materials.map(m => ({ ...m, id: newEntityId('mat') })),
+        assignment: u.assignment ? { ...u.assignment, id: newEntityId('assign'), periodId: newPeriod.id } : undefined
       }));
       setLearningUnits(prev => [...prev, ...copiedUnits]);
     }
@@ -911,8 +911,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ...u,
       id: `unit-${Date.now()}-${Math.random()}`,
       periodId: newPeriod.id,
-      materials: u.materials.map(m => ({ ...m, id: `mat-${Date.now()}-${Math.random()}` })),
-      assignment: u.assignment ? { ...u.assignment, id: `assign-${Date.now()}-${Math.random()}`, periodId: newPeriod.id } : undefined
+      materials: u.materials.map(m => ({ ...m, id: newEntityId('mat') })),
+      assignment: u.assignment ? { ...u.assignment, id: newEntityId('assign'), periodId: newPeriod.id } : undefined
     }));
 
     setPeriods(prev => {
@@ -1161,7 +1161,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const unitNumber = periodUnits.length + 1;
 
     const newUnit: LearningUnit = {
-      id: `unit-${Date.now()}`,
+      id: newEntityId('unit'),
       periodId: unitData.periodId || '',
       unitNumber,
       title: unitData.title || `Unit ${unitNumber}: Judul Materi Praktik`,
@@ -1171,17 +1171,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     setLearningUnits(prev => [...prev, newUnit]);
+    ApiService.saveLearningUnit(newUnit).catch(error => {
+      console.error('Error syncing learning unit:', error);
+      showToast('Sinkronisasi Gagal', 'Unit belum tersimpan ke Supabase. Coba simpan kembali.', 'error');
+    });
     showToast('Unit Pembelajaran Dibuat', `Unit ${newUnit.unitNumber} berhasil ditambahkan.`, 'success');
     return newUnit;
   };
 
   const updateLearningUnit = (updated: LearningUnit) => {
     setLearningUnits(prev => prev.map(u => u.id === updated.id ? updated : u));
+    ApiService.saveLearningUnit(updated).catch(error => {
+      console.error('Error syncing learning unit:', error);
+      showToast('Sinkronisasi Gagal', 'Perubahan tugas belum tersimpan ke Supabase. Coba simpan kembali.', 'error');
+    });
     showToast('Unit Diperbarui', `Unit ${updated.unitNumber} berhasil disimpan.`, 'success');
   };
 
   const deleteLearningUnit = (unitId: string) => {
     setLearningUnits(prev => prev.filter(u => u.id !== unitId));
+    ApiService.deleteLearningUnit(unitId).catch(error => {
+      console.error('Error deleting learning unit:', error);
+      showToast('Penghapusan Gagal', 'Unit belum berhasil dihapus dari Supabase.', 'error');
+    });
     showToast('Unit Dihapus', 'Unit pembelajaran telah dihapus.', 'info');
   };
 
@@ -1212,14 +1224,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const newUnitId = `unit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         const clonedMaterials: LearningMaterial[] = srcUnit.materials.map(m => ({
           ...m,
-          id: `mat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          id: newEntityId('mat'),
           unitId: newUnitId
         }));
 
         const clonedAssignment: Assignment | undefined = srcUnit.assignment
           ? {
               ...srcUnit.assignment,
-              id: `assign-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              id: newEntityId('assign'),
               unitId: newUnitId,
               periodId: targetPeriodId
             }

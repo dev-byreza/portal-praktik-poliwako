@@ -28,6 +28,12 @@ import {
 import { PDFViewerModal } from '../common/PDFViewerModal';
 import { ModalPortal } from '../common/ModalPortal';
 
+const newStudioEntityId = (prefix: string): string => (
+  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+);
+
 export const LearningContentStudio: React.FC = () => {
   const {
     activeCourseId,
@@ -201,7 +207,7 @@ export const LearningContentStudio: React.FC = () => {
     }
 
     const newMat: LearningMaterial = {
-      id: `mat-${Date.now()}`,
+      id: newStudioEntityId('mat'),
       unitId: activeSelectedUnit.id,
       title: matTitle.trim() || 'Materi Pembelajaran',
       type: matType,
@@ -235,7 +241,7 @@ export const LearningContentStudio: React.FC = () => {
     if (!activeSelectedUnit || !activeSelectedPeriod) return;
 
     const newAssign: Assignment = {
-      id: `assign-${Date.now()}`,
+      id: newStudioEntityId('assign'),
       unitId: activeSelectedUnit.id,
       periodId: activeSelectedPeriod.id,
       title: assignTitle.trim() || 'Tugas Praktik PDF',
