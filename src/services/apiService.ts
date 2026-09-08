@@ -591,7 +591,7 @@ export class ApiService {
       }
 
       if (savedAssignment) {
-        const { error } = await supabase.from('assignments').upsert({
+        const assignmentPayload = {
           id: savedAssignment.id,
           unit_id: unitId,
           period_id: savedAssignment.periodId || unit.periodId,
@@ -601,7 +601,14 @@ export class ApiService {
           max_score: savedAssignment.maxScore,
           allowed_file_type: savedAssignment.allowedFileType || 'PDF',
           submission_type: savedAssignment.submissionType || 'ASSIGNMENT',
-        });
+        };
+        let { error } = await supabase.from('assignments').upsert(assignmentPayload);
+        // Keep existing deployments usable until migration 0004 is run.
+        if (error && /submission_type|column .* does not exist/i.test(error.message || '')) {
+          const legacyPayload = { ...assignmentPayload };
+          delete (legacyPayload as any).submission_type;
+          ({ error } = await supabase.from('assignments').upsert(legacyPayload));
+        }
         if (error) throw error;
       }
       const savedUnit = { ...unit, id: unitId, materials: savedMaterials, assignment: savedAssignment };
@@ -648,12 +655,18 @@ export class ApiService {
 
   static async saveSubmission(submission: Submission): Promise<void> {
     if (this.isLiveBackend() && supabase) {
-      const { error } = await supabase.from('submissions').upsert({
+      const submissionPayload = {
         id: submission.id, assignment_id: submission.assignmentId, student_id: submission.studentId, period_id: submission.periodId,
         file_name: submission.fileName, file_url: submission.fileUrl, file_size: submission.fileSize,
         storage_path: submission.storagePath || null, submitted_at: submission.submittedAt, status: submission.status,
         submission_type: submission.submissionType || 'ASSIGNMENT',
-      });
+      };
+      let { error } = await supabase.from('submissions').upsert(submissionPayload);
+      if (error && /submission_type|column .* does not exist/i.test(error.message || '')) {
+        const legacyPayload = { ...submissionPayload };
+        delete (legacyPayload as any).submission_type;
+        ({ error } = await supabase.from('submissions').upsert(legacyPayload));
+      }
       if (error) throw error;
     }
     const stored = StorageService.getSubmissions().filter((item) => !(item.assignmentId === submission.assignmentId && item.studentId === submission.studentId && item.periodId === submission.periodId));
