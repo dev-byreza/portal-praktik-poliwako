@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { PracticePeriod, Student } from '../../types';
+import { PracticePeriod, PracticeParticipant, Student } from '../../types';
 import {
   Calendar,
   Plus,
@@ -45,6 +45,7 @@ export const PracticePeriodManager: React.FC = () => {
     deletePeriod,
     syncAllPeriodsStatus,
     addParticipantsBulk,
+    updateParticipant,
     removeParticipant,
     showToast
   } = useApp();
@@ -538,7 +539,26 @@ export const PracticePeriodManager: React.FC = () => {
                               </span>
                             </td>
                             <td className="py-3 px-4">
-                              <Badge status={part.progressStatus} size="sm" />
+                              <div className="flex items-center gap-2">
+                                <Badge status={part.progressStatus} size="sm" />
+                                <select
+                                  value={part.progressStatus}
+                                  onChange={e => updateParticipant({
+                                    ...part,
+                                    progressStatus: e.target.value as PracticeParticipant['progressStatus']
+                                  })}
+                                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-700 outline-none focus:border-blue-500"
+                                  aria-label={`Ubah status ${part.student.name}`}
+                                  title="Ubah status progres peserta"
+                                >
+                                  <option value="NOT_STARTED">Belum mulai</option>
+                                  <option value="IN_PROGRESS">Sedang berjalan</option>
+                                  <option value="LEARNING_COMPLETE">Belajar selesai</option>
+                                  <option value="PROJECT_SUBMITTED">Proyek dikumpulkan</option>
+                                  <option value="ASSESSED">Sudah dinilai</option>
+                                  <option value="PUBLISHED">Nilai dipublikasikan</option>
+                                </select>
+                              </div>
                             </td>
                             <td className="py-3 px-4 text-right">
                               <button

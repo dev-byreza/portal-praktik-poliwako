@@ -111,6 +111,7 @@ interface AppContextType {
   syncAllPeriodsStatus: () => Promise<{ changedCount: number; todayStr: string }>;
 
   addParticipantsBulk: (periodId: string, nims: string[]) => { added: number; duplicates: number; notFound: string[] };
+  updateParticipant: (participant: PracticeParticipant) => void;
   removeParticipant: (participantId: string) => void;
 
   addStudent: (student: Omit<Student, 'id' | 'createdAt'>) => Student;
@@ -831,7 +832,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const status = computePeriodStatus(startDate, endDate);
 
     const newPeriod: PracticePeriod = {
-      id: `period-${Date.now()}`,
+      id: newEntityId('period'),
       courseId,
       name: periodData.name || `Minggu Praktik ke-${periodNumber} (${startDate})`,
       periodNumber,
@@ -845,7 +846,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setPeriods(prev => {
       const next = [...prev, newPeriod];
-      ApiService.savePeriod(newPeriod);
+      void ApiService.savePeriod(newPeriod).catch(error => {
+        showToast('Sinkronisasi Gagal', `Periode belum tersimpan ke Supabase: ${error.message}`, 'error');
+      });
       return next;
     });
 
@@ -874,7 +877,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const status = computePeriodStatus(startDate, endDate);
     const newPeriod: PracticePeriod = {
       ...source,
-      id: `period-${Date.now()}`,
+      id: newEntityId('period'),
       name: newName,
       startDate,
       endDate,
@@ -895,7 +898,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setPeriods(prev => {
       const next = [...prev, newPeriod];
-      ApiService.savePeriod(newPeriod);
+      void ApiService.savePeriod(newPeriod).catch(error => {
+        showToast('Sinkronisasi Gagal', `Periode belum tersimpan ke Supabase: ${error.message}`, 'error');
+      });
       return next;
     });
     setLearningUnits(prev => [...prev, ...duplicatedUnits]);
@@ -923,7 +928,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } else {
         nextList = prev.map(p => p.id === finalUpdated.id ? finalUpdated : p);
       }
-      ApiService.savePeriodsBulk(nextList);
+      void ApiService.savePeriodsBulk(nextList).catch(error => {
+        showToast('Sinkronisasi Gagal', `Perubahan periode belum tersimpan ke Supabase: ${error.message}`, 'error');
+      });
       return nextList;
     });
     showToast('Periode Diperbarui', `Periode "${finalUpdated.name}" berhasil diperbarui (${finalUpdated.startDate} s/d ${finalUpdated.endDate}) [Status: ${finalUpdated.status}].`, 'success');
@@ -966,6 +973,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setPeriods(prev => prev.filter(p => p.id !== periodId));
     setParticipants(prev => prev.filter(p => p.periodId !== periodId));
     setLearningUnits(prev => prev.filter(u => u.periodId !== periodId));
+    void ApiService.deletePeriod(periodId).catch(error => {
+      showToast('Sinkronisasi Gagal', `Periode hanya terhapus di layar: ${error.message}`, 'error');
+    });
     showToast('Periode Dihapus', 'Periode praktik dan relasi terkait berhasil dihapus.', 'info');
   };
 
@@ -994,7 +1004,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       const participant: PracticeParticipant = {
-        id: `part-${Date.now()}-${Math.random().toString().slice(2, 6)}`,
+        id: newEntityId('part'),
         periodId,
         studentId: student.id,
         student,
@@ -1008,7 +1018,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       // Default attendance: 100% Hadir for all 5 days (PRD Section 54)
       const attRecord: AttendanceRecord = {
-        id: `att-${Date.now()}-${Math.random().toString().slice(2, 6)}`,
+        id: newEntityId('att'),
         periodId,
         studentId: student.id,
         day1: 'HADIR',
@@ -1026,14 +1036,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (newParticipants.length > 0) {
       setParticipants(prev => [...prev, ...newParticipants]);
       setAttendance(prev => [...prev, ...newAttendances]);
+      void Promise.all(newParticipants.map(participant => ApiService.saveParticipant(participant)))
+        .then(() => Promise.all(newAttendances.map(record => ApiService.saveAttendanceRecord(record))))
+        .catch(error => {
+          showToast('Sinkronisasi Gagal', `Peserta ditambahkan di layar, tetapi gagal dikirim ke Supabase: ${error.message}`, 'error');
+        });
     }
 
     showToast('Peserta Ditambahkan', `${added} mahasiswa berhasil didaftarkan. (${duplicates} duplikat, ${notFound.length} NIM tidak ditemukan)`, added > 0 ? 'success' : 'warning');
     return { added, duplicates, notFound };
   };
 
+  const updateParticipant = (updatedParticipant: PracticeParticipant) => {
+    setParticipants(prev => prev.map(p => p.id === updatedParticipant.id ? updatedParticipant : p));
+    void ApiService.saveParticipant(updatedParticipant).catch(error => {
+      showToast('Sinkronisasi Gagal', `Perubahan peserta belum tersimpan ke Supabase: ${error.message}`, 'error');
+    });
+  };
+
   const removeParticipant = (participantId: string) => {
     setParticipants(prev => prev.filter(p => p.id !== participantId));
+    void ApiService.deleteParticipant(participantId).catch(error => {
+      showToast('Sinkronisasi Gagal', `Peserta hanya terhapus di layar: ${error.message}`, 'error');
+    });
     showToast('Peserta Dihapus', 'Peserta telah dikeluarkan dari periode ini.', 'info');
   };
 
@@ -1559,6 +1584,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         deletePeriod,
         syncAllPeriodsStatus,
         addParticipantsBulk,
+        updateParticipant,
         removeParticipant,
         addStudent,
         updateStudent,

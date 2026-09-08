@@ -323,13 +323,21 @@ export class ApiService {
     }
   }
 
+  static async deletePeriod(periodId: string): Promise<void> {
+    if (this.isLiveBackend() && supabase) {
+      const { error } = await supabase.from('practice_periods').delete().eq('id', periodId);
+      if (error) throw error;
+    }
+    StorageService.savePeriods(StorageService.getPeriods().filter(period => period.id !== periodId));
+  }
+
   static async savePeriod(period: PracticePeriod): Promise<void> {
     const periods = StorageService.getPeriods().filter((p) => p.id !== period.id);
     StorageService.savePeriods([...periods, period]);
 
     if (this.isLiveBackend() && supabase) {
       try {
-        await supabase.from('practice_periods').upsert({
+        const { error } = await supabase.from('practice_periods').upsert({
           id: period.id,
           course_id: period.courseId,
           name: period.name,
@@ -340,6 +348,7 @@ export class ApiService {
           final_project_drive_url: period.finalProjectDriveUrl,
           updated_at: new Date().toISOString(),
         });
+        if (error) throw error;
       } catch (err) {
         console.error('Error syncing period to Supabase:', err);
       }
@@ -362,11 +371,38 @@ export class ApiService {
           final_project_drive_url: p.finalProjectDriveUrl,
           updated_at: new Date().toISOString(),
         }));
-        await supabase.from('practice_periods').upsert(rows);
+        const { error } = await supabase.from('practice_periods').upsert(rows);
+        if (error) throw error;
       } catch (err) {
         console.error('Error batch syncing periods to Supabase:', err);
       }
     }
+  }
+
+  static async saveParticipant(participant: PracticeParticipant): Promise<void> {
+    if (this.isLiveBackend() && supabase) {
+      const { error } = await supabase.from('practice_participants').upsert({
+        id: participant.id,
+        period_id: participant.periodId,
+        student_id: participant.studentId,
+        enrolled_at: participant.enrolledAt,
+        progress_status: participant.progressStatus,
+        final_project_submitted_at: participant.finalProjectSubmittedAt || null,
+        final_project_confirmed: participant.finalProjectConfirmed,
+      }, { onConflict: 'period_id,student_id' });
+      if (error) throw error;
+    }
+
+    const stored = StorageService.getParticipants().filter(item => item.id !== participant.id && !(item.periodId === participant.periodId && item.studentId === participant.studentId));
+    StorageService.saveParticipants([...stored, participant]);
+  }
+
+  static async deleteParticipant(participantId: string): Promise<void> {
+    if (this.isLiveBackend() && supabase) {
+      const { error } = await supabase.from('practice_participants').delete().eq('id', participantId);
+      if (error) throw error;
+    }
+    StorageService.saveParticipants(StorageService.getParticipants().filter(item => item.id !== participantId));
   }
 
   // ====================================================================
