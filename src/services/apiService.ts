@@ -514,15 +514,32 @@ export class ApiService {
       const { data, error } = await query;
       if (error || !data || data.length === 0) return StorageService.getLearningUnits();
 
+      // Older databases may not have the unit countdown columns yet. Preserve
+      // the last locally saved unit gate while the rest of the unit remains
+      // authoritative from Supabase.
+      const cachedUnitCountdown = new Map(
+        StorageService.getLearningUnits().map(item => [item.id, {
+          countdownEnabled: item.countdownEnabled,
+          countdownMinutes: item.countdownMinutes,
+          countdownStartedAt: item.countdownStartedAt,
+        }])
+      );
+
       return data.map((u: any) => ({
         id: u.id,
         periodId: u.period_id,
         unitNumber: u.unit_number,
         title: u.title,
         description: u.description || '',
-        countdownEnabled: Boolean(u.countdown_enabled),
-        countdownMinutes: Number(u.countdown_minutes) || undefined,
-        countdownStartedAt: u.countdown_started_at || undefined,
+        countdownEnabled: u.countdown_enabled == null
+          ? cachedUnitCountdown.get(u.id)?.countdownEnabled
+          : Boolean(u.countdown_enabled),
+        countdownMinutes: u.countdown_minutes == null
+          ? cachedUnitCountdown.get(u.id)?.countdownMinutes
+          : (Number(u.countdown_minutes) || undefined),
+        countdownStartedAt: u.countdown_started_at == null
+          ? cachedUnitCountdown.get(u.id)?.countdownStartedAt
+          : u.countdown_started_at,
         materials: [...(u.learning_materials || [])]
           .sort((a: any, b: any) => {
             const aTime = Date.parse(a.created_at || '') || 0;
