@@ -173,7 +173,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [students, setStudents] = useState<Student[]>(StorageService.getStudents());
   const [periods, setPeriods] = useState<PracticePeriod[]>(StorageService.getPeriods());
   const [participants, setParticipants] = useState<PracticeParticipant[]>(() => (isLiveBackend ? [] : StorageService.getParticipants()));
-  const [learningUnits, setLearningUnits] = useState<LearningUnit[]>(StorageService.getLearningUnits());
+  const [learningUnits, setLearningUnits] = useState<LearningUnit[]>(() => (
+    isLiveBackend ? [] : StorageService.getLearningUnits()
+  ));
   const [unitProgress, setUnitProgress] = useState<UnitProgress[]>(StorageService.getUnitProgress());
   const [submissions, setSubmissions] = useState<Submission[]>(StorageService.getSubmissions());
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(StorageService.getAttendance());
@@ -1188,14 +1190,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateLearningUnit = (updated: LearningUnit) => {
     setLearningUnits(prev => prev.map(u => u.id === updated.id ? updated : u));
     ApiService.saveLearningUnit(updated).then(savedUnit => {
-      if (savedUnit.id !== updated.id) {
-        setLearningUnits(prev => prev.map(unit => unit.id === updated.id ? savedUnit : unit));
-      }
+      // Reconcile the optimistic state with the canonical backend response,
+      // including database IDs and the assignment/material payload.
+      setLearningUnits(prev => prev.map(unit => (
+        unit.id === updated.id || unit.id === savedUnit.id ? savedUnit : unit
+      )));
+      showToast('Unit Diperbarui', `Unit ${savedUnit.unitNumber} berhasil disinkronkan ke Supabase.`, 'success');
     }).catch(error => {
       console.error('Error syncing learning unit:', error);
       showToast('Sinkronisasi Gagal', `Perubahan tugas belum tersimpan ke Supabase. ${error?.message || 'Periksa koneksi dan hak akses.'}`, 'error');
     });
-    showToast('Unit Diperbarui', `Unit ${updated.unitNumber} berhasil disimpan.`, 'success');
   };
 
   const deleteLearningUnit = (unitId: string) => {

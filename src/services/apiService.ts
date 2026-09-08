@@ -507,8 +507,7 @@ export class ApiService {
       let query = supabase
         .from('learning_units')
         .select('*, learning_materials(*), assignments(*)')
-        .order('unit_number', { ascending: true })
-        .order('created_at', { referencedTable: 'learning_materials', ascending: true });
+        .order('unit_number', { ascending: true });
       if (periodId) {
         query = query.eq('period_id', periodId);
       }
@@ -521,7 +520,12 @@ export class ApiService {
         unitNumber: u.unit_number,
         title: u.title,
         description: u.description || '',
-        materials: (u.learning_materials || [])
+        materials: [...(u.learning_materials || [])]
+          .sort((a: any, b: any) => {
+            const aTime = Date.parse(a.created_at || '') || 0;
+            const bTime = Date.parse(b.created_at || '') || 0;
+            return aTime - bTime;
+          })
           .filter((m: any) => !/dummy\.pdf/i.test(m.content_url || ''))
           .map((m: any) => ({
           id: m.id,
@@ -616,6 +620,16 @@ export class ApiService {
           ({ error } = await supabase.from('learning_materials').upsert(legacyRows));
         }
         if (error) throw error;
+
+        const { data: persistedAssignment, error: verifyAssignmentError } = await supabase
+          .from('assignments')
+          .select('id')
+          .eq('id', savedAssignment.id)
+          .maybeSingle();
+        if (verifyAssignmentError) throw verifyAssignmentError;
+        if (!persistedAssignment) {
+          throw new Error('Tugas berhasil dikirim tetapi tidak ditemukan saat verifikasi ulang Supabase.');
+        }
       }
 
       if (savedAssignment) {
