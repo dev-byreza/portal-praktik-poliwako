@@ -356,13 +356,15 @@ export const GradingWorkspace: React.FC = () => {
   };
 
   const handleInspectAssignmentPdf = (assignmentId: string, submission?: Submission, taskTitle?: string) => {
+    if (!submission?.fileUrl) {
+      showToast('Berkas Belum Ada', 'Mahasiswa belum mengunggah PDF untuk ' + (taskTitle || 'tugas ini') + '.', 'info');
+      return;
+    }
     setIsPdfOpen(true);
     setActiveDocType('ASSIGNMENT');
     setActiveAssignmentId(assignmentId);
-    if (submission) {
-      setSelectedSubmissionId(submission.id);
-    }
-    showToast('Memuat Berkas Tugas', `Dokumen PDF untuk ${taskTitle || 'Tugas Praktik'} ditampilkan di panel sebelah kiri.`, 'info');
+    setSelectedSubmissionId(submission.id);
+    showToast('Memuat Berkas Tugas', 'PDF asli untuk ' + (taskTitle || 'Tugas Praktik') + ' ditampilkan.', 'info');
   };
 
   const handlePostTestScoreChange = (score: number) => {
@@ -592,7 +594,7 @@ export const GradingWorkspace: React.FC = () => {
                   {activeDocType === 'POST_TEST'
                     ? `${currentParticipant.student.nim}_PostTest_Komprehensif.pdf`
                     : activeDocType === 'ASSIGNMENT'
-                    ? (activeAssignmentSubmission?.fileName || `${currentParticipant.student.nim}_Tugas_${activeTask?.unitNumber || 1}.pdf`)
+                    ? (activeAssignmentSubmission?.fileName || 'Belum ada PDF tugas')
                     : (activeSubmission?.fileName || `${currentParticipant.student.nim}_Laporan_Praktikum.pdf`)}
                 </span>
                 <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider shrink-0 ${
@@ -739,87 +741,19 @@ export const GradingWorkspace: React.FC = () => {
                       </div>
                     </div>
                   ) : activeDocType === 'ASSIGNMENT' ? (
-                    <div className="space-y-4">
-                      {/* Assignment Header */}
-                      <div className="flex justify-between items-center border-b-2 border-teal-600 pb-2 mb-3">
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full bg-teal-500 inline-block"></span>
-                            <h4 className="font-black text-sm tracking-wider text-slate-900 uppercase">POLITEKNIK SOROWAKO</h4>
-                          </div>
-                          <p className="text-[10px] text-teal-800 font-bold uppercase">
-                            Lembar Penyerahan Tugas Praktik • Modul {activeTask?.unitNumber || 1}
-                          </p>
-                        </div>
-                        <div className="text-right text-[10px] text-slate-500 font-mono">
-                          <span className="px-2 py-0.5 rounded bg-teal-100 text-teal-800 font-bold text-[9px] block mb-0.5">TUGAS MODUL</span>
-                          NIM: {currentParticipant.student.nim}
-                        </div>
+                    activeAssignmentSubmission?.fileUrl ? (
+                      <iframe
+                        title={activeAssignmentSubmission.fileName}
+                        src={activeAssignmentSubmission.fileUrl}
+                        className="h-full min-h-[520px] w-full rounded-xl border border-slate-200 bg-white"
+                      />
+                    ) : (
+                      <div className="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                        <FileText className="mb-3 h-10 w-10 text-slate-400" />
+                        <h4 className="text-sm font-bold text-slate-700">Belum ada PDF tugas</h4>
+                        <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">PDF akan tampil di sini setelah mahasiswa mengunggahnya dan penyimpanan berhasil tersinkron ke Supabase.</p>
                       </div>
-
-                      {/* Identitas Mahasiswa & Tugas */}
-                      <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-200 text-[11px] space-y-1">
-                        <div className="flex justify-between">
-                          <span className="text-slate-500 font-medium">Praktikan:</span>
-                          <span className="font-bold text-slate-900">{currentParticipant.student.name} (Kelas {currentParticipant.student.className})</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500 font-medium">Tugas / Modul:</span>
-                          <span className="font-bold text-teal-950">{activeTask?.assignmentTitle}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500 font-medium">Materi Pelajaran:</span>
-                          <span className="font-medium text-slate-800">{activeTask?.unitTitle}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500 font-medium">Status Berkas:</span>
-                          <span className="text-emerald-700 font-bold font-mono">
-                            {activeAssignmentSubmission ? `✓ DITERIMA (${activeAssignmentSubmission.fileSize})` : '✓ FILE PDF TUGAS PRAKTIK'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Isi Tugas / Program */}
-                      <div className="space-y-3 pt-1">
-                        <h5 className="font-bold text-xs text-slate-900 uppercase tracking-wide border-b pb-1 text-teal-900 flex items-center justify-between">
-                          <span>Lembar Kerja Praktik & Dokumentasi</span>
-                          <span className="text-[10px] text-slate-400 font-normal">Hal {pdfPage} dari 3</span>
-                        </h5>
-                        <p className="text-[11px] text-slate-700 leading-relaxed">
-                          {activeTask?.description}
-                        </p>
-
-                        <div className="p-3 bg-slate-900 text-teal-300 rounded-xl font-mono text-[10px] space-y-1">
-                          <p className="text-white font-bold"># LOG EKSEKUSI TUGAS MODUL {activeTask?.unitNumber || 1}:</p>
-                          <p>✓ Parameter Perhitungan : Spindle Speed S=3200 RPM, Feedrate F=350 mm/min</p>
-                          <p>✓ Kode Pemesinan : G00, G01, G02, G03, G81 VERIFIED</p>
-                          <p>✓ Kesesuaian Benda Kerja : MEMENUHI SPESIFIKASI MODUL</p>
-                        </div>
-
-                        <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-1">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                            Catatan Pengerjaan Mahasiswa:
-                          </span>
-                          <p className="text-[11px] text-slate-700 italic leading-relaxed">
-                            "Tugas telah diselesaikan dan diuji coba melalui simulasi CAM sebelum dijalankan pada mesin CNC. Hasil pengukuran telah sesuai batas toleransi teknis."
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Tanda Tangan */}
-                      <div className="pt-4 border-t border-dashed border-slate-300 flex justify-between items-end text-[10px] text-slate-600">
-                        <div>
-                          <p className="font-bold text-slate-900">Portal Praktik Poliwako</p>
-                          <p className="font-mono text-slate-400">Berkas: {activeAssignmentSubmission?.fileName || `${currentParticipant.student.nim}_Tugas_${activeTask?.unitNumber || 1}.pdf`}</p>
-                        </div>
-                        <div className="text-center">
-                          <div className="w-20 h-10 border border-dashed border-teal-500 rounded bg-teal-50 text-teal-700 font-mono font-bold text-[9px] flex items-center justify-center mb-1">
-                            STAMP ACC
-                          </div>
-                          <p className="font-bold text-slate-800">Instruktur Praktik</p>
-                        </div>
-                      </div>
-                    </div>
+                    )
                   ) : (
                     <div>
                       <div className="flex justify-between items-center border-b-2 border-slate-900 pb-2 mb-4">
@@ -1349,27 +1283,28 @@ export const GradingWorkspace: React.FC = () => {
                             </div>
                             <div>
                               <span className="text-xs font-bold text-slate-900 block truncate max-w-xs">
-                                {studentSubmission?.fileName || `${currentParticipant.student.nim}_Tugas${task.unitNumber}_Dokumen.pdf`}
+                                {studentSubmission?.fileName || 'Belum ada PDF yang diunggah'}
                               </span>
                               <span className="text-[10px] text-slate-500">
                                 {studentSubmission
                                   ? `Dokumen PDF Tugas • ${studentSubmission.fileSize} • Diunggah: ${studentSubmission.submittedAt}`
-                                  : 'Dokumen PDF Tugas Praktik • 2.8 MB • Terverifikasi'}
+                                  : 'Belum ada PDF yang diunggah mahasiswa.'}
                               </span>
                             </div>
                           </div>
 
                           <button
                             type="button"
+                            disabled={!studentSubmission?.fileUrl}
                             onClick={() => handleInspectAssignmentPdf(task.id, studentSubmission, task.assignmentTitle)}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-xl border flex items-center gap-1.5 transition-all shadow-xs ${
+                            className={`px-3 py-1.5 text-xs font-bold rounded-xl border flex items-center gap-1.5 transition-all shadow-xs disabled:cursor-not-allowed disabled:opacity-50 ${
                               activeDocType === 'ASSIGNMENT' && activeAssignmentId === task.id
                                 ? 'bg-amber-600 text-white border-amber-600'
                                 : 'bg-white text-amber-800 border-amber-300 hover:bg-amber-100'
                             }`}
                           >
                             <Eye className="w-3.5 h-3.5" />
-                            <span>{activeDocType === 'ASSIGNMENT' && activeAssignmentId === task.id ? 'Sedang Ditampilkan di Kiri' : 'Inspeksi Lembar PDF'}</span>
+                            <span>{studentSubmission?.fileUrl ? (activeDocType === 'ASSIGNMENT' && activeAssignmentId === task.id ? 'Sedang Ditampilkan' : 'Lihat PDF') : 'Belum Ada PDF'}</span>
                           </button>
                         </div>
 
