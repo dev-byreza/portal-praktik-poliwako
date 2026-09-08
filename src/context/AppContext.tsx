@@ -142,6 +142,12 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const newEntityId = (prefix: string): string => (
+  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+);
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const isLiveBackend = useMemo(() => isSupabaseConfigured(), []);
   const [isInstructorLoggedIn, setIsInstructorLoggedIn] = useState<boolean>(() => StorageService.isInstructorLoggedIn());
@@ -171,8 +177,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         fetchInternetNetworkTime().catch(() => {});
 
         if (!isLiveBackend) return;
+        const authInstructorId = await ApiService.getCurrentInstructorId();
+        const courseScope = authInstructorId || (role === 'STUDENT' && !isInstructorLoggedIn ? undefined : null);
         const [liveCourses, liveStudents, livePeriods, liveParticipants, liveUnits, liveAttendance] = await Promise.all([
-          ApiService.getCourses(),
+          courseScope === null ? Promise.resolve([]) : ApiService.getCourses(courseScope),
           ApiService.getStudents(),
           ApiService.getPeriods(),
           ApiService.getParticipants(),
@@ -180,8 +188,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ApiService.getAttendance(),
         ]);
         if (!isMounted) return;
-        if (liveCourses && liveCourses.length > 0) setCourses(liveCourses);
-        if (liveStudents && liveStudents.length > 0) setStudents(liveStudents);
+        if (liveCourses) {
+          setCourses(liveCourses);
+          if (liveCourses.length === 0) setActiveCourseIdState('');
+        }
+        if (liveStudents) setStudents(liveStudents);
 
         if (livePeriods && livePeriods.length > 0) {
           const todayStr = getRealtimeWitaDateString();
@@ -202,9 +213,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }
         }
 
-        if (liveParticipants && liveParticipants.length > 0) setParticipants(liveParticipants);
-        if (liveUnits && liveUnits.length > 0) setLearningUnits(liveUnits);
-        if (liveAttendance && liveAttendance.length > 0) setAttendance(liveAttendance);
+        if (liveParticipants) setParticipants(liveParticipants);
+        if (liveUnits) setLearningUnits(liveUnits);
+        if (liveAttendance) setAttendance(liveAttendance);
       } catch (e) {
         console.warn('Sync from Supabase notice:', e);
       }
@@ -213,7 +224,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return () => {
       isMounted = false;
     };
-  }, [isLiveBackend]);
+  }, [isLiveBackend, isInstructorLoggedIn, instructor.id, role]);
 
   // Sync to LocalStorage on changes
   useEffect(() => {
@@ -294,16 +305,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return { success: false, message: 'Domain email tidak diizinkan. Gunakan akun institusi Politeknik Sorowako.' };
     }
 
+    let authInstructorId: string | null = null;
+
     // Try live Supabase authentication first if password provided
     if (ApiService.isLiveBackend() && password) {
       const { error } = await ApiService.loginInstructor(cleanEmail, password);
       if (error) {
         console.warn('Supabase auth notice:', error.message);
-        if (error.message.includes('Invalid login credentials') || error.message.includes('invalid_credentials')) {
-          showToast('Login Gagal', 'Email atau password salah. Silakan periksa kembali.', 'error');
-          return { success: false, message: 'Email atau password salah. Silakan periksa kembali.' };
-        }
+        const message = error.message.includes('Invalid login credentials') || error.message.includes('invalid_credentials')
+          ? 'Email atau password salah. Silakan periksa kembali.'
+          : 'Login Supabase gagal. Periksa koneksi dan akun Anda.';
+        showToast('Login Gagal', message, 'error');
+        return { success: false, message };
       }
+      authInstructorId = await ApiService.getCurrentInstructorId();
     } else if (cleanEmail === 'rezaf@politekniksorowako.ac.id' && password && password !== '732401#Jhe') {
       showToast('Password Salah', 'Password yang dimasukkan tidak cocok.', 'error');
       return { success: false, message: 'Password salah. Silakan periksa kembali password akun Anda.' };
@@ -317,7 +332,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       profileName = cleanEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     }
 
-    const updated: InstructorProfile = {
+    let updated: InstructorProfile = {
       ...instructor,
       id: 'inst-' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '-'),
       email: cleanEmail,
@@ -325,6 +340,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       department,
       nip
     };
+    if (authInstructorId) {
+      const liveProfile = await ApiService.getInstructorProfile(authInstructorId);
+      updated = { ...liveProfile, id: authInstructorId, email: cleanEmail };
+      setCourses([]);
+      setActiveCourseIdState('');
+      const [liveCourses, liveStudents] = await Promise.all([
+        ApiService.getCourses(authInstructorId),
+        ApiService.getStudents(),
+      ]);
+      setCourses(liveCourses);
+      setStudents(liveStudents);
+      if (liveCourses[0]) setActiveCourseIdState(liveCourses[0].id);
+    }
     setInstructor(updated);
     StorageService.saveInstructor(updated);
     StorageService.setInstructorLoggedIn(true);
@@ -369,8 +397,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return { success: false, message: error.message };
       }
 
+      const authInstructorId = user?.id || await ApiService.getCurrentInstructorId();
+      if (ApiService.isLiveBackend() && !authInstructorId) {
+        showToast('Pendaftaran Berhasil', 'Akun dibuat. Silakan masuk setelah verifikasi email selesai.', 'success');
+        return { success: true, message: 'Akun dibuat. Silakan masuk setelah verifikasi email.' };
+      }
+
       const newProfile: InstructorProfile = {
-        id: user?.id || 'inst-' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '-'),
+        id: authInstructorId || 'inst-' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '-'),
         email: cleanEmail,
         name: params.name.trim(),
         department: params.department || 'Rekayasa Perancangan Mekanik',
@@ -382,6 +416,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       StorageService.setInstructorLoggedIn(true);
       setIsInstructorLoggedIn(true);
       setRole('INSTRUCTOR');
+      if (authInstructorId) {
+        setCourses([]);
+        setActiveCourseIdState('');
+        const [liveCourses, liveStudents] = await Promise.all([
+          ApiService.getCourses(authInstructorId),
+          ApiService.getStudents(),
+        ]);
+        setCourses(liveCourses);
+        setStudents(liveStudents);
+        if (liveCourses[0]) setActiveCourseIdState(liveCourses[0].id);
+      }
       showToast('Pendaftaran Berhasil', `Selamat datang, ${newProfile.name}! Akun Anda telah aktif.`, 'success');
       return { success: true, message: 'Akun instruktur berhasil didaftarkan!' };
     } catch (err: any) {
@@ -395,6 +440,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsInstructorLoggedIn(false);
     StorageService.setInstructorLoggedIn(false);
     setRole('STUDENT');
+    setCourses([]);
+    setActiveCourseIdState('');
     showToast('Logout', 'Anda telah keluar dari Portal Instruktur.', 'info');
   };
 
@@ -720,7 +767,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Instructor Course Operations
   const createCourse = (courseData: Partial<Course>): Course => {
     const newCourse: Course = {
-      id: `course-${Date.now()}`,
+      id: newEntityId('course'),
       instructorId: instructor.id,
       name: courseData.name || 'Mata Kuliah Praktik Baru',
       code: courseData.code || 'MES-100',
@@ -744,6 +791,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setCourses(prev => [newCourse, ...prev]);
     setActiveCourseId(newCourse.id);
+    void ApiService.saveCourse(newCourse).then(saved => {
+      setCourses(prev => prev.map(course => course.id === newCourse.id ? saved : course));
+      setActiveCourseId(saved.id);
+    }).catch(error => {
+      showToast('Sinkronisasi Gagal', `Mata kuliah tersimpan lokal, tetapi gagal dikirim ke Supabase: ${error.message}`, 'error');
+    });
     showToast('Mata Kuliah Dibuat', `Mata Kuliah "${newCourse.name}" berhasil dibuat dan siap digunakan.`, 'success');
     return newCourse;
   };
@@ -755,7 +808,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const slug = newName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const newCourse: Course = {
       ...source,
-      id: `course-${Date.now()}`,
+      id: newEntityId('course'),
       name: newName,
       slug: `${slug}-${Date.now().toString().slice(-4)}`,
       academicYear,
@@ -766,6 +819,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setCourses(prev => [newCourse, ...prev]);
     setActiveCourseId(newCourse.id);
+    void ApiService.saveCourse(newCourse).then(saved => {
+      setCourses(prev => prev.map(course => course.id === newCourse.id ? saved : course));
+      setActiveCourseId(saved.id);
+    }).catch(error => {
+      showToast('Sinkronisasi Gagal', `Salinan mata kuliah tersimpan lokal, tetapi gagal dikirim ke Supabase: ${error.message}`, 'error');
+    });
     showToast('Mata Kuliah Disalin', `Struktur "${source.name}" berhasil disalin ke "${newCourse.name}".`, 'success');
     return newCourse;
   };
@@ -1025,6 +1084,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     const newStudent = StorageService.addStudent(studentData);
     setStudents(StorageService.getStudents());
+    void ApiService.saveStudent(newStudent, instructor.id).catch(error => {
+      showToast('Sinkronisasi Gagal', `Mahasiswa tersimpan lokal, tetapi gagal dikirim ke Supabase: ${error.message}`, 'error');
+    });
     showToast('Mahasiswa Ditambahkan', `${newStudent.name} (${newStudent.nim}) berhasil disimpan.`, 'success');
     return newStudent;
   };
@@ -1032,12 +1094,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateStudent = (updated: Student) => {
     const list = students.map(s => s.id === updated.id ? updated : s);
     setStudents(list);
+    void ApiService.saveStudent(updated, instructor.id).catch(error => {
+      showToast('Sinkronisasi Gagal', `Perubahan mahasiswa tersimpan lokal, tetapi gagal dikirim ke Supabase: ${error.message}`, 'error');
+    });
     showToast('Data Mahasiswa Diperbarui', `Data ${updated.name} berhasil diperbarui.`, 'success');
   };
 
   const deleteStudent = (studentId: string) => {
     const list = students.filter(s => s.id !== studentId);
     setStudents(list);
+    void ApiService.deleteStudent(studentId).catch(error => {
+      showToast('Sinkronisasi Gagal', `Penghapusan lokal berhasil, tetapi gagal diperbarui di Supabase: ${error.message}`, 'error');
+    });
     showToast('Mahasiswa Dihapus', 'Data mahasiswa telah dihapus dari Master.', 'info');
   };
 
@@ -1056,7 +1124,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       existingNims.add(item.nim.toLowerCase());
       newItems.push({
         ...item,
-        id: `std-${Date.now()}-${Math.random().toString().slice(2, 6)}`,
+        id: newEntityId('student'),
         createdAt: getWitaDateString()
       });
       importedCount++;
@@ -1065,6 +1133,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (newItems.length > 0) {
       const updated = [...newItems, ...students];
       setStudents(updated);
+      void Promise.all(newItems.map(student => ApiService.saveStudent(student, instructor.id))).catch(error => {
+        showToast('Sinkronisasi Gagal', `Sebagian mahasiswa tersimpan lokal, tetapi gagal dikirim ke Supabase: ${error.message}`, 'error');
+      });
     }
 
     showToast('Import CSV Selesai', `${importedCount} mahasiswa baru berhasil diimpor. (${duplicateCount} duplikat diabaikan)`, 'success');

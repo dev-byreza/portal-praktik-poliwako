@@ -175,7 +175,9 @@ export class StorageService {
     const students = this.getStudents();
     const newStudent: Student = {
       ...student,
-      id: `std-${Date.now()}`,
+      id: typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `std-${Date.now()}`,
       createdAt: new Date().toISOString().split('T')[0]
     };
     students.unshift(newStudent);

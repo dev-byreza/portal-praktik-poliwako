@@ -142,6 +142,13 @@ export async function signOutInstructor(): Promise<void> {
   }
 }
 
+export async function getCurrentAuthUser() {
+  if (!supabase) return null;
+  const { data, error } = await supabase.auth.getUser();
+  if (error) return null;
+  return data.user;
+}
+
 
 // ====================================================================
 // STORAGE UTILITIES (Submissions & Materials PDF)

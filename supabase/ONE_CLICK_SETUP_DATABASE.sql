@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS public.students (
     password_hash VARCHAR(255),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT uq_instructor_nim UNIQUE (instructor_id, nim)
+    CONSTRAINT uq_students_nim UNIQUE (nim)
 );
 
 CREATE INDEX IF NOT EXISTS idx_students_nim ON public.students(nim);
@@ -435,53 +435,56 @@ CREATE POLICY "Profiles viewable by owner" ON public.profiles FOR SELECT USING (
 CREATE POLICY "Profiles updatable by owner" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
 -- 2. Courses
-CREATE POLICY "Instructors manage own courses" ON public.courses FOR ALL USING (auth.uid() = instructor_id);
-CREATE POLICY "Public view published courses" ON public.courses FOR SELECT USING (status = 'PUBLISHED');
+CREATE POLICY "Instructors manage own courses" ON public.courses FOR ALL TO authenticated
+USING ((select auth.uid()) = instructor_id)
+WITH CHECK ((select auth.uid()) = instructor_id);
 
 -- 3. Students
-CREATE POLICY "Instructors manage own students" ON public.students FOR ALL USING (auth.uid() = instructor_id);
-CREATE POLICY "Public view active students" ON public.students FOR SELECT USING (TRUE);
+CREATE POLICY "Authenticated instructors view all students" ON public.students FOR SELECT TO authenticated USING ((select auth.uid()) IS NOT NULL);
+CREATE POLICY "Authenticated instructors add students" ON public.students FOR INSERT TO authenticated WITH CHECK ((select auth.uid()) IS NOT NULL);
+CREATE POLICY "Authenticated instructors update students" ON public.students FOR UPDATE TO authenticated
+USING ((select auth.uid()) IS NOT NULL) WITH CHECK ((select auth.uid()) IS NOT NULL);
+CREATE POLICY "Authenticated instructors delete students" ON public.students FOR DELETE TO authenticated USING ((select auth.uid()) IS NOT NULL);
 
 -- 4. Course Sub-CPMK & Rubrics
-CREATE POLICY "Instructors manage Sub-CPMK" ON public.course_sub_cpmk FOR ALL USING (is_course_owner(course_id));
-CREATE POLICY "Public view Sub-CPMK" ON public.course_sub_cpmk FOR SELECT USING (TRUE);
+CREATE POLICY "Instructors manage Sub-CPMK" ON public.course_sub_cpmk FOR ALL TO authenticated
+USING (is_course_owner(course_id)) WITH CHECK (is_course_owner(course_id));
 
-CREATE POLICY "Instructors manage Rubrics" ON public.rubric_criteria FOR ALL USING (is_course_owner(course_id));
-CREATE POLICY "Public view Rubrics" ON public.rubric_criteria FOR SELECT USING (TRUE);
+CREATE POLICY "Instructors manage Rubrics" ON public.rubric_criteria FOR ALL TO authenticated
+USING (is_course_owner(course_id)) WITH CHECK (is_course_owner(course_id));
 
 -- 5. Practice Periods
-CREATE POLICY "Instructors manage periods" ON public.practice_periods FOR ALL USING (is_course_owner(course_id));
-CREATE POLICY "Public view periods" ON public.practice_periods FOR SELECT USING (TRUE);
+CREATE POLICY "Instructors manage periods" ON public.practice_periods FOR ALL TO authenticated
+USING (is_course_owner(course_id)) WITH CHECK (is_course_owner(course_id));
 
 -- 6. Practice Participants
-CREATE POLICY "Instructors manage participants" ON public.practice_participants FOR ALL USING (
+CREATE POLICY "Instructors manage participants" ON public.practice_participants FOR ALL TO authenticated USING (
     EXISTS (SELECT 1 FROM public.practice_periods p WHERE p.id = period_id AND is_course_owner(p.course_id))
-);
-CREATE POLICY "Public view participants" ON public.practice_participants FOR SELECT USING (TRUE);
-CREATE POLICY "Students update own confirmation" ON public.practice_participants FOR UPDATE USING (TRUE);
+)
+WITH CHECK (EXISTS (SELECT 1 FROM public.practice_periods p WHERE p.id = period_id AND is_course_owner(p.course_id)));
 
 -- 7. Learning Units & Materials
-CREATE POLICY "Instructors manage learning units" ON public.learning_units FOR ALL USING (
+CREATE POLICY "Instructors manage learning units" ON public.learning_units FOR ALL TO authenticated USING (
     EXISTS (SELECT 1 FROM public.practice_periods p WHERE p.id = period_id AND is_course_owner(p.course_id))
-);
-CREATE POLICY "Public view learning units" ON public.learning_units FOR SELECT USING (TRUE);
+)
+WITH CHECK (EXISTS (SELECT 1 FROM public.practice_periods p WHERE p.id = period_id AND is_course_owner(p.course_id)));
 
-CREATE POLICY "Instructors manage learning materials" ON public.learning_materials FOR ALL USING (
+CREATE POLICY "Instructors manage learning materials" ON public.learning_materials FOR ALL TO authenticated USING (
     EXISTS (SELECT 1 FROM public.learning_units u JOIN public.practice_periods p ON u.period_id = p.id WHERE u.id = unit_id AND is_course_owner(p.course_id))
-);
-CREATE POLICY "Public view learning materials" ON public.learning_materials FOR SELECT USING (TRUE);
+)
+WITH CHECK (EXISTS (SELECT 1 FROM public.learning_units u JOIN public.practice_periods p ON u.period_id = p.id WHERE u.id = unit_id AND is_course_owner(p.course_id)));
 
 -- 8. Unit Progress
-CREATE POLICY "Instructors view all unit progress" ON public.unit_progress FOR SELECT USING (
+CREATE POLICY "Instructors view all unit progress" ON public.unit_progress FOR SELECT TO authenticated USING (
     EXISTS (SELECT 1 FROM public.practice_periods p WHERE p.id = period_id AND is_course_owner(p.course_id))
 );
 CREATE POLICY "Students manage own unit progress" ON public.unit_progress FOR ALL USING (TRUE);
 
 -- 9. Assignments & Submissions
-CREATE POLICY "Instructors manage assignments" ON public.assignments FOR ALL USING (
+CREATE POLICY "Instructors manage assignments" ON public.assignments FOR ALL TO authenticated USING (
     EXISTS (SELECT 1 FROM public.practice_periods p WHERE p.id = period_id AND is_course_owner(p.course_id))
-);
-CREATE POLICY "Public view assignments" ON public.assignments FOR SELECT USING (TRUE);
+)
+WITH CHECK (EXISTS (SELECT 1 FROM public.practice_periods p WHERE p.id = period_id AND is_course_owner(p.course_id)));
 
 CREATE POLICY "Instructors manage submissions" ON public.submissions FOR ALL USING (
     EXISTS (SELECT 1 FROM public.practice_periods p WHERE p.id = period_id AND is_course_owner(p.course_id))
@@ -508,8 +511,7 @@ CREATE POLICY "Instructors manage remedials" ON public.remedial_assignments FOR 
 CREATE POLICY "Students view and submit remedial" ON public.remedial_assignments FOR ALL USING (TRUE);
 
 -- 13. Feedback Rules
-CREATE POLICY "Instructors manage feedback rules" ON public.feedback_rules FOR ALL USING (is_course_owner(course_id));
-CREATE POLICY "Public view feedback rules" ON public.feedback_rules FOR SELECT USING (TRUE);
+CREATE POLICY "Instructors manage feedback rules" ON public.feedback_rules FOR ALL TO authenticated USING (is_course_owner(course_id)) WITH CHECK (is_course_owner(course_id));
 
 -- 14. Audit Logs
 CREATE POLICY "Audit logs insertable" ON public.audit_logs FOR INSERT WITH CHECK (TRUE);
@@ -774,4 +776,3 @@ BEGIN
 
     RAISE NOTICE 'Seed CAD 1.1 Berhasil: Course, 36 Mahasiswa Kelas 1C, 3 Gelombang Periode, dan 5 Unit Modul Telah Didaftarkan!';
 END $$;
-

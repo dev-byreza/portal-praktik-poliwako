@@ -7,6 +7,7 @@ import {
   signInInstructor as authSignInInstructor,
   signUpInstructor as authSignUpInstructor,
   signOutInstructor as authSignOutInstructor,
+  getCurrentAuthUser,
 } from './supabaseClient';
 import { StorageService } from './storageService';
 import {
@@ -48,6 +49,11 @@ export class ApiService {
 
   static async logout(): Promise<void> {
     await authSignOutInstructor();
+  }
+
+  static async getCurrentInstructorId(): Promise<string | null> {
+    const user = await getCurrentAuthUser();
+    return user?.id || null;
   }
 
 
@@ -95,7 +101,7 @@ export class ApiService {
         query = query.eq('instructor_id', instructorId);
       }
       const { data, error } = await query;
-      if (error || !data) return StorageService.getCourses();
+      if (error || !data) return [];
 
       return data.map((c: any) => ({
         id: c.id,
@@ -235,8 +241,7 @@ export class ApiService {
     StorageService.saveStudents([...list, student]);
 
     if (this.isLiveBackend() && supabase && instructorId) {
-      try {
-        await supabase.from('students').upsert({
+      const { error } = await supabase.from('students').upsert({
           id: student.id,
           instructor_id: instructorId,
           nim: student.nim,
@@ -245,11 +250,18 @@ export class ApiService {
           email: student.email,
           password_hash: student.password,
           updated_at: new Date().toISOString(),
-        });
-      } catch (err) {
-        console.error('Error syncing student to Supabase:', err);
-      }
+        }).select('id').single();
+      if (error) throw error;
     }
+  }
+
+  static async deleteStudent(studentId: string): Promise<void> {
+    if (this.isLiveBackend() && supabase) {
+      const { error } = await supabase.from('students').delete().eq('id', studentId);
+      if (error) throw error;
+    }
+    const students = StorageService.getStudents().filter(student => student.id !== studentId);
+    StorageService.saveStudents(students);
   }
 
   // ====================================================================
