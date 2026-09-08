@@ -13,6 +13,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { PDFViewerModal } from '../common/PDFViewerModal';
+import { formatDeadline } from '../../utils/dateUtils';
 
 interface StudentAssignmentCardProps {
   assignment: Assignment;
@@ -90,7 +91,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
           <div className="w-full sm:w-auto text-left sm:text-right shrink-0">
             <div className="inline-flex max-w-full items-start gap-1 text-[11px] sm:text-xs text-amber-600 font-medium bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-200">
               <Clock className="w-3.5 h-3.5 shrink-0 mt-px" />
-              <span className="leading-tight break-all">Deadline: {assignment.deadline}</span>
+              <span className="leading-tight">Tenggat: {formatDeadline(assignment.deadline)}</span>
             </div>
             <p className="text-xs text-slate-400 mt-1">Bobot: {assignment.maxScore} Poin</p>
           </div>

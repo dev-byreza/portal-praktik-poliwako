@@ -33,6 +33,7 @@ import {
   EyeOff,
   FileCheck
 } from 'lucide-react';
+import { formatDeadline } from '../../utils/dateUtils';
 import { getCourseRubrics, reconcileRubricScores } from '../../utils/courseRubrics';
 import { Badge } from '../common/Badge';
 
@@ -1169,7 +1170,7 @@ export const GradingWorkspace: React.FC = () => {
                             </p>
                           </div>
                           <span className="text-[9px] font-mono text-slate-400 shrink-0 self-start sm:self-auto">
-                            Tenggat: {task.deadline}
+                            Tenggat: {formatDeadline(task.deadline)}
                           </span>
                         </div>
 

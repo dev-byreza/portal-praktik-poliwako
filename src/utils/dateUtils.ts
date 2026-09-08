@@ -1,169 +1,56 @@
 // WITA (Asia/Makassar, UTC+8) Date and Time Utilities
-// Integrated with authoritative internet realtime time synchronization
 
 import { getRealtimeWitaDateString } from '../services/networkTimeService';
 import { PeriodStatus } from '../types';
 
 export function getWitaDateString(date?: Date): string {
-  if (!date) {
-    // Default to authoritative realtime internet date
-    return getRealtimeWitaDateString();
-  }
-  // Format specific date as YYYY-MM-DD in UTC+8
-  const witaOffset = 8 * 60; // in minutes
-  const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
-  const witaDate = new Date(utc + (witaOffset * 60000));
-  
-  const yyyy = witaDate.getFullYear();
-  const mm = String(witaDate.getMonth() + 1).padStart(2, '0');
-  const dd = String(witaDate.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
+  if (!date) return getRealtimeWitaDateString();
+  const wita = new Date(date.getTime() + (date.getTimezoneOffset() + 8 * 60) * 60000);
+  return `${wita.getFullYear()}-${String(wita.getMonth() + 1).padStart(2, '0')}-${String(wita.getDate()).padStart(2, '0')}`;
 }
 
 export function formatIndonesianDate(dateStr: string): string {
   if (!dateStr) return '-';
-  try {
-    const parts = dateStr.split('-');
-    if (parts.length === 3) {
-      const day = parseInt(parts[2], 10);
-      const months = [
-        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-      ];
-      const month = months[parseInt(parts[1], 10) - 1];
-      const year = parts[0];
-      return `${day} ${month} ${year}`;
-    }
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-  } catch {
-    return dateStr;
+  const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const match = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) return `${Number(match[3])} ${months[Number(match[2]) - 1]} ${match[1]}`;
+  const parsed = new Date(dateStr);
+  return Number.isNaN(parsed.getTime()) ? dateStr : parsed.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+/** Display a deadline in a clear Indonesian format, always using WITA. */
+export function formatDeadline(deadline: string): string {
+  if (!deadline) return 'Belum ditentukan';
+  const raw = String(deadline).trim();
+  const legacy = raw.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})(?::(\d{2}))?(?:\s*WITA)?$/i);
+  if (legacy) {
+    return `${Number(legacy[3])} ${['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'][Number(legacy[2]) - 1]} ${legacy[1]}, pukul ${legacy[4]}.${legacy[5]} WITA`;
   }
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw;
+  return new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Makassar', day: 'numeric', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: false
+  }).format(parsed).replace(/\./g, ':') + ' WITA';
 }
 
 export function formatPeriodRange(startDateStr: string, endDateStr: string): string {
   if (!startDateStr || !endDateStr) return '-';
-  const startParts = startDateStr.split('-');
-  const endParts = endDateStr.split('-');
-  const months = [
-    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-  ];
-
-  if (startParts.length === 3 && endParts.length === 3) {
-    const sDay = parseInt(startParts[2], 10);
-    const eDay = parseInt(endParts[2], 10);
-    const sMonth = months[parseInt(startParts[1], 10) - 1];
-    const eMonth = months[parseInt(endParts[1], 10) - 1];
-    const sYear = startParts[0];
-    const eYear = endParts[0];
-
-    if (sYear === eYear && sMonth === eMonth) {
-      return `${sDay}–${eDay} ${sMonth} ${sYear}`;
-    }
-    return `${sDay} ${sMonth} ${sYear} – ${eDay} ${eMonth} ${eYear}`;
-  }
-  return `${startDateStr} – ${endDateStr}`;
+  return `${formatIndonesianDate(startDateStr)} – ${formatIndonesianDate(endDateStr)}`;
 }
 
 export function computePeriodEndDate(startDateStr: string, durationDays: number = 5): string {
-  // Default 5 days: e.g. Monday + 4 days = Friday (inclusive 5 days)
   if (!startDateStr) return '';
   const [year, month, day] = startDateStr.split('-').map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
-  date.setUTCDate(date.getUTCDate() + (durationDays - 1));
-  
-  const yyyy = date.getUTCFullYear();
-  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(date.getUTCDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
+  date.setUTCDate(date.getUTCDate() + durationDays - 1);
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
 }
 
-/**
- * Automatically determine period status based on real-time internet date (WITA)
- */
-export function computePeriodStatus(
-  startDateStr: string,
-  endDateStr: string,
-  referenceDateStr?: string
-): PeriodStatus {
-  const todayStr = referenceDateStr || getRealtimeWitaDateString();
+export function computePeriodStatus(startDateStr: string, endDateStr: string, referenceDateStr?: string): PeriodStatus {
+  const today = referenceDateStr || getRealtimeWitaDateString();
   if (!startDateStr || !endDateStr) return 'UPCOMING';
-  if (todayStr < startDateStr) {
-    return 'UPCOMING';
-  }
-  if (todayStr > endDateStr) {
-    return 'COMPLETED';
-  }
+  if (today < startDateStr) return 'UPCOMING';
+  if (today > endDateStr) return 'COMPLETED';
   return 'ACTIVE';
-}
-
-export interface PeriodAutoStatusInfo {
-  status: PeriodStatus;
-  label: string;
-  badgeLabel: string;
-  description: string;
-  daysDiff: number;
-  relativeNotice: string;
-}
-
-/**
- * Detailed real-time status evaluation with days remaining and explanation
- */
-export function getPeriodStatusAutoInfo(
-  startDateStr: string,
-  endDateStr: string,
-  referenceDateStr?: string
-): PeriodAutoStatusInfo {
-  const todayStr = referenceDateStr || getRealtimeWitaDateString();
-  const status = computePeriodStatus(startDateStr, endDateStr, todayStr);
-
-  const parseDays = (dStr: string) => {
-    const [y, m, d] = dStr.split('-').map(Number);
-    return Math.floor(Date.UTC(y, m - 1, d) / (1000 * 60 * 60 * 24));
-  };
-
-  const todayDays = parseDays(todayStr);
-  const startDays = parseDays(startDateStr);
-  const endDays = parseDays(endDateStr);
-
-  if (status === 'UPCOMING') {
-    const daysUntilStart = startDays - todayDays;
-    return {
-      status: 'UPCOMING',
-      label: 'Akan Datang (Terjadwal)',
-      badgeLabel: '🟡 Akan Datang',
-      description: `Gelombang terjadwal mulai pada ${formatIndonesianDate(startDateStr)}.`,
-      daysDiff: daysUntilStart,
-      relativeNotice: daysUntilStart === 1
-        ? 'Mulai besok'
-        : `Mulai dalam ${daysUntilStart} hari lagi`
-    };
-  }
-
-  if (status === 'ACTIVE') {
-    const dayProgress = todayDays - startDays + 1;
-    const daysRemaining = endDays - todayDays;
-    return {
-      status: 'ACTIVE',
-      label: 'Aktif (Sedang Berjalan)',
-      badgeLabel: '🟢 Aktif',
-      description: `Sedang berlangsung hingga ${formatIndonesianDate(endDateStr)}.`,
-      daysDiff: daysRemaining,
-      relativeNotice: `Hari ke-${Math.max(1, dayProgress)} dari 5 hari kerja (sisa ${daysRemaining} hari)`
-    };
-  }
-
-  // COMPLETED
-  const daysSinceEnd = todayDays - endDays;
-  return {
-    status: 'COMPLETED',
-    label: 'Selesai (Arsip Periode)',
-    badgeLabel: '⚪ Selesai',
-    description: `Periode telah selesai pada ${formatIndonesianDate(endDateStr)}.`,
-    daysDiff: daysSinceEnd,
-    relativeNotice: daysSinceEnd === 1
-      ? 'Berakhir kemarin'
-      : `Selesai ${daysSinceEnd} hari yang lalu`
-  };
 }

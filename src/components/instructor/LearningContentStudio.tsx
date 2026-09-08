@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { PDFViewerModal } from '../common/PDFViewerModal';
 import { ModalPortal } from '../common/ModalPortal';
+import { formatDeadline } from '../../utils/dateUtils';
 
 const newStudioEntityId = (prefix: string): string => (
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -533,7 +534,7 @@ export const LearningContentStudio: React.FC = () => {
                         </div>
                         <p className="text-xs text-amber-800 mt-1 leading-relaxed">{activeSelectedUnit.assignment.description}</p>
                         <p className="text-[11px] text-amber-700 font-mono mt-2">
-                          Deadline: {activeSelectedUnit.assignment.deadline} • Bobot: {activeSelectedUnit.assignment.maxScore} Poin
+                          Tenggat: {formatDeadline(activeSelectedUnit.assignment.deadline)} • Bobot: {activeSelectedUnit.assignment.maxScore} Poin
                         </p>
                       </div>
 
