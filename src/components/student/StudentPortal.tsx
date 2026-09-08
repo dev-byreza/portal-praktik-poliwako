@@ -346,9 +346,6 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
             isEmbedded={true}
           />
         </div>
-        <footer className="relative z-10 w-full shrink-0 border-t border-slate-800 bg-slate-900/90 px-4 py-3 text-center text-[10px] sm:text-xs text-slate-400">
-          © 2026 Politeknik Sorowako · Portal Praktik Mahasiswa
-        </footer>
       </div>
     );
   }
