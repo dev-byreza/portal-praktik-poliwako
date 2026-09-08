@@ -1483,7 +1483,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return p;
     }));
 
-    if (blockedCount > 0) {
+    if (publishedCount === 0 && blockedCount === 0) {
+      showToast('Belum Ada Nilai Tersimpan', 'Tidak ada assessment pada periode ini yang siap dipublikasikan. Simpan penilaian mahasiswa terlebih dahulu.', 'warning');
+    } else if (blockedCount > 0) {
       showToast('Publikasi Sebagian Berhasil', `${publishedCount} nilai dipublikasikan. ${blockedCount} nilai ditahan karena kehadiran <75% belum tuntas tugas remedial.`, 'warning');
     } else {
       showToast('Nilai Dipublikasikan', `Seluruh nilai peserta periode ini (${publishedCount} mahasiswa) telah dipublikasikan.`, 'success');
