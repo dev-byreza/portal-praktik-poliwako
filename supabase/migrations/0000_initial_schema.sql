@@ -472,7 +472,14 @@ CREATE POLICY "Public view assignments" ON public.assignments FOR SELECT USING (
 CREATE POLICY "Instructors manage submissions" ON public.submissions FOR ALL USING (
     EXISTS (SELECT 1 FROM public.practice_periods p WHERE p.id = period_id AND is_course_owner(p.course_id))
 );
-CREATE POLICY "Students insert submissions" ON public.submissions FOR INSERT WITH CHECK (TRUE);
+CREATE POLICY "Students insert submissions" ON public.submissions FOR INSERT WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.assignments a
+        WHERE a.id = public.submissions.assignment_id
+          AND a.period_id = public.submissions.period_id
+          AND a.deadline > NOW()
+    )
+);
 CREATE POLICY "Students view own submissions" ON public.submissions FOR SELECT USING (TRUE);
 
 -- 10. Attendance Records
@@ -524,6 +531,11 @@ ON storage.objects FOR INSERT
 TO anon, authenticated
 WITH CHECK (
   bucket_id = 'submissions'
+  AND EXISTS (
+    SELECT 1 FROM public.assignments a
+    WHERE a.id = (split_part(name, '/', 5))::uuid
+      AND a.deadline > NOW()
+  )
 );
 
 CREATE POLICY "Students download own submission via signed URL"

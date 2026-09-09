@@ -154,17 +154,27 @@ BEGIN
     END IF;
 END $$;
 
--- Mahasiswa dapat mengunggah semua jenis file tugas ke bucket 'submissions'
+-- Mahasiswa dapat mengunggah semua jenis file tugas sebelum deadline
+DROP POLICY IF EXISTS "Students upload PDF to submissions" ON storage.objects;
+DROP POLICY IF EXISTS "Students upload submission files" ON storage.objects;
+DROP POLICY IF EXISTS "Students upload files to submissions" ON storage.objects;
 DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_policies 
-        WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Students upload files to submissions'
+        WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Students upload submission files'
     ) THEN
-        CREATE POLICY "Students upload files to submissions"
+        CREATE POLICY "Students upload submission files"
         ON storage.objects FOR INSERT
         TO anon, authenticated
-        WITH CHECK (bucket_id = 'submissions');
+        WITH CHECK (
+            bucket_id = 'submissions' AND
+            EXISTS (
+                SELECT 1 FROM public.assignments a
+                WHERE a.id = (split_part(name, '/', 5))::uuid
+                  AND a.deadline > NOW()
+            )
+        );
     END IF;
 END $$;
 
