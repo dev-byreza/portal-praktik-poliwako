@@ -328,6 +328,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return students.find(s => s.id === studentSession.studentId) || null;
   }, [studentSession, students]);
 
+  // Migrate passwords created by older builds from the legacy browser cache
+  // exactly once per session. This lets an already-logged-in student carry
+  // their existing password to Supabase without asking them to activate again.
+  const legacyPasswordSyncKey = `${studentSession?.studentId || ''}:${studentSession?.courseSlug || ''}:${studentSession?.periodId || ''}`;
+  const legacyPasswordSyncRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (!isLiveBackend || !studentSession || !currentStudent?.password || !legacyPasswordSyncKey) return;
+    if (legacyPasswordSyncRef.current === legacyPasswordSyncKey) return;
+    legacyPasswordSyncRef.current = legacyPasswordSyncKey;
+    ApiService.studentAuthSetPassword(
+      currentStudent.id,
+      currentStudent.nim,
+      currentStudent.password,
+      studentSession.courseSlug,
+      studentSession.periodId,
+    ).catch(error => {
+      console.warn('Legacy student password migration notice:', error);
+    });
+  }, [isLiveBackend, currentStudent?.id, currentStudent?.nim, currentStudent?.password, legacyPasswordSyncKey, studentSession?.courseSlug, studentSession?.periodId]);
+
   // Auth
   const loginInstructor = async (email: string, password?: string): Promise<{ success: boolean; message: string }> => {
     const cleanEmail = email.trim().toLowerCase();
