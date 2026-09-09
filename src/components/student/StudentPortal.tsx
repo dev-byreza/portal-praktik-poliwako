@@ -53,7 +53,8 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     currentStudent,
     setStudentIdentity,
     toggleUnitCompletion,
-    clearStudentIdentity
+    clearStudentIdentity,
+    showToast
   } = useApp();
 
   const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false);
@@ -230,7 +231,10 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
     let unlockNext = true;
     for (const unit of periodUnits) {
-      if (completedSet.has(unit.id)) {
+      const submitted = !unit.assignment || submissions.some(s =>
+        s.assignmentId === unit.assignment?.id && s.studentId === studentId && s.periodId === periodId
+      );
+      if (completedSet.has(unit.id) && submitted) {
         map.set(unit.id, 'COMPLETED');
       } else if (unlockNext) {
         map.set(unit.id, 'AVAILABLE');
@@ -240,7 +244,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
       }
     }
     return map;
-  }, [periodUnits, studentSession, currentStudent, unitProgress]);
+  }, [periodUnits, studentSession, currentStudent, unitProgress, submissions]);
 
   // Calculate Progress % (PRD Section 36)
   const progressStats = useMemo(() => {
@@ -279,13 +283,19 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     if (activeTab === 'FINAL_PROJECT') return false;
     if (activeTab === 'UNITS') {
       if (periodUnits.length === 0) return true;
-      return false;
+      // A unit with an assignment cannot unlock the next unit until its file
+      // is present in the synced submissions list.
+      return Boolean(currentUnit?.assignment && !currentAssignmentSubmission);
     }
     return false;
-  }, [activeTab, periodUnits.length]);
+  }, [activeTab, periodUnits.length, currentUnit?.assignment?.id, currentAssignmentSubmission?.id]);
 
   const handleNextUnit = () => {
     if (activeTab === 'UNITS') {
+      if (currentUnit?.assignment && !currentAssignmentSubmission) {
+        showToast('Tugas Belum Diunggah', 'Upload file tugas pada unit ini terlebih dahulu untuk membuka unit berikutnya.', 'warning');
+        return;
+      }
       if (currentUnit && !isCurrentUnitCompleted && currentStudent) {
         toggleUnitCompletion(currentUnit.id);
       }
@@ -747,7 +757,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                   disabled={isNextDisabled}
                   onClick={handleNextUnit}
                   className="inline-flex items-center gap-1 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition-colors py-1 px-1.5 rounded hover:bg-slate-50"
-                  title="Unit Berikutnya"
+                  title={currentUnit?.assignment && !currentAssignmentSubmission ? 'Upload tugas pada unit ini terlebih dahulu' : 'Unit Berikutnya'}
                 >
                   <span>Next unit</span>
                   <ChevronRight className="w-4 h-4" />
