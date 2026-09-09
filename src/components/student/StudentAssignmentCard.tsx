@@ -147,27 +147,29 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
           </div>
 
           <div className="w-full sm:w-auto text-left sm:text-right shrink-0">
-            <div className="inline-flex max-w-full items-start gap-1 text-[11px] sm:text-xs text-amber-600 font-medium bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-200">
-              <Clock className="w-3.5 h-3.5 shrink-0 mt-px" />
-              <span className="leading-tight">Tenggat: {formatDeadline(assignment.deadline)}</span>
-            </div>
-            {remainingMilliseconds !== null && (
-              <div
-                className={`mt-2 inline-flex max-w-full items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] sm:text-xs font-bold tabular-nums transition-colors ${
-                  isDeadlinePassed || isUrgent
-                    ? 'border-rose-300 bg-rose-50 text-rose-700'
-                    : 'border-blue-200 bg-blue-50 text-blue-700'
-                } ${isUrgent ? 'animate-pulse' : ''}`}
-                aria-live="polite"
-              >
-                <Clock className="w-3.5 h-3.5 shrink-0" />
-                <span>
-                  {isDeadlinePassed
-                    ? 'Waktu pengumpulan telah berakhir'
-                    : `Sisa waktu: ${formatRemainingTime(remainingMilliseconds)}`}
-                </span>
+            <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2">
+              <div className="inline-flex max-w-full items-start gap-1 text-[11px] sm:text-xs text-amber-600 font-medium bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-200">
+                <Clock className="w-3.5 h-3.5 shrink-0 mt-px" />
+                <span className="leading-tight">Tenggat: {formatDeadline(assignment.deadline)}</span>
               </div>
-            )}
+              {remainingMilliseconds !== null && (
+                <div
+                  className={`inline-flex max-w-full items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] sm:text-xs font-bold tabular-nums transition-colors ${
+                    isDeadlinePassed || isUrgent
+                      ? 'border-rose-300 bg-rose-50 text-rose-700'
+                      : 'border-blue-200 bg-blue-50 text-blue-700'
+                  } ${isUrgent ? 'animate-pulse' : ''}`}
+                  aria-live="polite"
+                >
+                  <Clock className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    {isDeadlinePassed
+                      ? 'Waktu pengumpulan telah berakhir'
+                      : `Sisa waktu: ${formatRemainingTime(remainingMilliseconds)}`}
+                  </span>
+                </div>
+              )}
+            </div>
             <p className="text-xs text-slate-400 mt-1">Bobot: {assignment.maxScore} Poin</p>
           </div>
         </div>
