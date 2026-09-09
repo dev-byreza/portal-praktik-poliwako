@@ -261,7 +261,7 @@ export const App: React.FC = () => {
 
             {/* MasterCAD logo supplied by the site owner */}
             <a
-              href="https://www.tiktok.com/mastercad.id"
+              href="https://www.tiktok.com/@mastercad.id"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center h-12 w-[180px] sm:h-14 sm:w-[210px] transition-transform hover:scale-[1.02]"
