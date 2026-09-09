@@ -260,16 +260,15 @@ export const App: React.FC = () => {
             </a>
 
             {/* MasterCAD logo supplied by the site owner */}
-            <span
-              className="inline-flex items-center justify-center h-8 w-[88px] sm:w-[104px] rounded-full bg-white px-2 shadow-sm ring-1 ring-white/20"
-              title="MasterCAD"
+            <a
+              href="https://www.tiktok.com/mastercad.id"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center h-10 w-[128px] sm:h-11 sm:w-[144px] rounded-full bg-white px-3 shadow-sm ring-1 ring-white/20 transition-transform hover:scale-[1.02]"
+              title="MasterCAD di TikTok"
             >
-              <img
-                src="/mastercad-logo.png"
-                alt="MasterCAD"
-                className="h-6 w-full object-contain"
-              />
-            </span>
+              <img src="/mastercad-logo.png" alt="MasterCAD" className="h-8 sm:h-9 w-full object-contain" />
+            </a>
 
             {/* Discord Icon */}
             <a
