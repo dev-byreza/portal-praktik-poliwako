@@ -13,7 +13,6 @@ import {
   ChevronRight,
   Sparkles,
   Download,
-  RotateCcw,
   User,
   GraduationCap,
   Award,
@@ -282,13 +281,13 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     if (activeTab === 'GRADE') return true;
     if (activeTab === 'FINAL_PROJECT') return false;
     if (activeTab === 'UNITS') {
-      if (periodUnits.length === 0) return true;
-      // A unit with an assignment cannot unlock the next unit until its file
-      // is present in the synced submissions list.
-      return Boolean(currentUnit?.assignment && !currentAssignmentSubmission);
+      // Keep the action visibly available so students can see that another
+      // unit exists. Submission requirements are enforced by handleNextUnit,
+      // which shows a clear notification when an upload is still missing.
+      return periodUnits.length === 0;
     }
     return false;
-  }, [activeTab, periodUnits.length, currentUnit?.assignment?.id, currentAssignmentSubmission?.id]);
+  }, [activeTab, periodUnits.length]);
 
   const handleNextUnit = () => {
     if (activeTab === 'UNITS') {
@@ -803,31 +802,6 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                           </h2>
                         </div>
 
-                        <div className="shrink-0">
-                          {isCurrentUnitCompleted ? (
-                            <button
-                              type="button"
-                              onClick={() => currentStudent && toggleUnitCompletion(currentUnit.id)}
-                              className="group flex items-center gap-1.5 px-3 py-1 bg-emerald-50 hover:bg-rose-50 text-emerald-700 hover:text-rose-700 rounded-full text-xs font-bold border border-emerald-200 hover:border-rose-200 transition-colors cursor-pointer"
-                              title="Klik untuk membatalkan status selesai"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 group-hover:hidden" />
-                              <RotateCcw className="w-3.5 h-3.5 text-rose-600 hidden group-hover:inline" />
-                              <span className="group-hover:hidden">Selesai</span>
-                              <span className="hidden group-hover:inline">Batal Selesai</span>
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => currentStudent && toggleUnitCompletion(currentUnit.id)}
-                              className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-full text-xs font-bold border border-blue-200 transition-colors cursor-pointer"
-                              title="Klik untuk menandai unit ini telah selesai"
-                            >
-                              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-                              <span>Tandai Selesai</span>
-                            </button>
-                          )}
-                        </div>
                       </div>
 
                       {currentUnitCountdownLocked ? (
