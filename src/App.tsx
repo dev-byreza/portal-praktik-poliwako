@@ -89,7 +89,6 @@ export const App: React.FC = () => {
       ) {
         if (path === 'mahasiswa' || path === 'portal-mahasiswa' || path === 'student') {
           sessionStorage.removeItem('poliwako_in_workspace');
-          clearStudentIdentity();
         }
         setActiveRoute('STUDENT');
         setRole('STUDENT');

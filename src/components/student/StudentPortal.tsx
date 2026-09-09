@@ -136,7 +136,6 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
       if (parts[0] !== 'mahasiswa') return;
       if (!parts[1]) {
         sessionStorage.removeItem('poliwako_in_workspace');
-        clearStudentIdentity();
         setIsViewingCatalog(false);
         return;
       }
