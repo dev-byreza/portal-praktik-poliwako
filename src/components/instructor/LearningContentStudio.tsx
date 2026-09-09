@@ -30,6 +30,7 @@ import {
 import { PDFViewerModal } from '../common/PDFViewerModal';
 import { ModalPortal } from '../common/ModalPortal';
 import { formatDeadline, toDateTimeLocalWita, fromDateTimeLocalWita } from '../../utils/dateUtils';
+import { getYouTubeVideoId, toYouTubeEmbedUrl } from '../../utils/youtubeUtils';
 
 const newStudioEntityId = (prefix: string): string => (
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -82,7 +83,7 @@ export const LearningContentStudio: React.FC = () => {
   const [assignTitle, setAssignTitle] = useState('');
   const [assignDesc, setAssignDesc] = useState('');
   const [assignDeadline, setAssignDeadline] = useState('2026-09-11 23:59 WITA');
-  const [assignAllowedFileType, setAssignAllowedFileType] = useState<'PDF' | 'IMAGE' | 'ZIP' | 'RAR'>('PDF');
+  const [assignAllowedFileType, setAssignAllowedFileType] = useState<'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY'>('PDF');
   const [assignSubmissionType, setAssignSubmissionType] = useState<'ASSIGNMENT' | 'REPORT' | 'POST_TEST'>('ASSIGNMENT');
   const [assignCountdownEnabled, setAssignCountdownEnabled] = useState(false);
   const [assignCountdownMinutes, setAssignCountdownMinutes] = useState('5');
@@ -253,13 +254,17 @@ export const LearningContentStudio: React.FC = () => {
       showToast('URL Wajib Diisi', 'Masukkan URL file atau konten yang benar. PDF dummy tidak digunakan.', 'error');
       return;
     }
+    if (matType === 'YOUTUBE' && !getYouTubeVideoId(matUrl)) {
+      showToast('Link YouTube Tidak Valid', 'Gunakan link youtube.com/watch, youtu.be, shorts, atau embed yang benar.', 'error');
+      return;
+    }
 
     const newMat: LearningMaterial = {
       id: editingMaterial?.id || newStudioEntityId('mat'),
       unitId: activeSelectedUnit.id,
       title: matTitle.trim() || 'Materi Pembelajaran',
       type: matType,
-      contentUrl: matUrl.trim() || undefined,
+      contentUrl: matType === 'YOUTUBE' ? (toYouTubeEmbedUrl(matUrl.trim()) || undefined) : (matUrl.trim() || undefined),
       contentText: matText.trim(),
       fileSize: editingMaterial?.fileSize,
       // Countdown access is configured once at the unit level.
@@ -726,7 +731,11 @@ export const LearningContentStudio: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <h5 className="text-xs font-bold text-amber-950">{activeSelectedUnit.assignment.title}</h5>
                           <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-200 text-amber-900 rounded">
-                            {activeSelectedUnit.assignment.allowedFileType === 'IMAGE' ? 'IMAGE' : `${activeSelectedUnit.assignment.allowedFileType} Only`}
+                            {activeSelectedUnit.assignment.allowedFileType === 'ANY'
+                              ? 'Semua File'
+                              : activeSelectedUnit.assignment.allowedFileType === 'IMAGE'
+                                ? 'IMAGE'
+                                : `${activeSelectedUnit.assignment.allowedFileType} Only`}
                           </span>
                           {activeSelectedUnit.assignment.countdownEnabled && (
                             <span className="px-2 py-0.5 text-[10px] font-bold bg-indigo-100 text-indigo-800 rounded">
@@ -991,7 +1000,7 @@ export const LearningContentStudio: React.FC = () => {
                     type="url"
                     value={matUrl}
                     onChange={e => setMatUrl(e.target.value)}
-                    placeholder={matType === 'YOUTUBE' ? 'https://www.youtube.com/embed/...' : 'https://...'}
+                    placeholder={matType === 'YOUTUBE' ? 'https://www.youtube.com/watch?v=... atau https://youtu.be/...' : 'https://...'}
                     className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   />
                 </div>
@@ -1081,13 +1090,14 @@ export const LearningContentStudio: React.FC = () => {
                 </label>
                 <select
                   value={assignAllowedFileType}
-                  onChange={e => setAssignAllowedFileType(e.target.value as 'PDF' | 'IMAGE' | 'ZIP' | 'RAR')}
+                  onChange={e => setAssignAllowedFileType(e.target.value as 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY')}
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 >
                   <option value="PDF">PDF (.pdf)</option>
                   <option value="IMAGE">Gambar (.jpg, .png, .webp, .gif)</option>
                   <option value="ZIP">Arsip ZIP (.zip)</option>
                   <option value="RAR">Arsip RAR (.rar)</option>
+                  <option value="ANY">Semua jenis file</option>
                 </select>
                 <p className="mt-1 text-[10px] text-slate-500">Mahasiswa hanya dapat mengunggah format yang dipilih (maksimal 25 MB).</p>
               </div>

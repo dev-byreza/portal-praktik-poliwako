@@ -21,10 +21,11 @@ interface StudentAssignmentCardProps {
   isPeriodExpired?: boolean;
 }
 
-type AllowedFileType = 'PDF' | 'IMAGE' | 'ZIP' | 'RAR';
+type AllowedFileType = 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY';
 
 const fileRule = (type: AllowedFileType) => {
   switch (type) {
+    case 'ANY': return { label: 'Semua jenis file', extensions: 'semua format file', accept: undefined };
     case 'IMAGE': return { label: 'Gambar', extensions: '.jpg, .jpeg, .png, .webp, .gif', accept: 'image/*,.jpg,.jpeg,.png,.webp,.gif' };
     case 'ZIP': return { label: 'ZIP', extensions: '.zip', accept: '.zip,application/zip,application/x-zip-compressed' };
     case 'RAR': return { label: 'RAR', extensions: '.rar', accept: '.rar,application/vnd.rar,application/x-rar-compressed' };
@@ -61,7 +62,9 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
     const allowedType = (assignment.allowedFileType || 'PDF') as AllowedFileType;
     const rule = fileRule(allowedType);
     const lowerName = file.name.toLowerCase();
-    const isAllowed = allowedType === 'IMAGE'
+    const isAllowed = allowedType === 'ANY'
+      ? true
+      : allowedType === 'IMAGE'
       ? file.type.startsWith('image/') || /\.(jpe?g|png|webp|gif)$/i.test(lowerName)
       : lowerName.endsWith(`.${allowedType.toLowerCase()}`);
     if (!isAllowed) {
@@ -71,7 +74,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
 
     // Size limit 25MB
     if (file.size > 25 * 1024 * 1024) {
-      showToast('Ukuran Terlalu Besar', 'Ukuran file PDF maksimal 25 MB.', 'error');
+      showToast('Ukuran Terlalu Besar', 'Ukuran file maksimal 25 MB.', 'error');
       return;
     }
 
@@ -144,7 +147,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
                 >
                   <Eye className="w-3.5 h-3.5" />
-                  <span>Lihat PDF</span>
+                  <span>Lihat / Unduh File</span>
                 </button>
               </div>
             </div>
@@ -185,7 +188,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                     Tarik dan lepas file {fileRule((assignment.allowedFileType || 'PDF') as AllowedFileType).label} tugas Anda di sini, atau
                   </p>
                   <label className="inline-block mt-2 px-4 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg cursor-pointer transition-colors shadow-sm">
-                    Pilih File PDF
+                    Pilih File
                     <input
                       type="file"
                     accept={fileRule((assignment.allowedFileType || 'PDF') as AllowedFileType).accept}

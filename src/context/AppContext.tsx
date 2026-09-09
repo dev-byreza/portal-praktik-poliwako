@@ -96,7 +96,7 @@ interface AppContextType {
 
   // Student Actions
   toggleUnitCompletion: (unitId: string) => void;
-  submitAssignment: (assignmentId: string, file: File, submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST', allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR') => Promise<{ success: boolean; message?: string }>;
+  submitAssignment: (assignmentId: string, file: File, submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST', allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY') => Promise<{ success: boolean; message?: string }>;
   confirmFinalProject: () => void;
   submitStudentRemedial: (remedialId: string, fileName: string, fileUrl: string) => void;
 
@@ -796,7 +796,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Student Assignment Submission
-  const submitAssignment = async (assignmentId: string, file: File, submissionType: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST' = 'ASSIGNMENT', allowedFileType: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' = 'PDF'): Promise<{ success: boolean; message?: string }> => {
+  const submitAssignment = async (assignmentId: string, file: File, submissionType: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST' = 'ASSIGNMENT', allowedFileType: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' = 'PDF'): Promise<{ success: boolean; message?: string }> => {
     if (!studentSession) return { success: false, message: 'Sesi mahasiswa tidak ditemukan. Silakan login kembali.' };
     const { studentId, periodId } = studentSession;
     const period = periods.find((item) => item.id === periodId);
@@ -817,8 +817,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     try {
-      await ApiService.saveSubmission(submission);
-      setSubmissions((previous) => [...previous.filter((item) => !(item.assignmentId === assignmentId && item.studentId === studentId && item.periodId === periodId)), submission]);
+      const savedSubmission = await ApiService.saveSubmission(submission);
+      setSubmissions((previous) => [...previous.filter((item) => !(item.assignmentId === assignmentId && item.studentId === studentId && item.periodId === periodId)), savedSubmission]);
       showToast('Tugas Terkirim', 'File ' + file.name + ' tersimpan dan siap diperiksa instruktur.', 'success');
       return { success: true };
     } catch (error: any) {

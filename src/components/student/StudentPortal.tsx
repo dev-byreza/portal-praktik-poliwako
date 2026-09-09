@@ -33,6 +33,7 @@ import { StudentGradeCard } from './StudentGradeCard';
 import { StudentCourseCatalog } from './StudentCourseCatalog';
 import { PDFViewerModal } from '../common/PDFViewerModal';
 import { formatPeriodRange } from '../../utils/dateUtils';
+import { toYouTubeEmbedUrl } from '../../utils/youtubeUtils';
 import { CountdownLockedPanel, CountdownModal, getCountdownEndAt, isCountdownLocked } from './StudentCountdownGate';
 
 interface StudentPortalProps {
@@ -865,15 +866,27 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                                 <PlayCircle className="w-4 h-4 text-red-600" />
                                 <h4 className="text-xs font-bold text-slate-800">{mat.title}</h4>
                               </div>
-                              <div className="max-w-2xl mx-auto aspect-video w-full rounded-xl overflow-hidden shadow-md bg-slate-950 border border-slate-800">
-                                <iframe
-                                  src={mat.contentUrl}
-                                  title={mat.title}
-                                  className="w-full h-full border-0"
-                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                  allowFullScreen
-                                ></iframe>
-                              </div>
+                              {toYouTubeEmbedUrl(mat.contentUrl) ? (
+                                <div className="max-w-2xl mx-auto aspect-video w-full rounded-xl overflow-hidden shadow-md bg-slate-950 border border-slate-800">
+                                  <iframe
+                                    src={toYouTubeEmbedUrl(mat.contentUrl) || undefined}
+                                    title={mat.title}
+                                    className="w-full h-full border-0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    referrerPolicy="strict-origin-when-cross-origin"
+                                    allowFullScreen
+                                  ></iframe>
+                                </div>
+                              ) : (
+                                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
+                                  Link YouTube belum valid. Silakan buka kembali materi atau hubungi instruktur.
+                                </div>
+                              )}
+                              {mat.contentUrl && (
+                                <a href={mat.contentUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 hover:text-blue-800">
+                                  Buka video di YouTube <ExternalLink className="w-3 h-3" />
+                                </a>
+                              )}
                               {mat.contentText && (
                                 <p className="text-[11px] text-slate-500 text-center italic">{mat.contentText}</p>
                               )}

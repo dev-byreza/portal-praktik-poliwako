@@ -508,7 +508,8 @@ CREATE POLICY "Audit logs viewable by instructors" ON public.audit_logs FOR SELE
 
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES 
-  ('submissions', 'submissions', FALSE, 26214400, ARRAY['application/pdf']),
+  -- NULL allowed_mime_types means the bucket accepts every file MIME type.
+  ('submissions', 'submissions', FALSE, 26214400, NULL),
   ('materials', 'materials', TRUE, 52428800, NULL)
 ON CONFLICT (id) DO NOTHING;
 
@@ -518,10 +519,12 @@ ON storage.objects FOR ALL
 TO authenticated
 USING (bucket_id = 'submissions');
 
-CREATE POLICY "Students upload PDF to submissions"
+CREATE POLICY "Students upload submission files"
 ON storage.objects FOR INSERT
 TO anon, authenticated
-WITH CHECK (bucket_id = 'submissions' AND (LOWER(storage.extension(name)) = 'pdf'));
+WITH CHECK (
+  bucket_id = 'submissions'
+);
 
 CREATE POLICY "Students download own submission via signed URL"
 ON storage.objects FOR SELECT

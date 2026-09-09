@@ -946,24 +946,32 @@ export class ApiService {
     }
   }
 
-  static async saveSubmission(submission: Submission): Promise<void> {
+  static async saveSubmission(submission: Submission): Promise<Submission> {
+    // Keep the upload time as a timezone-aware ISO timestamp. Supabase stores
+    // this value in `timestamptz`, and the instructor UI formats it as WITA.
+    const persistedSubmission = {
+      ...submission,
+      submittedAt: new Date().toISOString(),
+    };
     if (this.isLiveBackend() && supabase) {
       const submissionPayload = {
-        id: submission.id, assignment_id: submission.assignmentId, student_id: submission.studentId, period_id: submission.periodId,
-        file_name: submission.fileName, file_url: submission.fileUrl, file_size: submission.fileSize,
-        storage_path: submission.storagePath || null, submitted_at: submission.submittedAt, status: submission.status,
-        submission_type: submission.submissionType || 'ASSIGNMENT',
+        id: persistedSubmission.id, assignment_id: persistedSubmission.assignmentId, student_id: persistedSubmission.studentId, period_id: persistedSubmission.periodId,
+        file_name: persistedSubmission.fileName, file_url: persistedSubmission.fileUrl, file_size: persistedSubmission.fileSize,
+        storage_path: persistedSubmission.storagePath || null, submitted_at: persistedSubmission.submittedAt, status: persistedSubmission.status,
+        submission_type: persistedSubmission.submissionType || 'ASSIGNMENT',
       };
-      let { error } = await supabase.from('submissions').upsert(submissionPayload);
+      let { data, error } = await supabase.from('submissions').upsert(submissionPayload).select('submitted_at').single();
       if (error && /submission_type|column .* does not exist/i.test(error.message || '')) {
         const legacyPayload = { ...submissionPayload };
         delete (legacyPayload as any).submission_type;
-        ({ error } = await supabase.from('submissions').upsert(legacyPayload));
+        ({ data, error } = await supabase.from('submissions').upsert(legacyPayload).select('submitted_at').single());
       }
       if (error) throw error;
+      if (data?.submitted_at) persistedSubmission.submittedAt = data.submitted_at;
     }
-    const stored = StorageService.getSubmissions().filter((item) => !(item.assignmentId === submission.assignmentId && item.studentId === submission.studentId && item.periodId === submission.periodId));
-    StorageService.saveSubmissions([...stored, submission]);
+    const stored = StorageService.getSubmissions().filter((item) => !(item.assignmentId === persistedSubmission.assignmentId && item.studentId === persistedSubmission.studentId && item.periodId === persistedSubmission.periodId));
+    StorageService.saveSubmissions([...stored, persistedSubmission]);
+    return persistedSubmission;
   }
 
   static async saveAssessment(assessment: Assessment): Promise<void> {

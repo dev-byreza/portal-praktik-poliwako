@@ -31,11 +31,15 @@ import {
   Compass,
   Eye,
   EyeOff,
-  FileCheck
+  FileCheck,
+  Clock3
 } from 'lucide-react';
 import { formatDeadline, formatWitaDateTime } from '../../utils/dateUtils';
 import { getCourseRubrics, reconcileRubricScores } from '../../utils/courseRubrics';
 import { Badge } from '../common/Badge';
+
+const canInlinePreview = (fileName?: string): boolean =>
+  !!fileName && /\.(pdf|jpe?g|png|webp|gif)$/i.test(fileName);
 
 export const GradingWorkspace: React.FC = () => {
   const {
@@ -191,6 +195,14 @@ export const GradingWorkspace: React.FC = () => {
   const postTestFileUrl = postTestSubmission?.fileUrl || (existingAssessment?.postTestFileUrl && /^https?:\/\//i.test(existingAssessment.postTestFileUrl)
     ? existingAssessment.postTestFileUrl
     : undefined);
+
+  // The timestamp shown in the inspector must follow the document currently
+  // open on the left, so instructors can verify exactly when it was received.
+  const activeDocumentSubmission = activeDocType === 'POST_TEST'
+    ? postTestSubmission
+    : activeDocType === 'ASSIGNMENT'
+      ? activeAssignmentSubmission
+      : reportSubmission;
 
   // Active Course Sub-CPMKs & Rubrics (OBE Quality Component - PRD Section 45, 46)
   const qualityItems = useMemo(() => {
@@ -650,6 +662,12 @@ export const GradingWorkspace: React.FC = () => {
 
               {/* Controls */}
               <div className="flex items-center gap-2 shrink-0">
+                <span className="hidden xl:flex items-center gap-1 text-[10px] text-slate-300 font-mono whitespace-nowrap">
+                  <Clock3 className="w-3 h-3 text-cyan-300" />
+                  {activeDocumentSubmission
+                    ? `Diterima ${formatWitaDateTime(activeDocumentSubmission.submittedAt)}`
+                    : 'Belum ada waktu pengumpulan'}
+                </span>
                 <div className="flex items-center bg-slate-950/60 rounded-lg p-1 border border-slate-700 text-xs text-slate-300">
                   <button onClick={() => setPdfZoom(prev => Math.max(prev - 10, 70))} className="p-1 hover:text-white" title="Zoom Out">
                     <ZoomOut className="w-3.5 h-3.5" />
@@ -698,7 +716,7 @@ export const GradingWorkspace: React.FC = () => {
               >
                 <div>
                   {activeDocType === 'POST_TEST' ? (
-                    postTestFileUrl ? (
+                    postTestFileUrl && canInlinePreview(postTestSubmission?.fileName) ? (
                       <iframe
                         title="PDF Post-Test Mahasiswa"
                         src={postTestFileUrl}
@@ -707,12 +725,13 @@ export const GradingWorkspace: React.FC = () => {
                     ) : (
                       <div className="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
                         <FileText className="mb-3 h-10 w-10 text-slate-400" />
-                        <h4 className="text-sm font-bold text-slate-700">Belum ada PDF post-test</h4>
-                        <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">PDF post-test akan tampil setelah mahasiswa mengunggah berkas yang tersimpan di Supabase.</p>
+                        <h4 className="text-sm font-bold text-slate-700">{postTestFileUrl ? 'File post-test siap diakses' : 'Belum ada file post-test'}</h4>
+                        <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">{postTestFileUrl ? 'Berkas dapat diunduh dari Supabase Storage untuk diperiksa.' : 'File akan tampil setelah mahasiswa mengunggahnya.'}</p>
+                        {postTestFileUrl && <a href={postTestFileUrl} target="_blank" rel="noreferrer" download={postTestSubmission?.fileName} className="mt-3 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700">Unduh File</a>}
                       </div>
                     )
                   ) : activeDocType === 'ASSIGNMENT' ? (
-                    activeAssignmentSubmission?.fileUrl ? (
+                    activeAssignmentSubmission?.fileUrl && canInlinePreview(activeAssignmentSubmission.fileName) ? (
                       <iframe
                         title={activeAssignmentSubmission.fileName}
                         src={activeAssignmentSubmission.fileUrl}
@@ -721,11 +740,12 @@ export const GradingWorkspace: React.FC = () => {
                     ) : (
                       <div className="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
                         <FileText className="mb-3 h-10 w-10 text-slate-400" />
-                        <h4 className="text-sm font-bold text-slate-700">Belum ada PDF tugas</h4>
-                        <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">PDF akan tampil setelah mahasiswa mengunggahnya dan penyimpanan berhasil tersinkron ke Supabase.</p>
+                        <h4 className="text-sm font-bold text-slate-700">{activeAssignmentSubmission?.fileUrl ? 'File tugas siap diakses' : 'Belum ada file tugas'}</h4>
+                        <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">{activeAssignmentSubmission?.fileUrl ? 'Format ini tidak dapat dipratinjau langsung. Unduh file dari Supabase Storage untuk memeriksanya.' : 'File akan tampil setelah mahasiswa mengunggahnya.'}</p>
+                        {activeAssignmentSubmission?.fileUrl && <a href={activeAssignmentSubmission.fileUrl} target="_blank" rel="noreferrer" download={activeAssignmentSubmission.fileName} className="mt-3 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-teal-700">Unduh File Tugas</a>}
                       </div>
                     )
-                  ) : reportSubmission?.fileUrl ? (
+                  ) : reportSubmission?.fileUrl && canInlinePreview(reportSubmission.fileName) ? (
                     <iframe
                       title={reportSubmission.fileName}
                       src={reportSubmission.fileUrl}
@@ -734,8 +754,9 @@ export const GradingWorkspace: React.FC = () => {
                   ) : (
                     <div className="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
                       <FileText className="mb-3 h-10 w-10 text-slate-400" />
-                      <h4 className="text-sm font-bold text-slate-700">Belum ada PDF laporan</h4>
-                      <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">PDF laporan akan tampil setelah mahasiswa mengunggah berkas laporan yang tersimpan di Supabase.</p>
+                      <h4 className="text-sm font-bold text-slate-700">{reportSubmission?.fileUrl ? 'File laporan siap diakses' : 'Belum ada file laporan'}</h4>
+                      <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">{reportSubmission?.fileUrl ? 'Format ini tidak dapat dipratinjau langsung. Unduh file dari Supabase Storage untuk memeriksanya.' : 'File akan tampil setelah mahasiswa mengunggahnya.'}</p>
+                      {reportSubmission?.fileUrl && <a href={reportSubmission.fileUrl} target="_blank" rel="noreferrer" download={reportSubmission.fileName} className="mt-3 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700">Unduh File Laporan</a>}
                     </div>
                   )}
                 </div>
@@ -1291,7 +1312,9 @@ export const GradingWorkspace: React.FC = () => {
                         {postTestSubmission?.fileName || (postTestFileUrl ? 'PDF Post-Test Mahasiswa' : 'Belum ada PDF post-test')}
                       </span>
                       <span className="text-[10px] text-slate-500">
-                        {postTestFileUrl ? `Dokumen PDF post-test${postTestSubmission?.fileSize ? ` • ${postTestSubmission.fileSize}` : ''} tersimpan di Supabase Storage.` : 'Belum ada PDF post-test yang diunggah mahasiswa.'}
+                        {postTestFileUrl
+                          ? `Dokumen PDF post-test${postTestSubmission?.fileSize ? ` • ${postTestSubmission.fileSize}` : ''} • Diunggah: ${postTestSubmission?.submittedAt ? formatWitaDateTime(postTestSubmission.submittedAt) : 'Waktu tidak tersedia'} • tersimpan di Supabase Storage.`
+                          : 'Belum ada PDF post-test yang diunggah mahasiswa.'}
                       </span>
                     </div>
                   </div>

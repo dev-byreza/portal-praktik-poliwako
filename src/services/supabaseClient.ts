@@ -161,13 +161,15 @@ export async function uploadSubmissionPDF(
     studentId: string;
     assignmentId: string;
     submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST' | 'REMEDIAL';
-    allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR';
+    allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY';
   }
 ): Promise<{ storagePath: string | null; publicUrl: string | null; error: Error | null }> {
   // Validate file type
   const allowedType = path.allowedFileType || 'PDF';
   const lowerName = file.name.toLowerCase();
-  const isAllowed = allowedType === 'IMAGE'
+  const isAllowed = allowedType === 'ANY'
+    ? true
+    : allowedType === 'IMAGE'
     ? file.type.startsWith('image/') || /\.(jpe?g|png|webp|gif)$/i.test(lowerName)
     : lowerName.endsWith(`.${allowedType.toLowerCase()}`);
   if (!isAllowed) {
@@ -200,12 +202,25 @@ export async function uploadSubmissionPDF(
   }
 
   try {
+    // Browsers report different MIME values for ZIP/RAR files. Normalize the
+    // value so Supabase Storage accepts the upload consistently and the
+    // instructor can open the same object later using its signed URL.
+    const contentType = allowedType === 'ANY'
+      ? (file.type || 'application/octet-stream')
+      : allowedType === 'PDF'
+      ? 'application/pdf'
+      : allowedType === 'IMAGE'
+        ? (file.type || 'image/*')
+        : allowedType === 'ZIP'
+          ? 'application/zip'
+          : 'application/vnd.rar';
+
     const { error: uploadError } = await supabase.storage
       .from('submissions')
       .upload(filePath, file, {
         cacheControl: '3600',
         upsert: true,
-        contentType: file.type || 'application/octet-stream',
+        contentType,
       });
 
     if (uploadError) throw uploadError;
