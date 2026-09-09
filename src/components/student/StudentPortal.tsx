@@ -115,8 +115,11 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
   const isCurrentCourseEnrolled = Boolean(currentCourse && enrolledCourseIds.has(currentCourse.id));
 
   // Active period
-  const activePeriod = periods.find(p => p.courseId === currentCourse?.id && p.status === 'ACTIVE') ||
-                       periods.find(p => p.courseId === currentCourse?.id);
+  const activePeriod = (studentSession?.periodId
+    ? periods.find(p => p.id === studentSession.periodId && p.courseId === currentCourse?.id)
+    : undefined)
+    || periods.find(p => p.courseId === currentCourse?.id && p.status === 'ACTIVE')
+    || periods.find(p => p.courseId === currentCourse?.id);
 
   // Units for this period
   const periodUnits = useMemo(() => {

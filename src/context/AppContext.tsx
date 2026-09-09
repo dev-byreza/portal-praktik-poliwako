@@ -77,6 +77,7 @@ interface AppContextType {
     exists: boolean;
     student?: Student;
     isEnrolled: boolean;
+    periodId?: string;
     hasCreatedPassword: boolean;
     message?: string;
   };
@@ -491,6 +492,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return {
         exists: false,
         isEnrolled: false,
+        periodId: undefined,
         hasCreatedPassword: false,
         message: 'Silakan masukkan NIM Anda.'
       };
@@ -501,20 +503,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return {
         exists: false,
         isEnrolled: false,
+        periodId: undefined,
         hasCreatedPassword: false,
         message: `NIM "${nim.trim()}" tidak terdaftar dalam pangkalan data mahasiswa Politeknik Sorowako.`
       };
     }
 
-    const isEnrolled = periodId ? participants.some(p => p.periodId === periodId && p.studentId === std.id) : true;
+    const course = courseSlug ? courses.find(item => item.slug === courseSlug) : undefined;
+    const coursePeriodIds = new Set(
+      periods.filter(period => !course || period.courseId === course.id).map(period => period.id)
+    );
+    const enrolledPeriodIds = participants
+      .filter(participant => participant.studentId === std.id && coursePeriodIds.has(participant.periodId))
+      .map(participant => participant.periodId);
+    const selectedPeriodIsEnrolled = periodId ? enrolledPeriodIds.includes(periodId) : false;
+    const preferredPeriod = periods.find(period => selectedPeriodIsEnrolled && period.id === periodId)
+      || periods.find(period => enrolledPeriodIds.includes(period.id) && period.status === 'ACTIVE')
+      || periods.find(period => enrolledPeriodIds.includes(period.id));
+    const isEnrolled = enrolledPeriodIds.length > 0;
     const hasCreatedPassword = Boolean(std.hasCreatedPassword || (std.password && std.password.length > 0));
 
     return {
       exists: true,
       student: std,
       isEnrolled,
+      periodId: preferredPeriod?.id,
       hasCreatedPassword,
-      message: undefined
+      message: isEnrolled ? undefined : 'Mahasiswa belum terdaftar pada mata kuliah atau periode praktik ini.'
     };
   };
 

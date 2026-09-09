@@ -45,6 +45,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   const [step, setStep] = useState<'NIM' | 'CREATE_PASSWORD' | 'LOGIN_PASSWORD'>('NIM');
   const [nimInput, setNimInput] = useState('');
   const [targetStudent, setTargetStudent] = useState<Student | null>(null);
+  const [targetPeriodId, setTargetPeriodId] = useState<string>('');
 
   // Form states for password
   const [passwordInput, setPasswordInput] = useState('');
@@ -74,12 +75,13 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
 
     const verification = verifyStudentNim(nim, activeCourse?.slug, activePeriod?.id);
 
-    if (!verification.exists || !verification.student) {
+    if (!verification.exists || !verification.student || !verification.isEnrolled) {
       setErrorMessage(verification.message || `NIM "${nim}" tidak terdaftar dalam pangkalan data mahasiswa Politeknik Sorowako.`);
       return;
     }
 
     setTargetStudent(verification.student);
+    setTargetPeriodId(verification.periodId || activePeriod?.id || '');
     setPasswordInput('');
     setConfirmPasswordInput('');
     setErrorMessage(null);
@@ -114,7 +116,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
         targetStudent.id,
         passwordInput,
         activeCourse?.slug || courseSlug,
-        activePeriod?.id || ''
+        targetPeriodId || activePeriod?.id || ''
       );
 
       if (result.success) {
@@ -148,7 +150,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
         targetStudent.nim,
         passwordInput,
         activeCourse?.slug || courseSlug,
-        activePeriod?.id || ''
+        targetPeriodId || activePeriod?.id || ''
       );
 
       if (result.success) {
