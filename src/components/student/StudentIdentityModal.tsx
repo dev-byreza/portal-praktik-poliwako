@@ -88,6 +88,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
       setTargetStudent(verification.student);
       setTargetPeriodId(verification.periodId || activePeriod?.id || '');
       setTargetCourseSlug(
+        verification.courseSlug ||
         (verification.periodId && periods.find(period => period.id === verification.periodId)
           ? courses.find(course => course.id === periods.find(period => period.id === verification.periodId)?.courseId)?.slug
           : undefined) || courseSlug || ''

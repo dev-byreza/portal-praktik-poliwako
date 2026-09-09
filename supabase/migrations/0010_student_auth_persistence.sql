@@ -18,6 +18,7 @@ AS $$
 DECLARE
   v_student public.students%ROWTYPE;
   v_period_id UUID;
+  v_course_slug TEXT;
   v_has_enrollment BOOLEAN := FALSE;
 BEGIN
   SELECT * INTO v_student
@@ -34,7 +35,7 @@ BEGIN
     );
   END IF;
 
-  SELECT pp.period_id INTO v_period_id
+  SELECT pp.period_id, c.slug INTO v_period_id, v_course_slug
   FROM public.practice_participants pp
   JOIN public.practice_periods p ON p.id = pp.period_id
   JOIN public.courses c ON c.id = p.course_id
@@ -51,6 +52,7 @@ BEGIN
     'exists', TRUE,
     'isEnrolled', v_has_enrollment,
     'periodId', v_period_id,
+    'courseSlug', v_course_slug,
     'hasCreatedPassword', coalesce(v_student.password_hash, '') <> '',
     'student', jsonb_build_object(
       'id', v_student.id,

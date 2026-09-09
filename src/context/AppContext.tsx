@@ -78,6 +78,7 @@ interface AppContextType {
     student?: Student;
     isEnrolled: boolean;
     periodId?: string;
+    courseSlug?: string;
     hasCreatedPassword: boolean;
     message?: string;
   }>;

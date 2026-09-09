@@ -292,6 +292,7 @@ export class ApiService {
     exists: boolean;
     isEnrolled: boolean;
     periodId?: string;
+    courseSlug?: string;
     hasCreatedPassword: boolean;
     student?: Student;
     message?: string;
@@ -311,6 +312,7 @@ export class ApiService {
       exists: Boolean(result.exists),
       isEnrolled: Boolean(result.isEnrolled),
       periodId: result.periodId || undefined,
+      courseSlug: result.courseSlug || undefined,
       hasCreatedPassword: Boolean(result.hasCreatedPassword),
       student: rawStudent ? {
         id: rawStudent.id,
