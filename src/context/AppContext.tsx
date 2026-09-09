@@ -73,22 +73,22 @@ interface AppContextType {
   // Student Session & Authentication
   studentSession: { studentId: string; courseSlug: string; periodId: string } | null;
   currentStudent: Student | null;
-  verifyStudentNim: (nim: string, courseSlug?: string, periodId?: string) => {
+  verifyStudentNim: (nim: string, courseSlug?: string, periodId?: string) => Promise<{
     exists: boolean;
     student?: Student;
     isEnrolled: boolean;
     periodId?: string;
     hasCreatedPassword: boolean;
     message?: string;
-  };
-  createStudentPassword: (studentId: string, password: string, courseSlug: string, periodId: string) => {
+  }>;
+  createStudentPassword: (studentId: string, password: string, courseSlug: string, periodId: string, nim?: string) => Promise<{
     success: boolean;
     message: string;
-  };
-  loginStudentWithPassword: (nim: string, password: string, courseSlug: string, periodId: string) => {
+  }>;
+  loginStudentWithPassword: (nim: string, password: string, courseSlug: string, periodId: string) => Promise<{
     success: boolean;
     message: string;
-  };
+  }>;
   resetStudentPassword: (studentId: string) => void;
   setStudentIdentity: (studentId: string, courseSlug: string, periodId: string) => void;
   clearStudentIdentity: () => void;
@@ -486,7 +486,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 
   // Student Authentication & Identity Handlers
-  const verifyStudentNim = (nim: string, courseSlug?: string, periodId?: string) => {
+  const verifyStudentNim = async (nim: string, courseSlug?: string, periodId?: string) => {
     const cleanNim = nim.trim().toLowerCase();
     if (!cleanNim) {
       return {
@@ -496,6 +496,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         hasCreatedPassword: false,
         message: 'Silakan masukkan NIM Anda.'
       };
+    }
+
+    if (isLiveBackend) {
+      try {
+        const remote = await ApiService.studentAuthLookup(cleanNim, courseSlug, periodId);
+        const remoteStudent = remote.student;
+        if (remoteStudent) {
+          setStudents(previous => [
+            ...previous.filter(student => student.id !== remoteStudent.id),
+            { ...remoteStudent, hasCreatedPassword: remote.hasCreatedPassword },
+          ]);
+        }
+        return remote;
+      } catch (error) {
+        console.error('Student authentication lookup failed:', error);
+        return {
+          exists: false,
+          isEnrolled: false,
+          periodId: undefined,
+          hasCreatedPassword: false,
+          message: 'Data mahasiswa belum dapat diverifikasi ke Supabase. Coba lagi.'
+        };
+      }
     }
 
     const std = students.find(s => s.nim.toLowerCase() === cleanNim);
@@ -533,13 +556,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   };
 
-  const createStudentPassword = (studentId: string, password: string, courseSlug: string, periodId: string) => {
+  const createStudentPassword = async (studentId: string, password: string, courseSlug: string, periodId: string, nim?: string) => {
     const std = students.find(s => s.id === studentId);
     if (!std) {
       return { success: false, message: 'Data mahasiswa tidak ditemukan.' };
     }
     if (!password || password.trim().length < 4) {
       return { success: false, message: 'Password harus minimal 4 karakter.' };
+    }
+
+    if (isLiveBackend) {
+      try {
+        const result = await ApiService.studentAuthSetPassword(studentId, nim || std.nim, password, courseSlug, periodId);
+        if (!result.success) return { success: false, message: result.message };
+        const remoteStudent = result.student || std;
+        const updatedStudent = { ...remoteStudent, hasCreatedPassword: true };
+        setStudents(previous => [
+          ...previous.filter(student => student.id !== updatedStudent.id),
+          updatedStudent,
+        ]);
+        const session = { studentId: updatedStudent.id, courseSlug, periodId: result.periodId || periodId };
+        setStudentSessionState(session);
+        StorageService.setStudentSession(session);
+        setRole('STUDENT');
+        showToast('Aktivasi Berhasil', `Password berhasil dibuat! Selamat datang, ${updatedStudent.name}.`, 'success');
+        return { success: true, message: result.message };
+      } catch (error: any) {
+        console.error('Student password persistence failed:', error);
+        return { success: false, message: 'Password belum tersimpan ke Supabase. Coba lagi.' };
+      }
     }
 
     const trimmedPassword = password.trim();
@@ -563,8 +608,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { success: true, message: 'Password berhasil dibuat dan sesi aktif.' };
   };
 
-  const loginStudentWithPassword = (nim: string, password: string, courseSlug: string, periodId: string) => {
+  const loginStudentWithPassword = async (nim: string, password: string, courseSlug: string, periodId: string) => {
     const cleanNim = nim.trim().toLowerCase();
+
+    if (isLiveBackend) {
+      try {
+        const result = await ApiService.studentAuthLogin(cleanNim, password, courseSlug, periodId);
+        if (!result.success || !result.student) return { success: false, message: result.message };
+        const remoteStudent = { ...result.student, hasCreatedPassword: true };
+        setStudents(previous => [
+          ...previous.filter(student => student.id !== remoteStudent.id),
+          remoteStudent,
+        ]);
+        const session = { studentId: remoteStudent.id, courseSlug, periodId: result.periodId || periodId };
+        setStudentSessionState(session);
+        StorageService.setStudentSession(session);
+        setRole('STUDENT');
+        showToast('Login Berhasil', `Selamat datang kembali, ${remoteStudent.name}!`, 'success');
+        return { success: true, message: result.message };
+      } catch (error: any) {
+        console.error('Student password login failed:', error);
+        return { success: false, message: 'Login belum dapat diverifikasi ke Supabase. Coba lagi.' };
+      }
+    }
+
     const std = students.find(s => s.nim.toLowerCase() === cleanNim);
     if (!std) {
       return { success: false, message: `NIM "${nim.trim()}" tidak ditemukan.` };

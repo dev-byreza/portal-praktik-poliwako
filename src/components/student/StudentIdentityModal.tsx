@@ -64,7 +64,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   if (!isOpen && !isEmbedded) return null;
 
   // Step 1: Verify NIM
-  const handleVerifyNim = (nimToTest?: string) => {
+  const handleVerifyNim = async (nimToTest?: string) => {
     const nim = (nimToTest || nimInput).trim();
     setErrorMessage(null);
 
@@ -73,28 +73,33 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
       return;
     }
 
-    const verification = verifyStudentNim(nim, activeCourse?.slug, activePeriod?.id);
+    setIsSubmitting(true);
+    try {
+      const verification = await verifyStudentNim(nim, activeCourse?.slug || courseSlug, activePeriod?.id);
 
-    if (!verification.exists || !verification.student || !verification.isEnrolled) {
-      setErrorMessage(verification.message || `NIM "${nim}" tidak terdaftar dalam pangkalan data mahasiswa Politeknik Sorowako.`);
-      return;
-    }
+      if (!verification.exists || !verification.student || !verification.isEnrolled) {
+        setErrorMessage(verification.message || `NIM "${nim}" tidak terdaftar dalam pangkalan data mahasiswa Politeknik Sorowako.`);
+        return;
+      }
 
-    setTargetStudent(verification.student);
-    setTargetPeriodId(verification.periodId || activePeriod?.id || '');
-    setPasswordInput('');
-    setConfirmPasswordInput('');
-    setErrorMessage(null);
+      setTargetStudent(verification.student);
+      setTargetPeriodId(verification.periodId || activePeriod?.id || '');
+      setPasswordInput('');
+      setConfirmPasswordInput('');
+      setErrorMessage(null);
 
-    if (verification.hasCreatedPassword) {
-      setStep('LOGIN_PASSWORD');
-    } else {
-      setStep('CREATE_PASSWORD');
+      if (verification.hasCreatedPassword) {
+        setStep('LOGIN_PASSWORD');
+      } else {
+        setStep('CREATE_PASSWORD');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   // Step 2A: Create Password for First-time user
-  const handleCreatePassword = (e: React.FormEvent) => {
+  const handleCreatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetStudent) return;
 
@@ -112,11 +117,12 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      const result = createStudentPassword(
+      const result = await createStudentPassword(
         targetStudent.id,
         passwordInput,
         activeCourse?.slug || courseSlug,
-        targetPeriodId || activePeriod?.id || ''
+        targetPeriodId || activePeriod?.id || '',
+        targetStudent.nim
       );
 
       if (result.success) {
@@ -133,7 +139,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   };
 
   // Step 2B: Login with Password for returning user
-  const handleLoginPassword = (e: React.FormEvent) => {
+  const handleLoginPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetStudent) return;
 
@@ -146,7 +152,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      const result = loginStudentWithPassword(
+      const result = await loginStudentWithPassword(
         targetStudent.nim,
         passwordInput,
         activeCourse?.slug || courseSlug,

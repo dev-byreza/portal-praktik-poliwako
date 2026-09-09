@@ -285,6 +285,112 @@ export class ApiService {
     }
   }
 
+  // NIM-based student authentication is handled by restricted database RPCs.
+  // The RPCs return only the student's public identity and never expose the
+  // stored password hash to the browser.
+  static async studentAuthLookup(nim: string, courseSlug?: string, periodId?: string): Promise<{
+    exists: boolean;
+    isEnrolled: boolean;
+    periodId?: string;
+    hasCreatedPassword: boolean;
+    student?: Student;
+    message?: string;
+  }> {
+    if (!this.isLiveBackend() || !supabase) {
+      return { exists: false, isEnrolled: false, hasCreatedPassword: false, message: 'Backend Supabase belum terhubung.' };
+    }
+    const { data, error } = await supabase.rpc('student_auth_lookup', {
+      p_nim: nim,
+      p_course_slug: courseSlug || null,
+      p_period_id: periodId || null,
+    });
+    if (error) throw error;
+    const result = data || {};
+    const rawStudent = result.student;
+    return {
+      exists: Boolean(result.exists),
+      isEnrolled: Boolean(result.isEnrolled),
+      periodId: result.periodId || undefined,
+      hasCreatedPassword: Boolean(result.hasCreatedPassword),
+      student: rawStudent ? {
+        id: rawStudent.id,
+        nim: rawStudent.nim,
+        name: rawStudent.name,
+        className: rawStudent.className,
+        email: rawStudent.email || undefined,
+        createdAt: rawStudent.createdAt || new Date().toISOString(),
+      } : undefined,
+      message: result.message || undefined,
+    };
+  }
+
+  static async studentAuthSetPassword(studentId: string, nim: string, password: string, courseSlug: string, periodId: string): Promise<{
+    success: boolean;
+    message: string;
+    periodId?: string;
+    student?: Student;
+  }> {
+    if (!this.isLiveBackend() || !supabase) {
+      return { success: false, message: 'Backend Supabase belum terhubung.' };
+    }
+    const { data, error } = await supabase.rpc('student_auth_set_password', {
+      p_student_id: studentId,
+      p_nim: nim,
+      p_password: password,
+      p_course_slug: courseSlug,
+      p_period_id: periodId,
+    });
+    if (error) throw error;
+    const result = data || {};
+    const rawStudent = result.student;
+    return {
+      success: Boolean(result.success),
+      message: result.message || (result.success ? 'Password berhasil disimpan.' : 'Password gagal disimpan.'),
+      periodId: result.periodId || undefined,
+      student: rawStudent ? {
+        id: rawStudent.id,
+        nim: rawStudent.nim,
+        name: rawStudent.name,
+        className: rawStudent.className,
+        email: rawStudent.email || undefined,
+        createdAt: rawStudent.createdAt || new Date().toISOString(),
+      } : undefined,
+    };
+  }
+
+  static async studentAuthLogin(nim: string, password: string, courseSlug: string, periodId: string): Promise<{
+    success: boolean;
+    message: string;
+    periodId?: string;
+    student?: Student;
+  }> {
+    if (!this.isLiveBackend() || !supabase) {
+      return { success: false, message: 'Backend Supabase belum terhubung.' };
+    }
+    const { data, error } = await supabase.rpc('student_auth_login', {
+      p_nim: nim,
+      p_password: password,
+      p_course_slug: courseSlug,
+      p_period_id: periodId,
+    });
+    if (error) throw error;
+    const result = data || {};
+    const rawStudent = result.student;
+    return {
+      success: Boolean(result.success),
+      message: result.message || (result.success ? 'Login berhasil.' : 'Login gagal.'),
+      periodId: result.periodId || undefined,
+      student: rawStudent ? {
+        id: rawStudent.id,
+        nim: rawStudent.nim,
+        name: rawStudent.name,
+        className: rawStudent.className,
+        email: rawStudent.email || undefined,
+        createdAt: rawStudent.createdAt || new Date().toISOString(),
+      } : undefined,
+    };
+  }
+
   static async saveStudent(student: Student, instructorId?: string): Promise<void> {
     const list = StorageService.getStudents().filter((s) => s.id !== student.id);
     StorageService.saveStudents([...list, student]);
