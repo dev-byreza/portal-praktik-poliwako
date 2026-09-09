@@ -24,7 +24,7 @@ import { getProdiFromClass } from '../../utils/academicUtils';
 interface StudentIdentityModalProps {
   isOpen?: boolean;
   onClose?: () => void;
-  courseSlug: string;
+  courseSlug?: string;
   isEmbedded?: boolean; // When rendered directly inside StudentPortal as a gate
 }
 
@@ -46,6 +46,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   const [nimInput, setNimInput] = useState('');
   const [targetStudent, setTargetStudent] = useState<Student | null>(null);
   const [targetPeriodId, setTargetPeriodId] = useState<string>('');
+  const [targetCourseSlug, setTargetCourseSlug] = useState<string>('');
 
   // Form states for password
   const [passwordInput, setPasswordInput] = useState('');
@@ -57,9 +58,11 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const activeCourse = courses.find(c => c.slug === courseSlug) || courses[0];
-  const activePeriod = periods.find(p => p.courseId === activeCourse?.id && p.status === 'ACTIVE') ||
-                       periods.find(p => p.courseId === activeCourse?.id);
+  const activeCourse = courseSlug ? courses.find(c => c.slug === courseSlug) : undefined;
+  const activePeriod = activeCourse
+    ? periods.find(p => p.courseId === activeCourse.id && p.status === 'ACTIVE') ||
+      periods.find(p => p.courseId === activeCourse.id)
+    : undefined;
 
   if (!isOpen && !isEmbedded) return null;
 
@@ -75,7 +78,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      const verification = await verifyStudentNim(nim, activeCourse?.slug || courseSlug, activePeriod?.id);
+      const verification = await verifyStudentNim(nim, courseSlug, activePeriod?.id);
 
       if (!verification.exists || !verification.student || !verification.isEnrolled) {
         setErrorMessage(verification.message || `NIM "${nim}" tidak terdaftar dalam pangkalan data mahasiswa Politeknik Sorowako.`);
@@ -84,6 +87,11 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
 
       setTargetStudent(verification.student);
       setTargetPeriodId(verification.periodId || activePeriod?.id || '');
+      setTargetCourseSlug(
+        (verification.periodId && periods.find(period => period.id === verification.periodId)
+          ? courses.find(course => course.id === periods.find(period => period.id === verification.periodId)?.courseId)?.slug
+          : undefined) || courseSlug || ''
+      );
       setPasswordInput('');
       setConfirmPasswordInput('');
       setErrorMessage(null);
@@ -120,7 +128,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
       const result = await createStudentPassword(
         targetStudent.id,
         passwordInput,
-        activeCourse?.slug || courseSlug,
+        targetCourseSlug || courseSlug || '',
         targetPeriodId || activePeriod?.id || '',
         targetStudent.nim
       );
@@ -155,7 +163,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
       const result = await loginStudentWithPassword(
         targetStudent.nim,
         passwordInput,
-        activeCourse?.slug || courseSlug,
+        targetCourseSlug || courseSlug || '',
         targetPeriodId || activePeriod?.id || ''
       );
 
@@ -206,10 +214,12 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
           <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
             {step === 'CREATE_PASSWORD' ? 'Aktivasi Akun Mahasiswa' : step === 'LOGIN_PASSWORD' ? 'Login Mahasiswa' : 'Portal Praktik Mahasiswa'}
           </h2>
-          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-[11px] font-bold text-cyan-300 mx-auto mt-1.5 shadow-xs">
-            <Sparkles className="w-3 h-3 text-cyan-400" />
-            <span>{activeCourse?.name}</span>
-          </div>
+          {activeCourse?.name && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-[11px] font-bold text-cyan-300 mx-auto mt-1.5 shadow-xs">
+              <Sparkles className="w-3 h-3 text-cyan-400" />
+              <span>{activeCourse.name}</span>
+            </div>
+          )}
         </div>
 
         {/* Error Alert Box */}
