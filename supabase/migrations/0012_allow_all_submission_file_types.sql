@@ -1,4 +1,4 @@
--- Assignments can explicitly accept any file format. The 25 MB bucket limit
+-- Assignments can explicitly accept any file format. The 50 MB bucket limit
 -- remains in force while MIME and extension filtering are delegated to the
 -- assignment configuration in the application.
 UPDATE storage.buckets

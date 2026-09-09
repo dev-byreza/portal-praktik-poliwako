@@ -710,7 +710,7 @@ export const LearningContentStudio: React.FC = () => {
                       onClick={() => {
                         setEditingAssignment(null);
                         setAssignTitle(`Tugas Unit ${activeSelectedUnit.unitNumber}: Judul Laporan`);
-                        setAssignDesc('Upload dokumen tugas sesuai format yang diizinkan (Maks. 25 MB).');
+                        setAssignDesc('Upload dokumen tugas sesuai format yang diizinkan (Maks. 50 MB).');
                         setAssignAllowedFileType('PDF');
                         setAssignSubmissionType('REPORT');
                         setAssignCountdownEnabled(false);
@@ -1099,7 +1099,7 @@ export const LearningContentStudio: React.FC = () => {
                   <option value="RAR">Arsip RAR (.rar)</option>
                   <option value="ANY">ALL FILES (Semua jenis file)</option>
                 </select>
-                <p className="mt-1 text-[10px] text-slate-500">Mahasiswa hanya dapat mengunggah format yang dipilih (maksimal 25 MB).</p>
+                <p className="mt-1 text-[10px] text-slate-500">Mahasiswa hanya dapat mengunggah format yang dipilih (maksimal 50 MB).</p>
               </div>
 
               <div>

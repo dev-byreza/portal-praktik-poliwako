@@ -503,13 +503,13 @@ CREATE POLICY "Audit logs viewable by instructors" ON public.audit_logs FOR SELE
 
 -- ====================================================================
 -- SUPABASE STORAGE CONFIGURATION
--- Buckets: 'submissions' (Private, PDF only) & 'materials' (Public Read)
+-- Buckets: 'submissions' (Private, all formats, max 50 MB) & 'materials' (Public Read)
 -- ====================================================================
 
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES 
   -- NULL allowed_mime_types means the bucket accepts every file MIME type.
-  ('submissions', 'submissions', FALSE, 26214400, NULL),
+  ('submissions', 'submissions', FALSE, 52428800, NULL),
   ('materials', 'materials', TRUE, 52428800, NULL)
 ON CONFLICT (id) DO NOTHING;
 

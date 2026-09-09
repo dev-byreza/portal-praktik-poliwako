@@ -181,12 +181,12 @@ export async function uploadSubmissionPDF(
     };
   }
 
-  // Max 25 MB
-  if (file.size > 25 * 1024 * 1024) {
+  // Max 50 MB (matches the Supabase submissions bucket limit)
+  if (file.size > 50 * 1024 * 1024) {
     return {
       storagePath: null,
       publicUrl: null,
-      error: new Error('Ukuran file melebihi batas maksimal 25MB.'),
+      error: new Error('Ukuran file melebihi batas maksimal 50MB.'),
     };
   }
 

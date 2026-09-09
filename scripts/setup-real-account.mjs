@@ -74,10 +74,10 @@ async function main() {
   try {
     await supabase.storage.createBucket('submissions', {
       public: false,
-      fileSizeLimit: 26214400,
-      allowedMimeTypes: ['application/pdf'],
+      fileSizeLimit: 52428800,
+      allowedMimeTypes: null,
     });
-    console.log('Bucket "submissions" (Private, PDF only) siap.');
+    console.log('Bucket "submissions" (Private, semua format, max 50MB) siap.');
   } catch (e) {
     console.log('Bucket "submissions" sudah ada.');
   }

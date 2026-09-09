@@ -109,19 +109,19 @@ END $$;
 -- PRD Reference: Section 42, 43, 83 (Internal PDF Submission Only)
 -- ====================================================================
 
--- Bucket 'submissions' untuk pengumpulan tugas mahasiswa (Private, PDF-only, max 25MB)
+-- Bucket 'submissions' untuk pengumpulan tugas mahasiswa (Private, semua format, max 50MB)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
     'submissions',
     'submissions',
     FALSE,
-    26214400, -- 25MB
-    ARRAY['application/pdf']
+    52428800, -- 50MB
+    NULL
 )
 ON CONFLICT (id) DO UPDATE SET
     public = FALSE,
-    file_size_limit = 26214400,
-    allowed_mime_types = ARRAY['application/pdf'];
+    file_size_limit = 52428800,
+    allowed_mime_types = NULL;
 
 -- Bucket 'materials' untuk materi kuliah dan instruksi (Public-read, max 50MB)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -154,20 +154,17 @@ BEGIN
     END IF;
 END $$;
 
--- Mahasiswa dapat mengunggah file tugas PDF ke bucket 'submissions'
+-- Mahasiswa dapat mengunggah semua jenis file tugas ke bucket 'submissions'
 DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_policies 
-        WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Students upload PDF to submissions'
+        WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Students upload files to submissions'
     ) THEN
-        CREATE POLICY "Students upload PDF to submissions"
+        CREATE POLICY "Students upload files to submissions"
         ON storage.objects FOR INSERT
         TO anon, authenticated
-        WITH CHECK (
-            bucket_id = 'submissions' AND 
-            (LOWER(storage.extension(name)) = 'pdf')
-        );
+        WITH CHECK (bucket_id = 'submissions');
     END IF;
 END $$;
 

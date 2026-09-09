@@ -519,25 +519,25 @@ CREATE POLICY "Audit logs viewable by instructors" ON public.audit_logs FOR SELE
 
 -- ====================================================================
 -- SUPABASE STORAGE CONFIGURATION
--- Buckets: 'submissions' (Private, PDF only) & 'materials' (Public Read)
+-- Buckets: 'submissions' (Private, all formats, max 50 MB) & 'materials' (Public Read)
 -- ====================================================================
 
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES 
-  ('submissions', 'submissions', FALSE, 26214400, ARRAY['application/pdf']),
+  ('submissions', 'submissions', FALSE, 52428800, NULL),
   ('materials', 'materials', TRUE, 52428800, NULL)
 ON CONFLICT (id) DO NOTHING;
 
--- Storage RLS: Submissions (Instructor all, Student upload own PDF)
+-- Storage RLS: Submissions (Instructor all, students upload all file types)
 CREATE POLICY "Instructors full access to submissions"
 ON storage.objects FOR ALL
 TO authenticated
 USING (bucket_id = 'submissions');
 
-CREATE POLICY "Students upload PDF to submissions"
+CREATE POLICY "Students upload files to submissions"
 ON storage.objects FOR INSERT
 TO anon, authenticated
-WITH CHECK (bucket_id = 'submissions' AND (LOWER(storage.extension(name)) = 'pdf'));
+WITH CHECK (bucket_id = 'submissions');
 
 CREATE POLICY "Students download own submission via signed URL"
 ON storage.objects FOR SELECT
