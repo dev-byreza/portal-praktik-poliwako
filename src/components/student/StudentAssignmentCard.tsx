@@ -1,6 +1,6 @@
 // Student Assignment & PDF Submission Card
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Assignment, Submission } from '../../types';
 import {
@@ -23,6 +23,27 @@ interface StudentAssignmentCardProps {
 
 type AllowedFileType = 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY';
 
+const parseDeadlineTimestamp = (value: string): number | null => {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const normalized = raw
+    .replace(/\s*WITA\s*$/i, '+08:00')
+    .replace(
+      /^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})(?::(\d{2}))?([+-]\d{2}:\d{2})?$/,
+      (_match, date, time, seconds = '00', timezone = '') => `${date}T${time}:${seconds}${timezone}`
+    );
+  const timestamp = Date.parse(normalized);
+  return Number.isFinite(timestamp) ? timestamp : null;
+};
+
+const formatRemainingTime = (milliseconds: number): string => {
+  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
 const fileRule = (type: AllowedFileType) => {
   switch (type) {
     case 'ANY': return { label: 'ALL FILES', extensions: 'semua format file', accept: undefined };
@@ -43,6 +64,19 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const deadlineTimestamp = useMemo(() => parseDeadlineTimestamp(assignment.deadline), [assignment.deadline]);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (deadlineTimestamp === null) return undefined;
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [deadlineTimestamp]);
+
+  const remainingMilliseconds = deadlineTimestamp === null ? null : deadlineTimestamp - now;
+  const isDeadlinePassed = remainingMilliseconds !== null && remainingMilliseconds <= 0;
+  const isUrgent = remainingMilliseconds !== null && remainingMilliseconds > 0 && remainingMilliseconds <= 5 * 60 * 1000;
 
   const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -117,6 +151,23 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
               <Clock className="w-3.5 h-3.5 shrink-0 mt-px" />
               <span className="leading-tight">Tenggat: {formatDeadline(assignment.deadline)}</span>
             </div>
+            {remainingMilliseconds !== null && (
+              <div
+                className={`mt-2 inline-flex max-w-full items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] sm:text-xs font-bold tabular-nums transition-colors ${
+                  isDeadlinePassed || isUrgent
+                    ? 'border-rose-300 bg-rose-50 text-rose-700'
+                    : 'border-blue-200 bg-blue-50 text-blue-700'
+                } ${isUrgent ? 'animate-pulse' : ''}`}
+                aria-live="polite"
+              >
+                <Clock className="w-3.5 h-3.5 shrink-0" />
+                <span>
+                  {isDeadlinePassed
+                    ? 'Waktu pengumpulan telah berakhir'
+                    : `Sisa waktu: ${formatRemainingTime(remainingMilliseconds)}`}
+                </span>
+              </div>
+            )}
             <p className="text-xs text-slate-400 mt-1">Bobot: {assignment.maxScore} Poin</p>
           </div>
         </div>
