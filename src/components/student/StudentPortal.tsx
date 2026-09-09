@@ -565,11 +565,11 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
       {/* Main Workspace Layout (PRD Section 68) */}
       <div className="flex-1 min-h-0 w-full px-4 sm:px-6 lg:px-8 py-3.5 overflow-hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 h-full min-h-0">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-4 h-full min-h-0">
           
           {/* Left Column: Course Outline / Navigation Sidebar */}
           {isOutlineOpen && (
-            <div className="lg:col-span-4 xl:col-span-3 h-full min-h-0 flex flex-col transition-all">
+            <div className="lg:col-span-3 xl:col-span-2 h-full min-h-0 flex flex-col transition-all">
             
             {/* Outline Card */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full min-h-0">
@@ -707,7 +707,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
         )}
 
           {/* Right Column: Main Content Area with Flexible / Sticky Header */}
-          <div className={`${isOutlineOpen ? 'lg:col-span-8 xl:col-span-9' : 'col-span-12'} h-full min-h-0 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all`}>
+          <div className={`${isOutlineOpen ? 'lg:col-span-9 xl:col-span-10' : 'col-span-12'} h-full min-h-0 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all`}>
             
             {/* Flexible / Sticky Top Header Bar (Course Outline Toggle + Previous/Next) */}
             <div className="bg-white border-b border-slate-200/90 px-4 sm:px-6 py-2.5 flex items-center justify-between shrink-0 z-20 shadow-xs">
@@ -756,8 +756,8 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
             </div>
 
             {/* Scrollable Material Content Area */}
-            <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar p-5 sm:p-7">
-              <div className="max-w-4xl mx-auto w-full space-y-6">
+            <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar p-5 sm:p-7 lg:p-5 xl:p-6">
+              <div className="max-w-4xl lg:max-w-5xl mx-auto w-full space-y-6">
             
                 {/* Identity prompt warning if not logged in */}
                 {!currentStudent && (
