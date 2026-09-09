@@ -27,6 +27,19 @@ import { computeAttendanceStats, calculateWeightedFinalScore, getFeedbackForScor
 import { computePeriodEndDate, computePeriodStatus, getWitaDateString } from '../utils/dateUtils';
 import { getRealtimeWitaDateString, fetchInternetNetworkTime } from '../services/networkTimeService';
 
+const parseAssignmentDeadline = (value: string): number | null => {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const normalized = raw
+    .replace(/\s*WITA\s*$/i, '+08:00')
+    .replace(
+      /^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})(?::(\d{2}))?([+-]\d{2}:\d{2})?$/,
+      (_match, date, time, seconds = '00', timezone = '+08:00') => `${date}T${time}:${seconds}${timezone}`
+    );
+  const timestamp = Date.parse(normalized);
+  return Number.isFinite(timestamp) ? timestamp : null;
+};
+
 interface ToastInfo {
   id: string;
   title: string;
@@ -801,6 +814,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { studentId, periodId } = studentSession;
     const period = periods.find((item) => item.id === periodId);
     if (!period) return { success: false, message: 'Periode praktik tidak ditemukan.' };
+
+    // Re-check the currently synchronized assignment deadline immediately
+    // before uploading. This prevents late submissions even when a student
+    // leaves a file selected while the countdown expires. If the instructor
+    // edits the deadline in Supabase, the updated assignment in state is used.
+    const assignment = learningUnits.find(
+      (unit) => unit.periodId === periodId && unit.assignment?.id === assignmentId
+    )?.assignment;
+    const deadlineTimestamp = assignment ? parseAssignmentDeadline(assignment.deadline) : null;
+    if (deadlineTimestamp !== null && Date.now() >= deadlineTimestamp) {
+      const message = 'Batas waktu pengumpulan sudah berakhir. Tunggu instruktur memperbarui deadline sebelum mengunggah.';
+      showToast('Tenggat Berakhir', message, 'error');
+      return { success: false, message };
+    }
 
     const upload = await uploadSubmissionPDF(file, { courseId: period.courseId, periodId, studentId, assignmentId, submissionType, allowedFileType });
     if (upload.error || !upload.storagePath || !upload.publicUrl) {

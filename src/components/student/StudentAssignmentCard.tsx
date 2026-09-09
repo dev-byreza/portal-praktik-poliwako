@@ -93,6 +93,10 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
   };
 
   const validateAndSetFile = (file: File) => {
+    if (isDeadlinePassed) {
+      showToast('Tenggat Berakhir', 'Batas waktu pengumpulan sudah berakhir. Tunggu instruktur memperbarui deadline.', 'error');
+      return;
+    }
     const allowedType = (assignment.allowedFileType || 'PDF') as AllowedFileType;
     const rule = fileRule(allowedType);
     const lowerName = file.name.toLowerCase();
@@ -117,6 +121,10 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
 
   const handleUpload = async () => {
     if (!selectedFile) return;
+    if (isDeadlinePassed) {
+      showToast('Tenggat Berakhir', 'Batas waktu pengumpulan sudah berakhir. Tunggu instruktur memperbarui deadline.', 'error');
+      return;
+    }
     setIsUploading(true);
     try {
       const result = await submitAssignment(
@@ -206,11 +214,11 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
             </div>
 
             {/* Re-upload Option if period still active */}
-            {!isPeriodExpired && (
+            {!isPeriodExpired && !isDeadlinePassed && (
               <div className="mt-4 pt-3 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500">
                 <span>Ingin memperbarui file tugas?</span>
                 <label className="text-blue-600 hover:text-blue-700 font-semibold cursor-pointer underline">
-                  Ganti File PDF
+                  Ganti File
                   <input
                     type="file"
                     accept={fileRule((assignment.allowedFileType || 'PDF') as AllowedFileType).accept}
@@ -224,7 +232,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
         ) : (
           /* File Upload Dropzone */
           <div>
-            {!isPeriodExpired ? (
+            {!isPeriodExpired && !isDeadlinePassed ? (
               <div>
                 <div
                   onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
@@ -284,7 +292,11 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
             ) : (
               <div className="p-4 bg-amber-50 text-amber-800 rounded-xl border border-amber-200 flex items-start gap-3 text-sm leading-relaxed">
                 <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
-                <span>Periode pengumpulan tugas telah berakhir. Materi masih dapat diakses untuk dipelajari.</span>
+                <span>
+                  {isDeadlinePassed
+                    ? 'Batas waktu pengumpulan tugas telah berakhir. Materi masih dapat diakses untuk dipelajari.'
+                    : 'Periode pengumpulan tugas telah berakhir. Materi masih dapat diakses untuk dipelajari.'}
+                </span>
               </div>
             )}
           </div>
