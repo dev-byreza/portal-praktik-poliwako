@@ -157,8 +157,14 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
   const handleSelectCourse = (slug: string) => {
     const targetCourse = courses.find(c => c.slug === slug);
     if (!targetCourse || !enrolledCourseIds.has(targetCourse.id)) return;
-    const targetPeriod = periods.find(p => p.courseId === targetCourse.id && p.status === 'ACTIVE') ||
-                         periods.find(p => p.courseId === targetCourse.id);
+    const enrolledPeriods = periods.filter(period => period.courseId === targetCourse.id && participants.some(participant =>
+      participant.periodId === period.id && participant.studentId === currentStudent?.id
+    ));
+    const targetPeriod = enrolledPeriods.find(period => period.id === studentSession?.periodId) ||
+                         enrolledPeriods.find(period => period.status === 'ACTIVE') ||
+                         enrolledPeriods[0] ||
+                         periods.find(period => period.courseId === targetCourse.id && period.status === 'ACTIVE') ||
+                         periods.find(period => period.courseId === targetCourse.id);
     setSelectedCourseSlug(slug);
     setIsViewingCatalog(false);
     window.history.pushState(null, '', `/mahasiswa/unit/${slug}`);

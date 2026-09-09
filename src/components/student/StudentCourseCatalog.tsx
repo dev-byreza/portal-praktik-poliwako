@@ -170,9 +170,13 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
             </div>
           )}
           {visibleCourses.map((course) => {
-            // Find active period for this course
-            const activePeriod = periods.find(p => p.courseId === course.id && p.status === 'ACTIVE') ||
-                                 periods.find(p => p.courseId === course.id);
+            // Show the period this student is enrolled in, preferring the
+            // active enrolled period over another period in the same course.
+            const enrolledPeriods = periods.filter(period => period.courseId === course.id && participants.some(participant =>
+              participant.periodId === period.id && participant.studentId === currentStudent?.id
+            ));
+            const activePeriod = enrolledPeriods.find(period => period.status === 'ACTIVE') ||
+                                 enrolledPeriods[0];
 
             const instructorProfile = instructorDirectory[course.instructorId];
 
