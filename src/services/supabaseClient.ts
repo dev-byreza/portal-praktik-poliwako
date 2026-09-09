@@ -162,6 +162,7 @@ export async function uploadSubmissionPDF(
     assignmentId: string;
     submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST' | 'REMEDIAL';
     allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY';
+    replaceStoragePath?: string;
   }
 ): Promise<{ storagePath: string | null; publicUrl: string | null; error: Error | null }> {
   // Validate file type
@@ -189,9 +190,15 @@ export async function uploadSubmissionPDF(
     };
   }
 
-  const safeFileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
   const kind = (path.submissionType || 'ASSIGNMENT').toLowerCase();
-  const filePath = `${path.courseId}/${path.periodId}/${path.studentId}/${kind}/${path.assignmentId}/${safeFileName}`;
+  const storagePrefix = `${path.courseId}/${path.periodId}/${path.studentId}/${kind}/${path.assignmentId}/`;
+  const replacementPath = path.replaceStoragePath?.startsWith(storagePrefix)
+    ? path.replaceStoragePath
+    : undefined;
+  const safeFileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+  // Re-uploads reuse the existing object path, so the old file content is
+  // replaced in Storage instead of leaving an orphaned previous submission.
+  const filePath = replacementPath || `${storagePrefix}${safeFileName}`;
 
   if (!supabase) {
     return {

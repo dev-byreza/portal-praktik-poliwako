@@ -829,14 +829,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return { success: false, message };
     }
 
-    const upload = await uploadSubmissionPDF(file, { courseId: period.courseId, periodId, studentId, assignmentId, submissionType, allowedFileType });
+    const existing = submissions.find((item) => item.assignmentId === assignmentId && item.studentId === studentId && item.periodId === periodId);
+    const upload = await uploadSubmissionPDF(file, {
+      courseId: period.courseId,
+      periodId,
+      studentId,
+      assignmentId,
+      submissionType,
+      allowedFileType,
+      replaceStoragePath: existing?.storagePath,
+    });
     if (upload.error || !upload.storagePath || !upload.publicUrl) {
       const message = upload.error?.message || 'File tidak dapat disimpan ke Supabase Storage.';
       showToast('Unggah Gagal', message, 'error');
       return { success: false, message };
     }
 
-    const existing = submissions.find((item) => item.assignmentId === assignmentId && item.studentId === studentId && item.periodId === periodId);
     const submission: Submission = {
       id: existing?.id || crypto.randomUUID(), assignmentId, studentId, periodId,
       fileName: file.name, fileUrl: upload.publicUrl, fileSize: (file.size / (1024 * 1024)).toFixed(2) + ' MB', submissionType,
