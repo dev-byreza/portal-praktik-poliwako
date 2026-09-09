@@ -41,6 +41,20 @@ import { Badge } from '../common/Badge';
 const canInlinePreview = (fileName?: string): boolean =>
   !!fileName && /\.(pdf|jpe?g|png|webp|gif)$/i.test(fileName);
 
+type AllowedFileType = 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY';
+
+const fileTypeLabel = (fileName?: string, configuredType?: AllowedFileType): string => {
+  if (configuredType) {
+    if (configuredType === 'ANY') return 'Semua File';
+    if (configuredType === 'IMAGE') return 'Gambar';
+    return configuredType;
+  }
+  const match = fileName?.toLowerCase().match(/\.([a-z0-9]+)(?:$|[?#])/);
+  if (!match) return 'File';
+  if (/jpe?g|png|webp|gif|svg/.test(match[1])) return 'Gambar';
+  return match[1].toUpperCase();
+};
+
 export const GradingWorkspace: React.FC = () => {
   const {
     activeCourseId,
@@ -60,11 +74,10 @@ export const GradingWorkspace: React.FC = () => {
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
   const [currentStudentIndex, setCurrentStudentIndex] = useState<number>(0);
   const [pdfZoom, setPdfZoom] = useState<number>(100);
-  const [pdfPage, setPdfPage] = useState<number>(1);
   const [isAutosaving, setIsAutosaving] = useState<boolean>(false);
   const [customFeedback, setCustomFeedback] = useState<string>('');
 
-  // Top Category Tabs Navigation & PDF Preview Visibility
+  // Top Category Tabs Navigation & file preview visibility
   const [activeCategoryTab, setActiveCategoryTab] = useState<'QUALITY' | 'ATTITUDE' | 'CREATIVITY' | 'REPORT' | 'ALL'>('QUALITY');
   const [isPdfOpen, setIsPdfOpen] = useState<boolean>(true);
 
@@ -135,7 +148,8 @@ export const GradingWorkspace: React.FC = () => {
         assignmentTitle: u.assignment!.title,
         description: u.assignment!.description,
         deadline: u.assignment!.deadline,
-        maxScore: u.assignment!.maxScore
+        maxScore: u.assignment!.maxScore,
+        allowedFileType: u.assignment!.allowedFileType
       }));
     }
     // Fallback if no specific assignment exists yet on the units
@@ -148,7 +162,8 @@ export const GradingWorkspace: React.FC = () => {
         assignmentTitle: 'Tugas Praktik / Worksheet Mandiri',
         description: 'Penilaian lembar perhitungan teknis, kalkulasi parameter mesin, job sheet, dan tugas mandiri.',
         deadline: 'Sesuai Jadwal Praktik',
-        maxScore: 100
+        maxScore: 100,
+        allowedFileType: 'ANY' as AllowedFileType
       }
     ];
   }, [periodUnitsWithAssignments]);
@@ -166,7 +181,7 @@ export const GradingWorkspace: React.FC = () => {
     );
   }, [submissions, activeTask, currentParticipant, activeSelectedPeriod]);
 
-  // A report preview must come from an uploaded student PDF. Prefer the
+  // A report preview must come from an uploaded student file. Prefer the
   // explicit submission type, then the assignment label or filename.
   const reportSubmission = useMemo(() => {
     if (!currentParticipant || !activeSelectedPeriod) return undefined;
@@ -398,13 +413,13 @@ export const GradingWorkspace: React.FC = () => {
 
   const handleInspectAssignmentPdf = (assignmentId: string, submission?: Submission, taskTitle?: string) => {
     if (!submission?.fileUrl) {
-      showToast('Berkas Belum Ada', 'Mahasiswa belum mengunggah PDF untuk ' + (taskTitle || 'tugas ini') + '.', 'info');
+      showToast('Berkas Belum Ada', 'Mahasiswa belum mengunggah file untuk ' + (taskTitle || 'tugas ini') + '.', 'info');
       return;
     }
     setIsPdfOpen(true);
     setActiveDocType('ASSIGNMENT');
     setActiveAssignmentId(assignmentId);
-    showToast('Memuat Berkas Tugas', 'PDF asli untuk ' + (taskTitle || 'Tugas Praktik') + ' ditampilkan.', 'info');
+    showToast('Memuat Berkas Tugas', 'File asli untuk ' + (taskTitle || 'Tugas Praktik') + ' ditampilkan.', 'info');
   };
 
   const handlePostTestScoreChange = (score: number) => {
@@ -415,12 +430,12 @@ export const GradingWorkspace: React.FC = () => {
 
   const handleInspectPostTestPdf = () => {
     if (!postTestFileUrl) {
-      showToast('Berkas Belum Ada', 'Mahasiswa belum mengunggah PDF post-test.', 'info');
+      showToast('Berkas Belum Ada', 'Mahasiswa belum mengunggah file post-test.', 'info');
       return;
     }
     setIsPdfOpen(true);
     setActiveDocType('POST_TEST');
-    showToast('Memuat Berkas Post-Test', 'Lembar hasil Post-Test mahasiswa ditampilkan di panel PDF sebelah kiri.', 'info');
+    showToast('Memuat Berkas Post-Test', 'File hasil Post-Test mahasiswa ditampilkan di panel inspeksi.', 'info');
   };
 
   // Handler for Component 4: Laporan (15%)
@@ -441,12 +456,12 @@ export const GradingWorkspace: React.FC = () => {
 
   const handleInspectReportPdf = () => {
     if (!reportSubmission?.fileUrl) {
-      showToast('Berkas Belum Ada', 'Mahasiswa belum mengunggah PDF laporan.', 'info');
+      showToast('Berkas Belum Ada', 'Mahasiswa belum mengunggah file laporan.', 'info');
       return;
     }
     setIsPdfOpen(true);
     setActiveDocType('SUBMISSION');
-    showToast('Memuat Berkas Laporan', 'Dokumen PDF Laporan Praktikum mahasiswa ditampilkan di panel PDF sebelah kiri.', 'info');
+    showToast('Memuat Berkas Laporan', 'File Laporan Praktikum mahasiswa ditampilkan di panel inspeksi.', 'info');
   };
 
   // Handle Level Selection for Sub-CPMK and other rubrics
@@ -537,7 +552,7 @@ export const GradingWorkspace: React.FC = () => {
             </span>
             <span className="text-xs text-slate-400">{activeCourse?.name}</span>
           </div>
-          <h2 className="text-xl font-bold text-slate-900 mt-1">Rubrik Penilaian & PDF Submission Live Inspection</h2>
+          <h2 className="text-xl font-bold text-slate-900 mt-1">Rubrik Penilaian & Submission Live Inspection</h2>
           <p className="text-xs text-slate-500">
             Penilaian split-screen tanpa reload halaman. Skor dihitung otomatis: Kualitas (70%) + Sikap (10%) + Kreativitas (5%) + Laporan (15%).
           </p>
@@ -573,7 +588,7 @@ export const GradingWorkspace: React.FC = () => {
       {currentParticipant ? (
         <div className={`grid gap-6 items-start transition-all duration-300 ${isPdfOpen ? 'grid-cols-1 lg:grid-cols-12' : 'grid-cols-1'}`}>
           
-          {/* Left Pane: PDF Document Previewer (6 cols) */}
+          {/* Left Pane: Uploaded File Previewer (6 cols) */}
           {isPdfOpen && (
             <div className="lg:col-span-6 bg-slate-900 rounded-3xl border border-slate-800 shadow-xl overflow-hidden flex flex-col h-[82vh]">
             
@@ -590,7 +605,7 @@ export const GradingWorkspace: React.FC = () => {
                   }`}
                 >
                   <FileText className="w-3.5 h-3.5" />
-                  <span>Laporan PDF (15%)</span>
+                  <span>Laporan (15%)</span>
                 </button>
                 <button
                   type="button"
@@ -607,7 +622,7 @@ export const GradingWorkspace: React.FC = () => {
                   }`}
                 >
                   <BookOpen className="w-3.5 h-3.5" />
-                  <span>Tugas Modul PDF (15%)</span>
+                  <span>Tugas Modul (15%)</span>
                 </button>
                 <button
                   type="button"
@@ -619,7 +634,7 @@ export const GradingWorkspace: React.FC = () => {
                   }`}
                 >
                   <FileCheck className="w-3.5 h-3.5" />
-                  <span>Post-Test PDF (25%)</span>
+                  <span>Post-Test (25%)</span>
                 </button>
               </div>
 
@@ -628,7 +643,7 @@ export const GradingWorkspace: React.FC = () => {
               </span>
             </div>
 
-            {/* PDF Header & Toolbar */}
+            {/* File Header & Toolbar */}
             <div className="px-5 py-3 bg-slate-800/90 border-b border-slate-700 flex items-center justify-between text-white text-xs">
               <div className="flex items-center gap-2 min-w-0">
                 <FileText className={`w-4 h-4 shrink-0 ${
@@ -640,10 +655,10 @@ export const GradingWorkspace: React.FC = () => {
                 }`} />
                 <span className="font-bold truncate">
                   {activeDocType === 'POST_TEST'
-                    ? (postTestSubmission?.fileName || (postTestFileUrl ? 'PDF Post-Test Mahasiswa' : 'Belum ada PDF post-test'))
+                    ? (postTestSubmission?.fileName || (postTestFileUrl ? 'File Post-Test Mahasiswa' : 'Belum ada file post-test'))
                     : activeDocType === 'ASSIGNMENT'
-                    ? (activeAssignmentSubmission?.fileName || 'Belum ada PDF tugas')
-                    : (reportSubmission?.fileName || 'Belum ada PDF laporan')}
+                    ? (activeAssignmentSubmission?.fileName || 'Belum ada file tugas')
+                    : (reportSubmission?.fileName || 'Belum ada file laporan')}
                 </span>
                 <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider shrink-0 ${
                   activeDocType === 'POST_TEST'
@@ -678,32 +693,14 @@ export const GradingWorkspace: React.FC = () => {
                   </button>
                 </div>
 
-                <div className="flex items-center bg-slate-950/60 rounded-lg p-1 border border-slate-700 text-xs text-slate-300">
-                  <button
-                    disabled={pdfPage <= 1}
-                    onClick={() => setPdfPage(prev => Math.max(prev - 1, 1))}
-                    className="p-1 hover:text-white disabled:opacity-30"
-                  >
-                    <ChevronLeft className="w-3.5 h-3.5" />
-                  </button>
-                  <span className="px-1 text-[10px]">{pdfPage}/3</span>
-                  <button
-                    disabled={pdfPage >= 3}
-                    onClick={() => setPdfPage(prev => Math.min(prev + 1, 3))}
-                    className="p-1 hover:text-white disabled:opacity-30"
-                  >
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
                 <button
                   type="button"
                   onClick={() => setIsPdfOpen(false)}
                   className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 hover:text-rose-100 rounded-lg text-xs font-semibold transition-all border border-rose-500/30 ml-1 cursor-pointer"
-                  title="Tutup & Sembunyikan Preview PDF"
+                  title="Tutup & Sembunyikan Preview File"
                 >
                   <EyeOff className="w-3.5 h-3.5 text-rose-400" />
-                  <span className="hidden sm:inline">Tutup PDF</span>
+                  <span className="hidden sm:inline">Tutup File</span>
                 </button>
               </div>
             </div>
@@ -718,7 +715,7 @@ export const GradingWorkspace: React.FC = () => {
                   {activeDocType === 'POST_TEST' ? (
                     postTestFileUrl && canInlinePreview(postTestSubmission?.fileName) ? (
                       <iframe
-                        title="PDF Post-Test Mahasiswa"
+                        title="File Post-Test Mahasiswa"
                         src={postTestFileUrl}
                         className="h-full min-h-[520px] w-full rounded-xl border border-slate-200 bg-white"
                       />
@@ -762,7 +759,7 @@ export const GradingWorkspace: React.FC = () => {
                 </div>
 
                 <div className="border-t border-slate-200 pt-2 text-[9px] text-slate-400 flex justify-between">
-                  <span>Portal Praktik Poliwako • Halaman {pdfPage} dari 3</span>
+                  <span>Portal Praktik Poliwako • File asli mahasiswa</span>
                   <span>{currentParticipant.student.name}</span>
                 </div>
               </div>
@@ -771,7 +768,7 @@ export const GradingWorkspace: React.FC = () => {
           </div>
           )}
 
-          {/* Right Pane: Student OBE Rubric Grading Form (6 cols when PDF open, full width when PDF closed) */}
+          {/* Right Pane: Student OBE Rubric Grading Form (6 cols when file preview is open, full width when closed) */}
           <div className={`${isPdfOpen ? 'lg:col-span-6' : 'w-full'} bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6 max-h-[82vh] overflow-y-auto transition-all`}>
             
             {/* Student Switcher Bar */}
@@ -788,17 +785,17 @@ export const GradingWorkspace: React.FC = () => {
                 </div>
               </div>
 
-              {/* Student Navigation & PDF Toggle Controls */}
+              {/* Student Navigation & file preview toggle controls */}
               <div className="flex items-center gap-2">
                 {!isPdfOpen && (
                   <button
                     type="button"
                     onClick={() => setIsPdfOpen(true)}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 rounded-xl text-xs font-bold border border-blue-200 transition-all shadow-xs"
-                    title="Buka kembali dokumen preview PDF di sisi kiri"
+                    title="Buka kembali pratinjau file di sisi kiri"
                   >
                     <Eye className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Buka Preview PDF</span>
+                    <span>Buka Preview File</span>
                   </button>
                 )}
 
@@ -1151,11 +1148,11 @@ export const GradingWorkspace: React.FC = () => {
                           {tasksToGrade.length} Tugas Materi
                         </span>
                         <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-800">
-                          File PDF
+                          {tasksToGrade.length === 1 ? fileTypeLabel(tasksToGrade[0].allowedFileType) : 'Format Sesuai Tugas'}
                         </span>
                       </div>
                       <p className="text-[10px] text-slate-500 mt-0.5">
-                        Dihubungkan langsung dari tugas materi praktik dengan verifikasi berkas PDF seperti Post-Test.
+                        Dihubungkan langsung dari tugas materi praktik dengan format file yang ditentukan instruktur.
                       </p>
                     </div>
                   </div>
@@ -1197,7 +1194,7 @@ export const GradingWorkspace: React.FC = () => {
                           </span>
                         </div>
 
-                        {/* PDF File Inspector Box like Post-Test */}
+                        {/* Uploaded File Inspector Box like Post-Test */}
                         <div className="p-3 bg-amber-50/60 border border-amber-200/80 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                           <div className="flex items-center gap-2.5">
                             <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0">
@@ -1205,12 +1202,12 @@ export const GradingWorkspace: React.FC = () => {
                             </div>
                             <div>
                               <span className="text-xs font-bold text-slate-900 block truncate max-w-xs">
-                                {studentSubmission?.fileName || 'Belum ada PDF yang diunggah'}
+                                {studentSubmission?.fileName || 'Belum ada file yang diunggah'}
                               </span>
                               <span className="text-[10px] text-slate-500">
                                 {studentSubmission
-                                  ? `Dokumen PDF Tugas • ${studentSubmission.fileSize} • Diunggah: ${formatWitaDateTime(studentSubmission.submittedAt)}`
-                                  : 'Belum ada PDF yang diunggah mahasiswa.'}
+                                  ? `${fileTypeLabel(studentSubmission.fileName, task.allowedFileType)} Tugas • ${studentSubmission.fileSize} • Diunggah: ${formatWitaDateTime(studentSubmission.submittedAt)}`
+                                  : 'Belum ada file yang diunggah mahasiswa.'}
                               </span>
                             </div>
                           </div>
@@ -1226,7 +1223,7 @@ export const GradingWorkspace: React.FC = () => {
                             }`}
                           >
                             <Eye className="w-3.5 h-3.5" />
-                            <span>{studentSubmission?.fileUrl ? (activeDocType === 'ASSIGNMENT' && activeAssignmentId === task.id ? 'Sedang Ditampilkan' : 'Lihat PDF') : 'Belum Ada PDF'}</span>
+                            <span>{studentSubmission?.fileUrl ? (activeDocType === 'ASSIGNMENT' && activeAssignmentId === task.id ? 'Sedang Ditampilkan' : 'Lihat File') : 'Belum Ada File'}</span>
                           </button>
                         </div>
 
@@ -1269,7 +1266,7 @@ export const GradingWorkspace: React.FC = () => {
               </div>
 
               {/* ----------------------------------------------------------------- */}
-              {/* TURUNAN 4: POST-TEST (25%) - FILE PDF & NILAI */}
+              {/* TURUNAN 4: POST-TEST (25%) - FILE & NILAI */}
               {/* ----------------------------------------------------------------- */}
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3.5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2.5">
@@ -1284,11 +1281,11 @@ export const GradingWorkspace: React.FC = () => {
                           Post-Test Praktik (Bobot 25%)
                         </h5>
                         <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-800">
-                          File PDF
+                          {fileTypeLabel(postTestSubmission?.fileName)}
                         </span>
                       </div>
                       <p className="text-[10px] text-slate-500">
-                        Evaluasi lembar tes akhir praktik / inspection report komprehensif mahasiswa dalam format PDF.
+                        Evaluasi lembar tes akhir praktik / inspection report komprehensif mahasiswa dalam format file yang ditentukan instruktur.
                       </p>
                     </div>
                   </div>
@@ -1301,7 +1298,7 @@ export const GradingWorkspace: React.FC = () => {
                   </div>
                 </div>
 
-                {/* PDF File Inspector Trigger */}
+                {/* Uploaded File Inspector Trigger */}
                 <div className="p-3 bg-amber-50/60 border border-amber-200/80 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0">
@@ -1309,12 +1306,12 @@ export const GradingWorkspace: React.FC = () => {
                     </div>
                     <div>
                       <span className="text-xs font-bold text-slate-900 block truncate max-w-xs">
-                        {postTestSubmission?.fileName || (postTestFileUrl ? 'PDF Post-Test Mahasiswa' : 'Belum ada PDF post-test')}
+                        {postTestSubmission?.fileName || (postTestFileUrl ? 'File Post-Test Mahasiswa' : 'Belum ada file post-test')}
                       </span>
                       <span className="text-[10px] text-slate-500">
                         {postTestFileUrl
-                          ? `Dokumen PDF post-test${postTestSubmission?.fileSize ? ` • ${postTestSubmission.fileSize}` : ''} • Diunggah: ${postTestSubmission?.submittedAt ? formatWitaDateTime(postTestSubmission.submittedAt) : 'Waktu tidak tersedia'} • tersimpan di Supabase Storage.`
-                          : 'Belum ada PDF post-test yang diunggah mahasiswa.'}
+                          ? `${fileTypeLabel(postTestSubmission?.fileName)} post-test${postTestSubmission?.fileSize ? ` • ${postTestSubmission.fileSize}` : ''} • Diunggah: ${postTestSubmission?.submittedAt ? formatWitaDateTime(postTestSubmission.submittedAt) : 'Waktu tidak tersedia'} • tersimpan di Supabase Storage.`
+                          : 'Belum ada file post-test yang diunggah mahasiswa.'}
                       </span>
                     </div>
                   </div>
@@ -1330,7 +1327,7 @@ export const GradingWorkspace: React.FC = () => {
                     }`}
                   >
                     <Eye className="w-3.5 h-3.5" />
-                    <span>{activeDocType === 'POST_TEST' ? 'Sedang Ditampilkan di Kiri' : 'Inspeksi Lembar PDF'}</span>
+                    <span>{activeDocType === 'POST_TEST' ? 'Sedang Ditampilkan di Kiri' : 'Inspeksi File'}</span>
                   </button>
                 </div>
 
@@ -1543,11 +1540,11 @@ export const GradingWorkspace: React.FC = () => {
                           Laporan Praktikum (Bobot 15%)
                         </h5>
                         <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-800">
-                          File PDF
+                          {fileTypeLabel(reportSubmission?.fileName)}
                         </span>
                       </div>
                       <p className="text-[10px] text-slate-500 mt-0.5">
-                        Evaluasi dokumen laporan lengkap praktikum mahasiswa dalam format PDF.
+                        Evaluasi dokumen laporan lengkap praktikum mahasiswa dalam format file yang ditentukan instruktur.
                       </p>
                     </div>
                   </div>
@@ -1560,7 +1557,7 @@ export const GradingWorkspace: React.FC = () => {
                   </div>
                 </div>
 
-                {/* PDF File Inspector Trigger */}
+                {/* Uploaded File Inspector Trigger */}
                 <div className="p-3 bg-amber-50/60 border border-amber-200/80 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0">
@@ -1568,10 +1565,10 @@ export const GradingWorkspace: React.FC = () => {
                     </div>
                     <div>
                       <span className="text-xs font-bold text-slate-900 block truncate max-w-xs">
-                        {reportSubmission?.fileName || 'Belum ada PDF laporan'}
+                        {reportSubmission?.fileName || 'Belum ada file laporan'}
                       </span>
                       <span className="text-[10px] text-slate-500">
-                        {reportSubmission ? `Dokumen PDF laporan • ${reportSubmission.fileSize} • Diunggah: ${formatWitaDateTime(reportSubmission.submittedAt)}` : 'Belum ada PDF laporan yang diunggah mahasiswa.'}
+                        {reportSubmission ? `${fileTypeLabel(reportSubmission.fileName)} laporan • ${reportSubmission.fileSize} • Diunggah: ${formatWitaDateTime(reportSubmission.submittedAt)}` : 'Belum ada file laporan yang diunggah mahasiswa.'}
                       </span>
                     </div>
                   </div>
@@ -1587,7 +1584,7 @@ export const GradingWorkspace: React.FC = () => {
                     }`}
                   >
                     <Eye className="w-3.5 h-3.5" />
-                    <span>{activeDocType === 'SUBMISSION' ? 'Sedang Ditampilkan di Kiri' : 'Inspeksi Lembar PDF'}</span>
+                    <span>{activeDocType === 'SUBMISSION' ? 'Sedang Ditampilkan di Kiri' : 'Inspeksi File'}</span>
                   </button>
                 </div>
 
