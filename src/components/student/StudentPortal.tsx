@@ -575,11 +575,11 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
       {/* Main Workspace Layout (PRD Section 68) */}
       <div className="flex-1 min-h-0 w-full px-4 sm:px-6 lg:px-8 py-3.5 overflow-hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-4 h-full min-h-0">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 h-full min-h-0">
           
           {/* Left Column: Course Outline / Navigation Sidebar */}
           {isOutlineOpen && (
-            <div className="lg:col-span-3 xl:col-span-2 xl:min-w-[340px] h-full min-h-0 flex flex-col transition-all">
+            <div className="lg:col-span-3 xl:col-span-2 h-full min-h-0 flex flex-col transition-all">
             
             {/* Outline Card */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full min-h-0">
