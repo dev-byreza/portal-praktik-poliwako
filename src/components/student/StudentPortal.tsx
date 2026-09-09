@@ -569,7 +569,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
           
           {/* Left Column: Course Outline / Navigation Sidebar */}
           {isOutlineOpen && (
-            <div className="lg:col-span-3 xl:col-span-2 h-full min-h-0 flex flex-col transition-all">
+            <div className="lg:col-span-3 xl:col-span-2 xl:min-w-[340px] h-full min-h-0 flex flex-col transition-all">
             
             {/* Outline Card */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full min-h-0">
