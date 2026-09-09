@@ -507,6 +507,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             ...previous.filter(student => student.id !== remoteStudent.id),
             { ...remoteStudent, hasCreatedPassword: remote.hasCreatedPassword },
           ]);
+          const cachedStudents = [
+            ...StorageService.getStudents().filter(student => student.id !== remoteStudent.id),
+            { ...remoteStudent, hasCreatedPassword: remote.hasCreatedPassword },
+          ];
+          StorageService.saveStudents(cachedStudents);
         }
         return remote;
       } catch (error) {
@@ -575,6 +580,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ...previous.filter(student => student.id !== updatedStudent.id),
           updatedStudent,
         ]);
+        StorageService.saveStudents([
+          ...StorageService.getStudents().filter(student => student.id !== updatedStudent.id),
+          updatedStudent,
+        ]);
         const session = { studentId: updatedStudent.id, courseSlug, periodId: result.periodId || periodId };
         setStudentSessionState(session);
         StorageService.setStudentSession(session);
@@ -618,6 +627,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const remoteStudent = { ...result.student, hasCreatedPassword: true };
         setStudents(previous => [
           ...previous.filter(student => student.id !== remoteStudent.id),
+          remoteStudent,
+        ]);
+        StorageService.saveStudents([
+          ...StorageService.getStudents().filter(student => student.id !== remoteStudent.id),
           remoteStudent,
         ]);
         const session = { studentId: remoteStudent.id, courseSlug, periodId: result.periodId || periodId };
