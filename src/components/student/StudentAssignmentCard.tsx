@@ -25,7 +25,7 @@ type AllowedFileType = 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY';
 
 const fileRule = (type: AllowedFileType) => {
   switch (type) {
-    case 'ANY': return { label: 'Semua jenis file', extensions: 'semua format file', accept: undefined };
+    case 'ANY': return { label: 'ALL FILES', extensions: 'semua format file', accept: undefined };
     case 'IMAGE': return { label: 'Gambar', extensions: '.jpg, .jpeg, .png, .webp, .gif', accept: 'image/*,.jpg,.jpeg,.png,.webp,.gif' };
     case 'ZIP': return { label: 'ZIP', extensions: '.zip', accept: '.zip,application/zip,application/x-zip-compressed' };
     case 'RAR': return { label: 'RAR', extensions: '.rar', accept: '.rar,application/vnd.rar,application/x-rar-compressed' };

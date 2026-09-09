@@ -732,7 +732,7 @@ export const LearningContentStudio: React.FC = () => {
                           <h5 className="text-xs font-bold text-amber-950">{activeSelectedUnit.assignment.title}</h5>
                           <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-200 text-amber-900 rounded">
                             {activeSelectedUnit.assignment.allowedFileType === 'ANY'
-                              ? 'Semua File'
+                              ? 'ALL FILES'
                               : activeSelectedUnit.assignment.allowedFileType === 'IMAGE'
                                 ? 'IMAGE'
                                 : `${activeSelectedUnit.assignment.allowedFileType} Only`}
@@ -1097,7 +1097,7 @@ export const LearningContentStudio: React.FC = () => {
                   <option value="IMAGE">Gambar (.jpg, .png, .webp, .gif)</option>
                   <option value="ZIP">Arsip ZIP (.zip)</option>
                   <option value="RAR">Arsip RAR (.rar)</option>
-                  <option value="ANY">Semua jenis file</option>
+                  <option value="ANY">ALL FILES (Semua jenis file)</option>
                 </select>
                 <p className="mt-1 text-[10px] text-slate-500">Mahasiswa hanya dapat mengunggah format yang dipilih (maksimal 25 MB).</p>
               </div>
