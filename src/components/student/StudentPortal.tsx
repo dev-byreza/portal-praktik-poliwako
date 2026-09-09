@@ -913,21 +913,22 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
                           {/* External Link (PRD Section 32) */}
                           {mat.type === 'EXTERNAL_LINK' && (
-                            <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200">
-                              <div>
-                                <h4 className="text-xs font-bold text-slate-800">{mat.title}</h4>
-                                <p className="text-[10px] text-slate-400 truncate max-w-xs">{mat.contentUrl}</p>
+                            <a
+                              href={mat.contentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label={`Buka materi ${mat.title}`}
+                              className="group mx-auto flex w-full max-w-3xl items-center gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs transition-colors hover:border-blue-300 hover:bg-blue-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                            >
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-600">
+                                <ExternalLink className="h-4 w-4" />
                               </div>
-                              <a
-                                href={mat.contentUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-4 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 border border-blue-200"
-                              >
-                                <span>Buka Materi</span>
-                                <ExternalLink className="w-3.5 h-3.5" />
-                              </a>
-                            </div>
+                              <div className="min-w-0 flex-1">
+                                <h4 className="truncate text-xs font-bold text-slate-800 transition-colors group-hover:text-blue-700">{mat.title}</h4>
+                                <p className="truncate text-[10px] text-slate-400">{mat.contentUrl}</p>
+                              </div>
+                              <ExternalLink className="h-4 w-4 shrink-0 text-slate-400 transition-colors group-hover:text-blue-600" />
+                            </a>
                           )}
                           </>
                         </div>
