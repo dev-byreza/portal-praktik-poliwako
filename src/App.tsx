@@ -264,10 +264,10 @@ export const App: React.FC = () => {
               href="https://www.tiktok.com/mastercad.id"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center h-10 w-[128px] sm:h-11 sm:w-[144px] transition-transform hover:scale-[1.02]"
+              className="inline-flex items-center justify-center h-12 w-[180px] sm:h-14 sm:w-[210px] transition-transform hover:scale-[1.02]"
               title="MasterCAD di TikTok"
             >
-              <img src="/mastercad-logo-light.png" alt="MasterCAD" className="h-8 sm:h-9 w-full object-contain" />
+              <img src="/mastercad-logo-light.png" alt="MasterCAD" className="h-10 sm:h-12 w-full object-contain" />
             </a>
 
             {/* Discord Icon */}
