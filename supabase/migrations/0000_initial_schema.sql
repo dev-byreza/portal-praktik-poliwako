@@ -469,8 +469,18 @@ CREATE POLICY "Instructors manage assignments" ON public.assignments FOR ALL USI
 );
 CREATE POLICY "Public view assignments" ON public.assignments FOR SELECT USING (TRUE);
 
-CREATE POLICY "Instructors manage submissions" ON public.submissions FOR ALL USING (
+CREATE POLICY "Instructors manage submissions" ON public.submissions FOR ALL TO authenticated USING (
     EXISTS (SELECT 1 FROM public.practice_periods p WHERE p.id = period_id AND is_course_owner(p.course_id))
+)
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.practice_periods p
+        JOIN public.assignments a ON a.period_id = p.id
+        WHERE p.id = public.submissions.period_id
+          AND a.id = public.submissions.assignment_id
+          AND is_course_owner(p.course_id)
+          AND a.deadline > NOW()
+    )
 );
 CREATE POLICY "Students insert submissions" ON public.submissions FOR INSERT WITH CHECK (
     EXISTS (
@@ -524,7 +534,15 @@ ON CONFLICT (id) DO NOTHING;
 CREATE POLICY "Instructors full access to submissions"
 ON storage.objects FOR ALL
 TO authenticated
-USING (bucket_id = 'submissions');
+USING (bucket_id = 'submissions')
+WITH CHECK (
+  bucket_id = 'submissions'
+  AND EXISTS (
+    SELECT 1 FROM public.assignments a
+    WHERE a.id = (split_part(name, '/', 5))::uuid
+      AND a.deadline > NOW()
+  )
+);
 
 CREATE POLICY "Students upload submission files"
 ON storage.objects FOR INSERT

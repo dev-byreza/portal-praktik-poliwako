@@ -150,7 +150,15 @@ BEGIN
         CREATE POLICY "Instructors full access to submissions"
         ON storage.objects FOR ALL
         TO authenticated
-        USING (bucket_id = 'submissions');
+        USING (bucket_id = 'submissions')
+        WITH CHECK (
+            bucket_id = 'submissions' AND
+            EXISTS (
+                SELECT 1 FROM public.assignments a
+                WHERE a.id = (split_part(name, '/', 5))::uuid
+                  AND a.deadline > NOW()
+            )
+        );
     END IF;
 END $$;
 
