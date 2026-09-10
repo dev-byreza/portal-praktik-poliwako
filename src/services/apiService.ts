@@ -512,6 +512,18 @@ export class ApiService {
     }
   }
 
+  static async saveFinalProject(participant: PracticeParticipant): Promise<void> {
+    if (supabase) {
+      const {error} = await supabase.from('practice_participants').update({
+        final_project_confirmed: participant.finalProjectConfirmed, final_project_submitted_at: participant.finalProjectSubmittedAt,
+        final_project_url: participant.finalProjectUrl, final_project_review_status: participant.finalProjectReviewStatus,
+        final_project_feedback: participant.finalProjectFeedback || null, progress_status: participant.progressStatus,
+      }).eq('id', participant.id).select('id').single();
+      if (error) throw new Error(`Proyek belum tersimpan: ${error.message}`);
+    }
+    StorageService.saveParticipants(StorageService.getParticipants().map(p => p.id === participant.id ? participant : p));
+  }
+
   static async saveParticipant(participant: PracticeParticipant): Promise<void> {
     if (this.isLiveBackend() && supabase) {
       const { error } = await supabase.from('practice_participants').upsert({
@@ -583,6 +595,9 @@ export class ApiService {
       progressStatus: p.progress_status || 'NOT_STARTED',
       finalProjectSubmittedAt: p.final_project_submitted_at || undefined,
       finalProjectConfirmed: p.final_project_confirmed || false,
+      finalProjectUrl: p.final_project_url || undefined,
+      finalProjectReviewStatus: p.final_project_review_status || undefined,
+      finalProjectFeedback: p.final_project_feedback || undefined,
     });
 
     try {
@@ -944,6 +959,42 @@ export class ApiService {
       console.warn('Unable to load assessments from Supabase:', error);
       return [];
     }
+  }
+
+  static async getRemedials(): Promise<RemedialAssignment[]> {
+    if (!supabase) return StorageService.getRemedials();
+    const {data,error} = await supabase.from('remedial_assignments').select('*');
+    if (error) throw error;
+    return Promise.all((data || []).map(async row => ({
+      id: row.id, periodId:row.period_id, studentId:row.student_id, title:row.title, description:row.description,
+      deadline:row.deadline, status:row.status, submittedAt:row.submitted_at, reviewedAt:row.reviewed_at,
+      submissionFileName:row.submission_file_name, submissionStoragePath:row.submission_storage_path,
+      submissionFileUrl:row.submission_storage_path ? await getSubmissionSignedUrl(row.submission_storage_path) || undefined : row.submission_file_url,
+    })));
+  }
+
+  static async saveRemedial(remedial: RemedialAssignment): Promise<void> {
+    if (supabase) {
+      const {error} = await supabase.from('remedial_assignments').update({
+        submission_file_name: remedial.submissionFileName, submission_file_url: remedial.submissionFileUrl,
+        submission_storage_path: remedial.submissionStoragePath || null, submitted_at: remedial.submittedAt, status: remedial.status,
+      }).eq('id', remedial.id).select('id').single();
+      if (error) throw new Error(`Bukti remedial gagal disimpan: ${error.message}`);
+    }
+    StorageService.saveRemedials(StorageService.getRemedials().map(r => r.id === remedial.id ? remedial : r));
+  }
+
+  static async saveRemedialDefinition(remedial: RemedialAssignment): Promise<void> {
+    if (supabase) {
+      const {error} = await supabase.from('remedial_assignments').upsert({
+        id: remedial.id, period_id: remedial.periodId, student_id: remedial.studentId,
+        title: remedial.title, description: remedial.description, deadline: remedial.deadline,
+        submission_file_name: remedial.submissionFileName || null, submission_file_url: remedial.submissionFileUrl || null,
+        submission_storage_path: remedial.submissionStoragePath || null, submitted_at: remedial.submittedAt || null, status: remedial.status, reviewed_at: remedial.reviewedAt || null,
+      });
+      if (error) throw new Error(`Remedial gagal disimpan: ${error.message}`);
+    }
+    StorageService.saveRemedials([...StorageService.getRemedials().filter(r => r.id !== remedial.id), remedial]);
   }
 
   static async saveSubmission(submission: Submission): Promise<Submission> {

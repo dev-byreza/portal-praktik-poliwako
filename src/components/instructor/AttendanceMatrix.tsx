@@ -47,7 +47,7 @@ export const AttendanceMatrix: React.FC = () => {
   // Remedial Form states
   const [remTitle, setRemTitle] = useState('Tugas Tambahan Pengganti Kehadiran: Resume Analisis SOP');
   const [remDesc, setRemDesc] = useState('Mahasiswa wajib membuat resume teknis dan analisis prosedur praktikum dalam format PDF.');
-  const [remDeadline, setRemDeadline] = useState('2026-09-14 23:59 WITA');
+  const [remDeadline, setRemDeadline] = useState('');
 
   const [pdfPreview, setPdfPreview] = useState<{ isOpen: boolean; title: string; url?: string; authorName?: string } | null>(null);
 
@@ -148,11 +148,11 @@ export const AttendanceMatrix: React.FC = () => {
     setIsRemedialModalOpen(true);
   };
 
-  const handleSaveRemedial = (e: React.FormEvent) => {
+  const handleSaveRemedial = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeSelectedPeriod || !selectedStudentForRemedial) return;
 
-    createRemedialTask({
+    try { await createRemedialTask({
       periodId: activeSelectedPeriod.id,
       studentId: selectedStudentForRemedial.id,
       title: remTitle.trim(),
@@ -161,6 +161,7 @@ export const AttendanceMatrix: React.FC = () => {
     });
 
     setIsRemedialModalOpen(false);
+    } catch (error) { showToast('Remedial belum tersimpan', error instanceof Error ? error.message : 'Silakan coba lagi.', 'error'); }
   };
 
   const renderStatusCell = (studentId: string, day: 'day1' | 'day2' | 'day3' | 'day4' | 'day5', status: AttendanceStatus) => {
@@ -390,13 +391,13 @@ export const AttendanceMatrix: React.FC = () => {
                                 {rem.status === 'SUBMITTED' && (
                                   <div className="flex items-center gap-1 ml-1">
                                     <button
-                                      onClick={() => gradeRemedialTask(rem.id, 'LULUS')}
+                                      onClick={() => void gradeRemedialTask(rem.id, 'LULUS').catch(error => showToast('Pemeriksaan gagal', error.message, 'error'))}
                                       className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-[10px]"
                                     >
                                       Lulus
                                     </button>
                                     <button
-                                      onClick={() => gradeRemedialTask(rem.id, 'BELUM_LULUS')}
+                                      onClick={() => void gradeRemedialTask(rem.id, 'BELUM_LULUS').catch(error => showToast('Pemeriksaan gagal', error.message, 'error'))}
                                       className="px-2 py-0.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded text-[10px]"
                                     >
                                       Tolak

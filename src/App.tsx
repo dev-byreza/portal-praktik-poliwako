@@ -50,7 +50,7 @@ export const App: React.FC = () => {
       // Case 2: Match course slug in URL path (legacy /cad-1-1 or /mahasiswa/cad-1-1).
       const pathParts = path.split('/').filter(Boolean);
       const coursePathSlug = pathParts[0] === 'mahasiswa'
-        ? (['unit', 'final-project', 'nilai'].includes(pathParts[1]) ? pathParts[2] : pathParts[1])
+        ? (['dashboard', 'unit', 'final-project', 'nilai'].includes(pathParts[1]) ? pathParts[2] : pathParts[1])
         : pathParts[0];
       const matchedCourse = courses.find(
         c => c.slug.toLowerCase() === coursePathSlug || c.slug.toLowerCase() === courseParam
@@ -61,7 +61,7 @@ export const App: React.FC = () => {
       // loading; only show 404 after courses have been loaded and no slug
       // matches.
       const isCanonicalStudentRoute = pathParts[0] === 'mahasiswa'
-        && ['unit', 'final-project', 'nilai'].includes(pathParts[1])
+        && ['dashboard', 'unit', 'final-project', 'nilai'].includes(pathParts[1])
         && Boolean(pathParts[2]);
       if (!matchedCourse && isCanonicalStudentRoute && courses.length === 0) {
         setActiveRoute('STUDENT');
@@ -83,7 +83,7 @@ export const App: React.FC = () => {
         path === 'mahasiswa' ||
         path === 'portal-mahasiswa' ||
         path === 'student' ||
-        (pathParts[0] === 'mahasiswa' && (!pathParts[1] || (['unit', 'final-project', 'nilai'].includes(pathParts[1]) && !pathParts[2]))) ||
+        (pathParts[0] === 'mahasiswa' && (!pathParts[1] || (['dashboard', 'unit', 'final-project', 'nilai'].includes(pathParts[1]) && !pathParts[2]))) ||
         roleParam === 'student' ||
         roleParam === 'mahasiswa'
       ) {

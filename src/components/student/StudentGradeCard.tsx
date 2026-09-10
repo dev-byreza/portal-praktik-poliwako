@@ -1,3 +1,4 @@
+import { formatSubmissionDeadline } from '../../utils/submissionDeadline';
 // Student Published Grade & Remedial Alert Card (PRD Section 60)
 
 import React, { useState } from 'react';
@@ -12,6 +13,7 @@ import {
   CheckCircle2,
   Lock
 } from 'lucide-react';
+import { PDFViewerModal } from '../common/PDFViewerModal';
 import { Badge } from '../common/Badge';
 import { getGradePredicate } from '../../utils/gradeCalculators';
 
@@ -22,10 +24,13 @@ export const StudentGradeCard: React.FC = () => {
     attendance,
     remedials,
     submitStudentRemedial,
-    showToast
+    showToast,
+    isLiveBackend
   } = useApp();
 
-  const [selectedRemedialFile, setSelectedRemedialFile] = useState<File | null>(null);
+  const [remedialFiles, setRemedialFiles] = useState<Record<string, File | undefined>>({});
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{title: string; url: string} | null>(null);
 
   if (!studentSession) return null;
 
@@ -42,43 +47,43 @@ export const StudentGradeCard: React.FC = () => {
   );
 
   const isAttendanceUnder75 = currentAttendance ? !currentAttendance.isEligible : false;
-  const isGradePublished = currentAssessment?.isPublished || false;
+  const remedialsPassed = studentRemedials.length > 0 && studentRemedials.every(r => r.status === 'LULUS');
+  const isGradePublished = Boolean(currentAssessment?.isPublished && (!isAttendanceUnder75 || remedialsPassed));
 
-  const handleRemedialUpload = (remedialId: string) => {
-    if (!selectedRemedialFile) return;
-
-    if (selectedRemedialFile.type !== 'application/pdf' && !selectedRemedialFile.name.toLowerCase().endsWith('.pdf')) {
-      showToast('Format Salah', 'Tugas remedial harus dalam format PDF (.pdf).', 'error');
-      return;
-    }
-
-    submitStudentRemedial(
-      remedialId,
-      selectedRemedialFile.name,
-      ''
-    );
-    setSelectedRemedialFile(null);
+  const handleRemedialUpload = async (remedialId: string) => {
+    const file = remedialFiles[remedialId];
+    if (!file || uploading) return;
+    setUploading(remedialId);
+    try {
+      await submitStudentRemedial(remedialId, file);
+      setRemedialFiles(prev => ({...prev, [remedialId]: undefined}));
+    } catch (reason) { showToast('Pengumpulan Gagal', reason instanceof Error ? reason.message : 'Silakan coba lagi.', 'error'); }
+    finally { setUploading(null); }
   };
 
   return (
     <div className="space-y-6">
+      {!isLiveBackend && studentRemedials.length > 0 && <p className="text-sm bg-amber-50 text-amber-800 p-3 rounded-xl">Mode lokal: pengumpulan remedial tersimpan di perangkat ini dan belum dikirim ke instruktur.</p>}
+      <PDFViewerModal isOpen={!!preview} onClose={() => setPreview(null)} title={preview?.title || 'Berkas remedial'} fileUrl={preview?.url}/>
+
       
       {/* Attendance Alert if <75% */}
-      {isAttendanceUnder75 && (
+      {(isAttendanceUnder75 || studentRemedials.length > 0) && (
         <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6">
-          <div className="flex items-start gap-4">
+          <div className="flex flex-col sm:flex-row items-start gap-4">
             <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
               <AlertTriangle className="w-6 h-6" />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0 w-full">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-rose-900">Perhatian: Kehadiran Tidak Memenuhi Syarat Minimal (&lt;75%)</h3>
-                <Badge status="INELIGIBLE" size="sm" />
+                <h3 className="text-sm font-bold text-rose-900">{isAttendanceUnder75 ? 'Kehadiran perlu ditindaklanjuti' : 'Tugas tambahan praktik'}</h3>
+                {isAttendanceUnder75 && <Badge status="INELIGIBLE" size="sm" />}
               </div>
-              <p className="text-xs text-rose-700 mt-1 leading-relaxed">
+              {isAttendanceUnder75 && <p className="text-xs text-rose-700 mt-1 leading-relaxed">
                 Persentase kehadiran Anda pada periode ini adalah <strong>{currentAttendance?.percentage}%</strong>. Sesuai ketentuan akademik Politeknik Sorowako, publikasi nilai akhir Anda ditangguhkan hingga seluruh tugas tambahan (remedial) dinyatakan <strong>LULUS</strong> oleh instruktur.
               </p>
 
+              }
               {/* Remedial Task List */}
               {studentRemedials.length > 0 && (
                 <div className="mt-4 space-y-3">
@@ -93,30 +98,31 @@ export const StudentGradeCard: React.FC = () => {
                         <Badge status={remedial.status} size="sm" />
                       </div>
                       <p className="text-xs text-slate-600 mt-1.5">{remedial.description}</p>
+                      {remedial.submissionFileUrl && <button onClick={() => setPreview({title:remedial.submissionFileName || remedial.title, url:remedial.submissionFileUrl!})} className="min-h-11 text-sm text-blue-700 font-semibold">Lihat berkas remedial tersimpan</button>}
                       
                       <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                         <span className="text-slate-500 flex items-center gap-1">
                           <Clock className="w-3.5 h-3.5" />
-                          Batas Waktu: {remedial.deadline}
+                          Batas Waktu: {formatSubmissionDeadline(remedial.deadline)} WITA
                         </span>
 
-                        {remedial.status === 'PENDING_SUBMISSION' && (
-                          <div className="flex items-center gap-2 w-full sm:w-auto">
+                        {(remedial.status === 'PENDING_SUBMISSION' || remedial.status === 'BELUM_LULUS') && (
+                          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                             <label className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg cursor-pointer text-xs font-semibold">
-                              {selectedRemedialFile ? selectedRemedialFile.name : 'Pilih File PDF'}
+                              {remedialFiles[remedial.id] ? remedialFiles[remedial.id]?.name : 'Pilih File PDF'}
                               <input
                                 type="file"
                                 accept=".pdf,application/pdf"
-                                onChange={e => e.target.files && setSelectedRemedialFile(e.target.files[0])}
+                                onChange={e => setRemedialFiles(prev => ({...prev, [remedial.id]: e.target.files?.[0]}))}
                                 className="hidden"
                               />
                             </label>
                             <button
                               onClick={() => handleRemedialUpload(remedial.id)}
-                              disabled={!selectedRemedialFile}
+                              disabled={!remedialFiles[remedial.id] || !!uploading}
                               className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white rounded-lg font-bold text-xs"
                             >
-                              Upload PDF
+                              {uploading === remedial.id ? 'Menyimpan…' : 'Kirim PDF'}
                             </button>
                           </div>
                         )}
@@ -146,7 +152,7 @@ export const StudentGradeCard: React.FC = () => {
 
       {/* Grade Card Section */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
-        <div className="flex items-center justify-between pb-6 border-b border-slate-100">
+        <div className="flex flex-wrap gap-3 items-center justify-between pb-6 border-b border-slate-100">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
               <Award className="w-6 h-6" />
@@ -162,6 +168,9 @@ export const StudentGradeCard: React.FC = () => {
 
         {isGradePublished && currentAssessment ? (
           <div className="mt-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+              {[['Kualitas (70%)', currentAssessment.qualityScore], ['Sikap (10%)', currentAssessment.attitudeScore], ['Kreativitas (5%)', currentAssessment.creativityScore], ['Laporan (15%)', currentAssessment.reportScore]].map(([label, score]) => <div key={label} className="bg-slate-50 border rounded-xl p-3"><p className="text-xs text-slate-500">{label}</p><p className="text-xl font-bold mt-1">{score}<span className="text-xs font-normal"> / 100</span></p></div>)}
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
               
               {/* Final Score Big Badge */}
@@ -198,10 +207,10 @@ export const StudentGradeCard: React.FC = () => {
                   <span>Catatan & Feedback Instruktur</span>
                 </div>
                 <blockquote className="text-sm font-medium text-slate-800 leading-relaxed italic border-l-4 border-blue-600 pl-4 py-1">
-                  "{currentAssessment.feedback || 'Sangat baik! Pertahankan kualitas kerja dan konsistensi Anda.'}"
+                  "{currentAssessment.feedback || 'Instruktur belum menambahkan catatan.'}"
                 </blockquote>
                 <p className="text-[11px] text-slate-400 mt-4">
-                  Dipublikasikan secara resmi pada: {currentAssessment.publishedAt || 'September 2026'}
+                  Dipublikasikan secara resmi pada: {currentAssessment.publishedAt || 'Tanggal belum tersedia'}
                 </p>
               </div>
 

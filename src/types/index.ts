@@ -99,6 +99,9 @@ export interface PracticeParticipant {
   progressStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'LEARNING_COMPLETE' | 'PROJECT_SUBMITTED' | 'ASSESSED' | 'PUBLISHED';
   finalProjectSubmittedAt?: string;
   finalProjectConfirmed: boolean;
+  finalProjectUrl?: string;
+  finalProjectReviewStatus?: 'SUBMITTED' | 'REVISION_REQUIRED' | 'ACCEPTED';
+  finalProjectFeedback?: string;
 }
 
 export type MaterialType = 'RICHTEXT' | 'PDF' | 'YOUTUBE' | 'EXTERNAL_LINK';
@@ -225,6 +228,7 @@ export interface RemedialAssignment {
   deadline: string;
   submissionFileName?: string;
   submissionFileUrl?: string;
+  submissionStoragePath?: string;
   submittedAt?: string;
   status: 'PENDING_SUBMISSION' | 'SUBMITTED' | 'LULUS' | 'BELUM_LULUS';
   reviewedAt?: string;

@@ -1,3 +1,4 @@
+import { FinalProjectReview } from './FinalProjectReview';
 // Desktop Split-Screen OBE Grading Workspace (PRD Section 50, 51, 52)
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -82,10 +83,10 @@ export const GradingWorkspace: React.FC = () => {
   const [isPdfOpen, setIsPdfOpen] = useState<boolean>(true);
 
   // Turunan Nilai Kualitas (70%) States
-  const [entryBehaviorScore, setEntryBehaviorScore] = useState<number>(85); // 10%
-  const [assignmentScore, setAssignmentScore] = useState<number>(85); // 15%
-  const [postTestScore, setPostTestScore] = useState<number>(80); // 25%
-  const [reportScore, setReportScore] = useState<number>(80); // Laporan 15%
+  const [entryBehaviorScore, setEntryBehaviorScore] = useState<number>(0); // 10%
+  const [assignmentScore, setAssignmentScore] = useState<number>(0); // 15%
+  const [postTestScore, setPostTestScore] = useState<number>(0); // 25%
+  const [reportScore, setReportScore] = useState<number>(0); // Laporan 15%
   const [activeDocType, setActiveDocType] = useState<'SUBMISSION' | 'POST_TEST' | 'ASSIGNMENT'>('SUBMISSION');
   const [activeAssignmentId, setActiveAssignmentId] = useState<string>('');
   const [taskScores, setTaskScores] = useState<{ [assignmentId: string]: number }>({});
@@ -262,26 +263,26 @@ export const GradingWorkspace: React.FC = () => {
 
   // Initialize scores when student or course changes
   useEffect(() => {
-    const defaultA = attitudeRubrics.map(r => ({ criterionId: r.id, score: 100, level: 'Sangat Baik' }));
-    const defaultC = creativityRubrics.map(r => ({ criterionId: r.id, score: 75, level: 'Baik' }));
-    const defaultR = reportRubrics.map(r => ({ criterionId: r.id, score: 75, level: 'Baik' }));
+    const defaultA = attitudeRubrics.map(r => ({ criterionId: r.id, score: 0, level: 'Belum dinilai' }));
+    const defaultC = creativityRubrics.map(r => ({ criterionId: r.id, score: 0, level: 'Belum dinilai' }));
+    const defaultR = reportRubrics.map(r => ({ criterionId: r.id, score: 0, level: 'Belum dinilai' }));
 
     if (existingAssessment) {
       setQualityScores(existingAssessment.qualityScores || []);
-      setEntryBehaviorScore(existingAssessment.entryBehaviorScore ?? 85);
+      setEntryBehaviorScore(existingAssessment.entryBehaviorScore ?? 0);
       
       const initialTaskScores: { [assignmentId: string]: number } = {};
       tasksToGrade.forEach(t => {
-        initialTaskScores[t.id] = existingAssessment.assignmentScore ?? 85;
+        initialTaskScores[t.id] = existingAssessment.assignmentScore ?? 0;
       });
       setTaskScores(initialTaskScores);
-      setAssignmentScore(existingAssessment.assignmentScore ?? 85);
+      setAssignmentScore(existingAssessment.assignmentScore ?? 0);
       
-      setPostTestScore(existingAssessment.postTestScore ?? 80);
-      setReportScore(existingAssessment.reportScore ?? (existingAssessment.reportScores?.[0]?.score ?? 80));
+      setPostTestScore(existingAssessment.postTestScore ?? 0);
+      setReportScore(existingAssessment.reportScore ?? (existingAssessment.reportScores?.[0]?.score ?? 0));
 
-      setAttitudeScores(reconcileRubricScores(attitudeRubrics, existingAssessment.attitudeScores, 100, 'Sangat Baik'));
-      setCreativityScores(reconcileRubricScores(creativityRubrics, existingAssessment.creativityScores, 75, 'Baik'));
+      setAttitudeScores(reconcileRubricScores(attitudeRubrics, existingAssessment.attitudeScores, 0, 'Belum dinilai'));
+      setCreativityScores(reconcileRubricScores(creativityRubrics, existingAssessment.creativityScores, 0, 'Belum dinilai'));
 
       // Restore or fallback report scores
       if (existingAssessment.reportScores && existingAssessment.reportScores.length > 0) {
@@ -293,20 +294,20 @@ export const GradingWorkspace: React.FC = () => {
       setCustomFeedback(existingAssessment.feedback || '');
     } else {
       // Default: set initial 75 for each course Sub-CPMK
-      const defaultQ = qualityItems.map(item => ({ criterionId: item.id, score: 75, level: 'Baik' }));
+      const defaultQ = qualityItems.map(item => ({ criterionId: item.id, score: 0, level: 'Belum dinilai' }));
 
       setQualityScores(defaultQ);
-      setEntryBehaviorScore(85);
+      setEntryBehaviorScore(0);
       
       const initialTaskScores: { [assignmentId: string]: number } = {};
       tasksToGrade.forEach(t => {
-        initialTaskScores[t.id] = 85;
+        initialTaskScores[t.id] = 0;
       });
       setTaskScores(initialTaskScores);
-      setAssignmentScore(85);
+      setAssignmentScore(0);
       
-      setPostTestScore(80);
-      setReportScore(80);
+      setPostTestScore(0);
+      setReportScore(0);
       setAttitudeScores(defaultA);
       setCreativityScores(defaultC);
       setReportScores(defaultR);
@@ -759,7 +760,7 @@ export const GradingWorkspace: React.FC = () => {
                 </div>
 
                 <div className="border-t border-slate-200 pt-2 text-[9px] text-slate-400 flex justify-between">
-                  <span>Portal Praktik Poliwako • File asli mahasiswa</span>
+                  <span>Portal Praktik Poliwako Ã¢â‚¬Â¢ File asli mahasiswa</span>
                   <span>{currentParticipant.student.name}</span>
                 </div>
               </div>
@@ -770,6 +771,7 @@ export const GradingWorkspace: React.FC = () => {
 
           {/* Right Pane: Student OBE Rubric Grading Form (6 cols when file preview is open, full width when closed) */}
           <div className={`${isPdfOpen ? 'lg:col-span-6' : 'w-full'} bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6 max-h-[82vh] overflow-y-auto transition-all`}>
+            <FinalProjectReview key={currentParticipant.id} participant={currentParticipant}/>
             
             {/* Student Switcher Bar */}
             <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
@@ -780,7 +782,7 @@ export const GradingWorkspace: React.FC = () => {
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">{currentParticipant.student.name}</h3>
                   <p className="text-[11px] text-slate-500 font-mono">
-                    NIM: {currentParticipant.student.nim} • Kelas {currentParticipant.student.className}
+                    NIM: {currentParticipant.student.nim} Ã¢â‚¬Â¢ Kelas {currentParticipant.student.className}
                   </p>
                 </div>
               </div>
@@ -825,7 +827,7 @@ export const GradingWorkspace: React.FC = () => {
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                <span>{isAutosaving ? 'Menyimpan perubahan...' : '✓ Perubahan Tersimpan'}</span>
+                <span>{isAutosaving ? 'Menyimpan perubahan...' : 'Ã¢Å“â€œ Perubahan Tersimpan'}</span>
               </div>
               <Badge status={existingAssessment?.isPublished ? 'PUBLISHED' : 'ASSESSED'} size="sm" />
             </div>
@@ -1070,7 +1072,7 @@ export const GradingWorkspace: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2 self-end sm:self-auto">
-                    <span className="text-[10px] font-mono text-slate-400">Rata2: {subCpmkPracticeScore} • Kontribusi:</span>
+                    <span className="text-[10px] font-mono text-slate-400">Rata2: {subCpmkPracticeScore} Ã¢â‚¬Â¢ Kontribusi:</span>
                     <span className="text-xs font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200">
                       {(subCpmkPracticeScore * 0.50).toFixed(1)} Poin
                     </span>
@@ -1158,7 +1160,7 @@ export const GradingWorkspace: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2 self-end sm:self-auto">
-                    <span className="text-[10px] font-mono text-slate-400">Rata2: {assignmentScore} • Kontribusi:</span>
+                    <span className="text-[10px] font-mono text-slate-400">Rata2: {assignmentScore} Ã¢â‚¬Â¢ Kontribusi:</span>
                     <span className="text-xs font-mono font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-lg border border-teal-200">
                       {(assignmentScore * 0.15).toFixed(1)} Poin
                     </span>
@@ -1173,7 +1175,7 @@ export const GradingWorkspace: React.FC = () => {
                            s.studentId === currentParticipant.studentId &&
                            s.periodId === activeSelectedPeriod.id
                     );
-                    const currentScore = taskScores[task.id] ?? 85;
+                    const currentScore = taskScores[task.id] ?? 0;
 
                     return (
                       <div key={task.id} className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-3 hover:border-teal-300 transition-all shadow-xs">
@@ -1206,7 +1208,7 @@ export const GradingWorkspace: React.FC = () => {
                               </span>
                               <span className="text-[10px] text-slate-500">
                                 {studentSubmission
-                                  ? `${fileTypeLabel(studentSubmission.fileName, task.allowedFileType)} Tugas • ${studentSubmission.fileSize} • Diunggah: ${formatWitaDateTime(studentSubmission.submittedAt)}`
+                                  ? `${fileTypeLabel(studentSubmission.fileName, task.allowedFileType)} Tugas Ã¢â‚¬Â¢ ${studentSubmission.fileSize} Ã¢â‚¬Â¢ Diunggah: ${formatWitaDateTime(studentSubmission.submittedAt)}`
                                   : 'Belum ada file yang diunggah mahasiswa.'}
                               </span>
                             </div>
@@ -1310,7 +1312,7 @@ export const GradingWorkspace: React.FC = () => {
                       </span>
                       <span className="text-[10px] text-slate-500">
                         {postTestFileUrl
-                          ? `${fileTypeLabel(postTestSubmission?.fileName)} post-test${postTestSubmission?.fileSize ? ` • ${postTestSubmission.fileSize}` : ''} • Diunggah: ${postTestSubmission?.submittedAt ? formatWitaDateTime(postTestSubmission.submittedAt) : 'Waktu tidak tersedia'} • tersimpan di Supabase Storage.`
+                          ? `${fileTypeLabel(postTestSubmission?.fileName)} post-test${postTestSubmission?.fileSize ? ` Ã¢â‚¬Â¢ ${postTestSubmission.fileSize}` : ''} Ã¢â‚¬Â¢ Diunggah: ${postTestSubmission?.submittedAt ? formatWitaDateTime(postTestSubmission.submittedAt) : 'Waktu tidak tersedia'} Ã¢â‚¬Â¢ tersimpan di Supabase Storage.`
                           : 'Belum ada file post-test yang diunggah mahasiswa.'}
                       </span>
                     </div>
@@ -1568,7 +1570,7 @@ export const GradingWorkspace: React.FC = () => {
                         {reportSubmission?.fileName || 'Belum ada file laporan'}
                       </span>
                       <span className="text-[10px] text-slate-500">
-                        {reportSubmission ? `${fileTypeLabel(reportSubmission.fileName)} laporan • ${reportSubmission.fileSize} • Diunggah: ${formatWitaDateTime(reportSubmission.submittedAt)}` : 'Belum ada file laporan yang diunggah mahasiswa.'}
+                        {reportSubmission ? `${fileTypeLabel(reportSubmission.fileName)} laporan Ã¢â‚¬Â¢ ${reportSubmission.fileSize} Ã¢â‚¬Â¢ Diunggah: ${formatWitaDateTime(reportSubmission.submittedAt)}` : 'Belum ada file laporan yang diunggah mahasiswa.'}
                       </span>
                     </div>
                   </div>

@@ -1,3 +1,4 @@
+import { isSubmissionClosed, submissionDeadline } from '../utils/submissionDeadline';
 // Central React Context for Portal Praktik Poliwako
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
@@ -110,8 +111,9 @@ interface AppContextType {
   // Student Actions
   toggleUnitCompletion: (unitId: string) => void;
   submitAssignment: (assignmentId: string, file: File, submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST', allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY') => Promise<{ success: boolean; message?: string }>;
-  confirmFinalProject: () => void;
-  submitStudentRemedial: (remedialId: string, fileName: string, fileUrl: string) => void;
+  confirmFinalProject: (url: string) => Promise<void>;
+  reviewFinalProject: (participantId: string, status: 'REVISION_REQUIRED' | 'ACCEPTED', feedback: string) => Promise<void>;
+  submitStudentRemedial: (remedialId: string, file: File) => Promise<void>;
 
   // Instructor Actions
   createCourse: (course: Partial<Course>) => Course;
@@ -146,8 +148,8 @@ interface AppContextType {
   publishPeriodGrades: (periodId: string) => { publishedCount: number; blockedCount: number };
   unpublishPeriodGrades: (periodId: string) => void;
 
-  createRemedialTask: (remedial: Partial<RemedialAssignment>) => RemedialAssignment;
-  gradeRemedialTask: (remedialId: string, status: 'LULUS' | 'BELUM_LULUS') => void;
+  createRemedialTask: (remedial: Partial<RemedialAssignment>) => Promise<RemedialAssignment>;
+  gradeRemedialTask: (remedialId: string, status: 'LULUS' | 'BELUM_LULUS') => Promise<void>;
 
   saveCustomFeedbackRules: (rules: FeedbackRule[]) => void;
   resetToDefaultData: () => void;
@@ -211,7 +213,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!isLiveBackend) return;
         const authInstructorId = await ApiService.getCurrentInstructorId();
         const courseScope = authInstructorId || (role === 'STUDENT' && !isInstructorLoggedIn ? undefined : null);
-        const [liveCourses, liveStudents, livePeriods, liveParticipants, liveUnits, liveAttendance, liveSubmissions, liveAssessments, liveInstructorDirectory] = await Promise.all([
+        const [liveCourses, liveStudents, livePeriods, liveParticipants, liveUnits, liveAttendance, liveSubmissions, liveAssessments, liveInstructorDirectory, liveRemedials] = await Promise.all([
           courseScope === null ? Promise.resolve([]) : ApiService.getCourses(courseScope),
           ApiService.getStudents(),
           ApiService.getPeriods(),
@@ -221,8 +223,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ApiService.getSubmissions(),
           ApiService.getAssessments(),
           ApiService.getInstructorDirectory(),
+          ApiService.getRemedials().catch(() => null),
         ]);
         if (!isMounted) return;
+        if (liveRemedials) setRemedials(liveRemedials);
         if (liveCourses) {
           setCourses(liveCourses);
           if (liveCourses.length === 0) {
@@ -864,41 +868,43 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Student Final Project Confirmation
-  const confirmFinalProject = () => {
-    if (!studentSession) return;
-    const { studentId, periodId } = studentSession;
+  const confirmFinalProject = async (url: string) => {
+    if (!studentSession) throw new Error('Silakan masuk kembali.');
+    const link = new URL(url);
+    if (link.protocol !== 'https:' || link.hostname !== 'drive.google.com') throw new Error('Gunakan tautan Google Drive HTTPS untuk hasil pekerjaan Anda.');
+    const participant = participants.find(p => p.studentId === studentSession.studentId && p.periodId === studentSession.periodId);
+    if (!participant) throw new Error('Pendaftaran peserta tidak ditemukan.');
+    if (participant.finalProjectReviewStatus === 'ACCEPTED') throw new Error('Proyek sudah diterima. Hubungi instruktur untuk perubahan.');
+    const updated: PracticeParticipant = {...participant, finalProjectUrl: link.href, finalProjectConfirmed: true, finalProjectReviewStatus: 'SUBMITTED', finalProjectSubmittedAt: new Date().toISOString(), progressStatus: participant.progressStatus === 'PUBLISHED' || participant.progressStatus === 'ASSESSED' ? participant.progressStatus : 'PROJECT_SUBMITTED'};
+    await ApiService.saveFinalProject(updated);
+    setParticipants(prev => prev.map(p => p.id === updated.id ? updated : p));
+    showToast('Proyek disimpan', isLiveBackend ? 'Menunggu pemeriksaan instruktur.' : 'Tautan tersimpan lokal di perangkat ini.', 'success');
+  };
 
-    const timestamp = `${getWitaDateString()} ${new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WITA`;
-    setParticipants(prev => prev.map(p => {
-      if (p.periodId === periodId && p.studentId === studentId) {
-        return {
-          ...p,
-          finalProjectConfirmed: true,
-          finalProjectSubmittedAt: timestamp,
-          progressStatus: p.progressStatus === 'ASSESSED' || p.progressStatus === 'PUBLISHED' ? p.progressStatus : 'PROJECT_SUBMITTED'
-        };
-      }
-      return p;
-    }));
-
-    showToast('Final Project Dikonfirmasi', 'Konfirmasi pengumpulan Google Drive berhasil disimpan.', 'success');
+  const reviewFinalProject = async (participantId: string, status: 'REVISION_REQUIRED' | 'ACCEPTED', feedback: string) => {
+    if (!isInstructorLoggedIn) throw new Error('Masuk sebagai instruktur terlebih dahulu.');
+    const participant = participants.find(p => p.id === participantId);
+    if (!participant?.finalProjectUrl) throw new Error('Tautan proyek belum tersedia.');
+    if (status === 'REVISION_REQUIRED' && !feedback.trim()) throw new Error('Tuliskan instruksi revisi.');
+    const updated = {...participant, finalProjectReviewStatus: status, finalProjectFeedback: feedback.trim()};
+    await ApiService.saveFinalProject(updated);
+    setParticipants(prev => prev.map(p => p.id === updated.id ? updated : p));
   };
 
   // Student Remedial Submission
-  const submitStudentRemedial = (remedialId: string, fileName: string, fileUrl: string) => {
-    setRemedials(prev => prev.map(r => {
-      if (r.id === remedialId) {
-        return {
-          ...r,
-          submissionFileName: fileName,
-          submissionFileUrl: fileUrl,
-          submittedAt: `${getWitaDateString()} ${new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WITA`,
-          status: 'SUBMITTED'
-        };
-      }
-      return r;
-    }));
-    showToast('Tugas Tambahan Terkirim', 'Tugas remedial Anda telah dikirim dan menunggu verifikasi instruktur.', 'success');
+  const submitStudentRemedial = async (remedialId: string, file: File) => {
+    if (!studentSession) throw new Error('Silakan masuk kembali.');
+    const remedial = remedials.find(r => r.id === remedialId && r.studentId === studentSession.studentId && r.periodId === studentSession.periodId);
+    const period = periods.find(p => p.id === studentSession.periodId);
+    if (!remedial || !period || !['PENDING_SUBMISSION', 'BELUM_LULUS'].includes(remedial.status)) throw new Error('Tugas tambahan tidak tersedia.');
+    if (isSubmissionClosed(remedial.deadline)) throw new Error('Batas waktu remedial sudah lewat. Hubungi instruktur.');
+    const upload = await uploadSubmissionPDF(file, {courseId: period.courseId, periodId: period.id, studentId: studentSession.studentId, assignmentId: remedial.id, submissionType:'REMEDIAL', allowedFileType:'PDF'});
+    if (upload.error || !upload.publicUrl) throw upload.error || new Error('Berkas gagal diunggah.');
+    const fileUrl = upload.publicUrl;
+    const updated: RemedialAssignment = {...remedial, submissionFileName: file.name, submissionFileUrl: fileUrl, submissionStoragePath: upload.storagePath || undefined, submittedAt: new Date().toISOString(), status: 'SUBMITTED'};
+    await ApiService.saveRemedial(updated);
+    setRemedials(prev => prev.map(r => r.id === remedialId ? updated : r));
+    showToast('Tugas Tambahan Disimpan', isLiveBackend ? 'Menunggu verifikasi instruktur.' : 'Berkas tersimpan lokal di perangkat ini.', 'success');
   };
 
   // Instructor Course Operations
@@ -1672,23 +1678,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Remedial Management
-  const createRemedialTask = (data: Partial<RemedialAssignment>): RemedialAssignment => {
+  const createRemedialTask = async (data: Partial<RemedialAssignment>): Promise<RemedialAssignment> => {
+    if (!data.periodId || !data.studentId || !data.deadline) throw new Error('Lengkapi peserta, periode dan batas waktu remedial.');
+    const end = submissionDeadline(data.deadline);
+    if (end === null || !Number.isFinite(end)) throw new Error('Format batas waktu remedial tidak valid.');
     const newTask: RemedialAssignment = {
-      id: `rem-${Date.now()}`,
+      id: crypto.randomUUID(),
       periodId: data.periodId || '',
       studentId: data.studentId || '',
       title: data.title || 'Tugas Tambahan Pengganti Kehadiran',
       description: data.description || '',
-      deadline: data.deadline || '2026-09-14 23:59 WITA',
+      deadline: new Date(end).toISOString(),
       status: 'PENDING_SUBMISSION'
     };
 
+    await ApiService.saveRemedialDefinition(newTask);
     setRemedials(prev => [...prev, newTask]);
     showToast('Tugas Remedial Dibuat', `Tugas tambahan untuk mahasiswa berhasil ditambahkan.`, 'success');
     return newTask;
   };
 
-  const gradeRemedialTask = (remedialId: string, status: 'LULUS' | 'BELUM_LULUS') => {
+  const gradeRemedialTask = async (remedialId: string, status: 'LULUS' | 'BELUM_LULUS') => {
     let affectedStudentId = '';
     let affectedPeriodId = '';
 
@@ -1699,12 +1709,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return {
           ...r,
           status,
-          reviewedAt: `${getWitaDateString()} WITA`
+          reviewedAt: new Date().toISOString()
         };
       }
       return r;
     });
 
+    const updatedTask = updatedList.find(r => r.id === remedialId);
+    if (!updatedTask) throw new Error('Tugas remedial tidak ditemukan.');
+    await ApiService.saveRemedialDefinition(updatedTask);
     setRemedials(updatedList);
 
     // If status === 'LULUS', check if all remedials for this student are now 'LULUS' -> Auto-publish grade (PRD Section 58)
@@ -1713,12 +1726,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const allPassed = studentRemedials.every(r => r.status === 'LULUS');
 
       if (allPassed) {
-        setAssessments(prev => prev.map(a => {
-          if (a.periodId === affectedPeriodId && a.studentId === affectedStudentId) {
-            return { ...a, isPublished: true, publishedAt: `${getWitaDateString()} WITA (Auto-Published Remedial Pass)` };
-          }
-          return a;
-        }));
+        const published = assessments.map(a => a.periodId === affectedPeriodId && a.studentId === affectedStudentId ? {...a, isPublished: true, publishedAt: new Date().toISOString()} : a);
+        await Promise.all(published.filter(a => a.periodId === affectedPeriodId && a.studentId === affectedStudentId).map(a => ApiService.saveAssessment(a)));
+        setAssessments(published);
 
         setParticipants(prev => prev.map(p => {
           if (p.periodId === affectedPeriodId && p.studentId === affectedStudentId) {
@@ -1805,6 +1815,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toggleUnitCompletion,
         submitAssignment,
         confirmFinalProject,
+        reviewFinalProject,
         submitStudentRemedial,
         createCourse,
         copyCourse,

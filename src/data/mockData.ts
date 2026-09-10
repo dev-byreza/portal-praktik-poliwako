@@ -26,7 +26,7 @@ export const INITIAL_INSTRUCTOR: InstructorProfile = {
   email: 'rezaf@politekniksorowako.ac.id',
   name: 'Reza Febriadi Rauf',
   nip: '198709122015041002',
-  avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+  avatarUrl: '',
   department: 'Rekayasa Perancangan Mekanik'
 };
 
@@ -140,17 +140,7 @@ export const INITIAL_STUDENTS: Student[] = [
   { id: 'std-22503034', nim: '22503034', name: 'Valentin Merrandan', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
   { id: 'std-22503035', nim: '22503035', name: 'Yhogi Oktavianus Iksel', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
   { id: 'std-22503036', nim: '22503036', name: 'Zahra Atifah Zal-Sabila', className: '2C', createdAt: '2026-08-01T08:00:00.000Z' },
-  // Akun Dummy Tester Mahasiswa
-  {
-    id: 'std-tester-001',
-    nim: '001',
-    name: 'Tester',
-    className: '1C',
-    email: 'tester@politekniksorowako.ac.id',
-    password: '123',
-    hasCreatedPassword: true,
-    createdAt: '2026-08-01T08:00:00.000Z'
-  }
+
 ];
 
 // Mata Kuliah Real: CAD 1.1
@@ -448,7 +438,7 @@ export const INITIAL_PERIODS: PracticePeriod[] = [
     startDate: '2026-08-17',
     endDate: '2026-08-21',
     status: 'COMPLETED',
-    finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad1-g1',
+    finalProjectDriveUrl: '',
     createdAt: '2026-08-10T08:00:00.000Z'
   },
   {
@@ -459,7 +449,7 @@ export const INITIAL_PERIODS: PracticePeriod[] = [
     startDate: '2026-08-31',
     endDate: '2026-09-04',
     status: 'COMPLETED',
-    finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad1-g2',
+    finalProjectDriveUrl: '',
     createdAt: '2026-08-10T08:00:00.000Z'
   },
   {
@@ -471,7 +461,7 @@ export const INITIAL_PERIODS: PracticePeriod[] = [
     endDate: '2026-09-18',
     status: 'UPCOMING',
     autoStatus: true,
-    finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad1-g3',
+    finalProjectDriveUrl: '',
     createdAt: '2026-08-10T08:00:00.000Z'
   },
   // 6 Gelombang Periode Praktik CAD 2 (Prodi TRPF - Kelas 2D)
@@ -484,7 +474,7 @@ export const INITIAL_PERIODS: PracticePeriod[] = [
     endDate: '2026-08-21',
     status: 'COMPLETED',
     autoStatus: true,
-    finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad2-g1',
+    finalProjectDriveUrl: '',
     createdAt: '2026-08-15T08:00:00.000Z'
   },
   {
@@ -496,7 +486,7 @@ export const INITIAL_PERIODS: PracticePeriod[] = [
     endDate: '2026-09-04',
     status: 'COMPLETED',
     autoStatus: true,
-    finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad2-g2',
+    finalProjectDriveUrl: '',
     createdAt: '2026-08-25T08:00:00.000Z'
   },
   {
@@ -508,7 +498,7 @@ export const INITIAL_PERIODS: PracticePeriod[] = [
     endDate: '2026-09-18',
     status: 'UPCOMING',
     autoStatus: true,
-    finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad2-g3',
+    finalProjectDriveUrl: '',
     createdAt: '2026-09-01T08:00:00.000Z'
   },
   {
@@ -519,7 +509,7 @@ export const INITIAL_PERIODS: PracticePeriod[] = [
     startDate: '2026-09-28',
     endDate: '2026-10-02',
     status: 'UPCOMING',
-    finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad2-g4',
+    finalProjectDriveUrl: '',
     createdAt: '2026-09-01T08:00:00.000Z'
   },
   {
@@ -530,7 +520,7 @@ export const INITIAL_PERIODS: PracticePeriod[] = [
     startDate: '2026-10-19',
     endDate: '2026-10-23',
     status: 'UPCOMING',
-    finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad2-g5',
+    finalProjectDriveUrl: '',
     createdAt: '2026-09-01T08:00:00.000Z'
   },
   {
@@ -541,7 +531,7 @@ export const INITIAL_PERIODS: PracticePeriod[] = [
     startDate: '2026-11-02',
     endDate: '2026-11-06',
     status: 'UPCOMING',
-    finalProjectDriveUrl: 'https://drive.google.com/drive/folders/poliwako-cad2-g6',
+    finalProjectDriveUrl: '',
     createdAt: '2026-09-01T08:00:00.000Z'
   },
   ...officialRpm.courses.find(c => c.code === 'DPP')!.periods.map(p => ({
@@ -629,7 +619,7 @@ export const INITIAL_LEARNING_UNITS: LearningUnit[] = [
         title: 'Modul Teori & SOP Praktik CAD 1.1 Poliwako',
         type: 'PDF',
         contentUrl: '/materials/Modul_CAD1_1_Poliwako.pdf',
-        fileSize: '4.8 MB'
+        fileSize: undefined
       }
     ],
     assignment: {
@@ -656,7 +646,7 @@ export const INITIAL_LEARNING_UNITS: LearningUnit[] = [
         title: 'Panduan Praktik Solid Modeling Parametrik',
         type: 'PDF',
         contentUrl: '/materials/Panduan_Solid_Modeling.pdf',
-        fileSize: '3.2 MB'
+        fileSize: undefined
       }
     ],
     assignment: {
@@ -683,7 +673,7 @@ export const INITIAL_LEARNING_UNITS: LearningUnit[] = [
         title: 'Lembar Panduan Fitur Lanjutan Komponen Mesin',
         type: 'PDF',
         contentUrl: '/materials/Fitur_Lanjutan_CAD.pdf',
-        fileSize: '5.1 MB'
+        fileSize: undefined
       }
     ],
     assignment: {
@@ -710,7 +700,7 @@ export const INITIAL_LEARNING_UNITS: LearningUnit[] = [
         title: 'Standar Etiket & Drafting Gambar Kerja ISO Poliwako',
         type: 'PDF',
         contentUrl: '/materials/Standar_Drafting_ISO.pdf',
-        fileSize: '3.9 MB'
+        fileSize: undefined
       }
     ],
     assignment: {
@@ -737,7 +727,7 @@ export const INITIAL_LEARNING_UNITS: LearningUnit[] = [
         title: 'Format Panduan Laporan Praktikum CAD 1.1',
         type: 'PDF',
         contentUrl: '/materials/Panduan_Laporan_CAD1_1.pdf',
-        fileSize: '2.5 MB'
+        fileSize: undefined
       }
     ],
     assignment: {
@@ -885,19 +875,7 @@ export const INITIAL_LEARNING_UNITS: LearningUnit[] = [
 ];
 
 // Presensi Real Praktik 5 Hari Gelombang 2
-export const INITIAL_ATTENDANCE: AttendanceRecord[] = INITIAL_PARTICIPANTS.filter(p => p.periodId === 'per-cad1-1-g2').map((part, idx) => ({
-  id: `att-cad1-g2-${idx + 1}`,
-  periodId: 'per-cad1-1-g2',
-  studentId: part.studentId,
-  day1: 'HADIR',
-  day2: 'HADIR',
-  day3: 'HADIR',
-  day4: 'HADIR',
-  day5: 'HADIR',
-  percentage: 100,
-  isEligible: true,
-  updatedAt: '2026-09-04T16:00:00.000Z'
-}));
+export const INITIAL_ATTENDANCE: AttendanceRecord[] = [];
 
 export const INITIAL_UNIT_PROGRESS: UnitProgress[] = [];
 export const INITIAL_SUBMISSIONS: Submission[] = [];

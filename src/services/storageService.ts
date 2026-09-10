@@ -54,21 +54,20 @@ const CLEAN_VERSION_KEY = 'poliwako_security_v7_auto_attendance';
 
 // Auto-seed real CAD 1.1 course and students if new version flag is missing
 if (typeof window !== 'undefined' && !localStorage.getItem(CLEAN_VERSION_KEY)) {
-  localStorage.clear();
   localStorage.setItem(CLEAN_VERSION_KEY, 'true');
-  localStorage.setItem(STORAGE_KEYS.INSTRUCTOR, JSON.stringify(INITIAL_INSTRUCTOR));
-  localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(INITIAL_STUDENTS));
-  localStorage.setItem(STORAGE_KEYS.COURSES, JSON.stringify(INITIAL_COURSES));
-  localStorage.setItem(STORAGE_KEYS.PERIODS, JSON.stringify(INITIAL_PERIODS));
-  localStorage.setItem(STORAGE_KEYS.LEARNING_UNITS, JSON.stringify(INITIAL_LEARNING_UNITS));
-  localStorage.setItem(STORAGE_KEYS.PARTICIPANTS, JSON.stringify(INITIAL_PARTICIPANTS));
-  localStorage.setItem(STORAGE_KEYS.UNIT_PROGRESS, JSON.stringify(INITIAL_UNIT_PROGRESS));
-  localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(INITIAL_SUBMISSIONS));
-  localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(INITIAL_ATTENDANCE));
-  localStorage.setItem(STORAGE_KEYS.ASSESSMENTS, JSON.stringify(INITIAL_ASSESSMENTS));
-  localStorage.setItem(STORAGE_KEYS.REMEDIALS, JSON.stringify(INITIAL_REMEDIALS));
-  localStorage.setItem(STORAGE_KEYS.FEEDBACK_RULES, JSON.stringify(INITIAL_FEEDBACK_RULES));
-  localStorage.setItem(STORAGE_KEYS.ACTIVE_COURSE_ID, 'course-cad-1-1');
+  if (localStorage.getItem(STORAGE_KEYS.INSTRUCTOR) === null) localStorage.setItem(STORAGE_KEYS.INSTRUCTOR, JSON.stringify(INITIAL_INSTRUCTOR));
+  if (localStorage.getItem(STORAGE_KEYS.STUDENTS) === null) localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(INITIAL_STUDENTS));
+  if (localStorage.getItem(STORAGE_KEYS.COURSES) === null) localStorage.setItem(STORAGE_KEYS.COURSES, JSON.stringify(INITIAL_COURSES));
+  if (localStorage.getItem(STORAGE_KEYS.PERIODS) === null) localStorage.setItem(STORAGE_KEYS.PERIODS, JSON.stringify(INITIAL_PERIODS));
+  if (localStorage.getItem(STORAGE_KEYS.LEARNING_UNITS) === null) localStorage.setItem(STORAGE_KEYS.LEARNING_UNITS, JSON.stringify(INITIAL_LEARNING_UNITS));
+  if (localStorage.getItem(STORAGE_KEYS.PARTICIPANTS) === null) localStorage.setItem(STORAGE_KEYS.PARTICIPANTS, JSON.stringify(INITIAL_PARTICIPANTS));
+  if (localStorage.getItem(STORAGE_KEYS.UNIT_PROGRESS) === null) localStorage.setItem(STORAGE_KEYS.UNIT_PROGRESS, JSON.stringify(INITIAL_UNIT_PROGRESS));
+  if (localStorage.getItem(STORAGE_KEYS.SUBMISSIONS) === null) localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(INITIAL_SUBMISSIONS));
+  if (localStorage.getItem(STORAGE_KEYS.ATTENDANCE) === null) localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(INITIAL_ATTENDANCE));
+  if (localStorage.getItem(STORAGE_KEYS.ASSESSMENTS) === null) localStorage.setItem(STORAGE_KEYS.ASSESSMENTS, JSON.stringify(INITIAL_ASSESSMENTS));
+  if (localStorage.getItem(STORAGE_KEYS.REMEDIALS) === null) localStorage.setItem(STORAGE_KEYS.REMEDIALS, JSON.stringify(INITIAL_REMEDIALS));
+  if (localStorage.getItem(STORAGE_KEYS.FEEDBACK_RULES) === null) localStorage.setItem(STORAGE_KEYS.FEEDBACK_RULES, JSON.stringify(INITIAL_FEEDBACK_RULES));
+  if (localStorage.getItem(STORAGE_KEYS.ACTIVE_COURSE_ID) === null) localStorage.setItem(STORAGE_KEYS.ACTIVE_COURSE_ID, 'course-cad-1-1');
   localStorage.removeItem(STORAGE_KEYS.INSTRUCTOR_LOGGED_IN);
 }
 
@@ -135,36 +134,7 @@ export class StorageService {
 
   static getStudents(): Student[] {
     const students = getItem<Student[]>(STORAGE_KEYS.STUDENTS, INITIAL_STUDENTS);
-    // Ensure Tester dummy account (nim: '001', password: '123') exists & is active
-    const testerIdx = students.findIndex(s => s.nim.toLowerCase() === '001');
-    if (testerIdx === -1) {
-      students.unshift({
-        id: 'std-tester-001',
-        nim: '001',
-        name: 'Tester',
-        className: '1C',
-        email: 'tester@politekniksorowako.ac.id',
-        password: '123',
-        hasCreatedPassword: true,
-        createdAt: '2026-08-01T08:00:00.000Z'
-      });
-      this.saveStudents(students);
-    } else {
-      let changed = false;
-      if (students[testerIdx].name !== 'Tester') {
-        students[testerIdx].name = 'Tester';
-        changed = true;
-      }
-      if (students[testerIdx].password !== '123' || !students[testerIdx].hasCreatedPassword) {
-        students[testerIdx].password = '123';
-        students[testerIdx].hasCreatedPassword = true;
-        changed = true;
-      }
-      if (changed) {
-        this.saveStudents(students);
-      }
-    }
-    return students;
+    return students.filter(s => s.id !== 'std-tester-001');
   }
 
   static saveStudents(students: Student[]): void {

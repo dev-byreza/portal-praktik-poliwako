@@ -1,3 +1,4 @@
+import { StudentDashboard } from './StudentDashboard';
 // Student Progressive Learning Workspace & Portal (PRD Section 28-40, 68)
 
 import React, { useState, useMemo } from 'react';
@@ -58,12 +59,12 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
   const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false);
   const [selectedUnitId, setSelectedUnitId] = useState<string>('');
-  const [activeTab, setActiveTabState] = useState<'UNITS' | 'FINAL_PROJECT' | 'GRADE'>('UNITS');
-  const setActiveTab = (tab: 'UNITS' | 'FINAL_PROJECT' | 'GRADE') => {
+  const [activeTab, setActiveTabState] = useState<'DASHBOARD' | 'UNITS' | 'FINAL_PROJECT' | 'GRADE'>('DASHBOARD');
+  const setActiveTab = (tab: 'DASHBOARD' | 'UNITS' | 'FINAL_PROJECT' | 'GRADE') => {
     setActiveTabState(tab);
     if (typeof window !== 'undefined' && !isViewingCatalog) {
-      const suffix = tab === 'FINAL_PROJECT' ? 'final-project' : tab === 'GRADE' ? 'nilai' : 'unit';
-      const target = suffix === 'unit'
+      const suffix = tab === 'DASHBOARD' ? 'dashboard' : tab === 'FINAL_PROJECT' ? 'final-project' : tab === 'GRADE' ? 'nilai' : 'unit';
+      const target = suffix === 'dashboard' ? `/mahasiswa/dashboard/${selectedCourseSlug}` : suffix === 'unit'
         ? `/mahasiswa/unit/${selectedCourseSlug}`
         : suffix === 'final-project'
           ? `/mahasiswa/final-project/${selectedCourseSlug}`
@@ -140,12 +141,13 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
         setIsViewingCatalog(false);
         return;
       }
-      const isCanonicalRoute = ['unit', 'final-project', 'nilai'].includes(parts[1]);
+      const isCanonicalRoute = ['dashboard', 'unit', 'final-project', 'nilai'].includes(parts[1]);
       const slug = isCanonicalRoute ? parts[2] : parts[1];
       const section = isCanonicalRoute ? parts[1] : parts[2];
       setIsViewingCatalog(!slug);
       if (slug) setSelectedCourseSlug(slug);
-      if (section === 'final-project') setActiveTabState('FINAL_PROJECT');
+      if (section === 'dashboard') setActiveTabState('DASHBOARD');
+      else if (section === 'final-project') setActiveTabState('FINAL_PROJECT');
       else if (section === 'nilai') setActiveTabState('GRADE');
       else if (section === 'unit') setActiveTabState('UNITS');
     };
@@ -167,7 +169,8 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                          periods.find(period => period.courseId === targetCourse.id);
     setSelectedCourseSlug(slug);
     setIsViewingCatalog(false);
-    window.history.pushState(null, '', `/mahasiswa/unit/${slug}`);
+    window.history.pushState(null, '', `/mahasiswa/dashboard/${slug}`);
+    setActiveTabState('DASHBOARD');
     sessionStorage.setItem('poliwako_in_workspace', 'true');
     if (currentStudent && targetCourse && targetPeriod) {
       setStudentIdentity(currentStudent.id, targetCourse.slug, targetPeriod.id);
@@ -189,7 +192,6 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
   React.useEffect(() => {
     if (periodUnits.length > 0 && !periodUnits.some(u => u.id === selectedUnitId)) {
       setSelectedUnitId(periodUnits[0].id);
-      setActiveTab('UNITS');
     }
   }, [periodUnits, selectedUnitId]);
 
@@ -271,6 +273,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
   const isCurrentUnitCompleted = currentUnit ? unitStatusMap.get(currentUnit.id) === 'COMPLETED' : false;
 
   const isPrevDisabled = useMemo(() => {
+    if (activeTab === 'DASHBOARD') return true;
     if (activeTab === 'UNITS') {
       return currentUnitIndex <= 0;
     }
@@ -278,6 +281,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
   }, [activeTab, currentUnitIndex]);
 
   const isNextDisabled = useMemo(() => {
+    if (activeTab === 'DASHBOARD') return true;
     if (activeTab === 'GRADE') return true;
     if (activeTab === 'FINAL_PROJECT') return false;
     if (activeTab === 'UNITS') {
@@ -501,7 +505,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                     Learning Workspace
                   </span>
                   <span className="text-[11px] text-slate-400 truncate">
-                    {currentCourse?.code} • {currentCourse?.semester} {currentCourse?.academicYear}
+                    {currentCourse?.code} â€¢ {currentCourse?.semester} {currentCourse?.academicYear}
                   </span>
                 </div>
                 <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 mt-0.5">
@@ -536,8 +540,8 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                 </div>
                 <div className="min-w-0">
                   <h4 className="text-xs font-bold text-white leading-tight truncate">{currentStudent.name}</h4>
-                <p className="text-[10px] text-slate-400 font-mono leading-tight truncate whitespace-nowrap" title={`NIM: ${currentStudent.nim} • Kelas ${currentStudent.className}`}>
-                    NIM: {currentStudent.nim} • Kelas {currentStudent.className}
+                <p className="text-[10px] text-slate-400 font-mono leading-tight truncate whitespace-nowrap" title={`NIM: ${currentStudent.nim} â€¢ Kelas ${currentStudent.className}`}>
+                    NIM: {currentStudent.nim} â€¢ Kelas {currentStudent.className}
                   </p>
                 </div>
                 <button
@@ -718,6 +722,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
           {/* Right Column: Main Content Area with Flexible / Sticky Header */}
           <div className={`${isOutlineOpen ? 'lg:col-span-9 xl:col-span-1' : 'col-span-12 xl:col-span-1'} h-full min-h-0 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all`}>
             
+            <nav aria-label="Navigasi mahasiswa" className="grid grid-cols-4 gap-1 p-2 border-b shrink-0">
+              {([{key:'DASHBOARD',label:'Beranda'},{key:'UNITS',label:'Materi'},{key:'FINAL_PROJECT',label:'Proyek'},{key:'GRADE',label:'Nilai'}] as const).map(item => <button key={item.key} onClick={() => setActiveTab(item.key)} aria-current={activeTab === item.key ? 'page' : undefined} className={`min-h-11 rounded-lg text-xs sm:text-sm font-semibold ${activeTab === item.key ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{item.label}</button>)}
+            </nav>
             {/* Flexible / Sticky Top Header Bar (Course Outline Toggle + Previous/Next) */}
             <div className="bg-white border-b border-slate-200/90 px-4 sm:px-6 py-2.5 flex items-center justify-between shrink-0 z-20 shadow-xs">
               {!isOutlineOpen && (
@@ -786,6 +793,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                   </div>
                 )}
 
+                {activeTab === 'DASHBOARD' && <StudentDashboard course={currentCourse} period={activePeriod} units={periodUnits} onLearn={id => {if(id) setSelectedUnitId(id);setActiveTab('UNITS');}} onGrade={() => setActiveTab('GRADE')} onProject={() => setActiveTab('FINAL_PROJECT')}/>}
                 {/* Tab: Units Content */}
                 {activeTab === 'UNITS' && currentUnit && (
                   <div className="space-y-6">
