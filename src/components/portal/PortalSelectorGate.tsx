@@ -8,6 +8,7 @@ import {
   Lock
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { FooterBranding } from '../common/FooterBranding';
 
 interface PortalSelectorGateProps {
   onSelectRole: (role: 'STUDENT' | 'INSTRUCTOR', path: string) => void;
@@ -33,7 +34,7 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
     <div
       onPointerMove={handlePointerMove}
       onMouseMove={handlePointerMove}
-      className="relative flex-1 min-h-0 w-full h-full flex flex-col justify-center items-center p-4 sm:p-6 overflow-y-auto overflow-x-hidden bg-slate-950 select-none py-10"
+      className="relative flex-1 min-h-0 w-full h-full flex flex-col overflow-y-auto overflow-x-hidden bg-slate-950 select-none"
     >
       {/* Animated & Pointer-Reactive Background Mesh & Glow Orbs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -89,8 +90,9 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
       </div>
 
       {/* Main Content Container with Subtle 3D Tilt Reaction */}
+      <div className="relative z-10 flex w-full flex-1 flex-col items-center justify-center px-4 py-10 sm:px-6">
       <div
-        className="relative z-10 w-full max-w-5xl flex flex-col items-center my-auto transition-transform duration-200 ease-out will-change-transform px-2"
+        className="w-full max-w-5xl flex flex-col items-center transition-transform duration-200 ease-out will-change-transform px-2"
         style={{
           transform: `perspective(1000px) rotateY(${(mousePos.x - 0.5) * 3}deg) rotateX(${(mousePos.y - 0.5) * -3}deg)`,
         }}
@@ -193,6 +195,13 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
         </div>
 
       </div>
+      </div>
+
+      <footer className="relative z-10 w-full shrink-0 border-t border-white/10 bg-transparent py-3 text-xs">
+        <div className="mx-auto max-w-7xl px-4">
+          <FooterBranding theme="dark" />
+        </div>
+      </footer>
     </div>
   );
 };
