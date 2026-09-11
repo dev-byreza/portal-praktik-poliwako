@@ -41,30 +41,11 @@ html.portal-viewport-locked body {
   overscroll-behavior: none;
 }
 
-/* Keep transparent logo artwork readable over the portal grid/glow. The
-   surface is scoped to each logo, so the footer itself remains transparent. */
+/* Keep the logo artwork above the animated portal background. The logos and
+   the footer remain fully transparent so the grid/glow continues underneath. */
 .footer-logo-layer {
   position: relative;
   z-index: 1;
-  isolation: isolate;
-}
-
-.footer-logo-layer::before {
-  content: '';
-  position: absolute;
-  inset: -0.25rem -0.45rem;
-  z-index: -1;
-  border-radius: 0.75rem;
-  pointer-events: none;
-  backdrop-filter: blur(3px);
-}
-
-.footer-logo-layer-dark::before {
-  background: rgba(2, 6, 23, 0.72);
-}
-
-.footer-logo-layer-light::before {
-  background: rgba(255, 255, 255, 0.78);
 }
 
 /* Animations */
