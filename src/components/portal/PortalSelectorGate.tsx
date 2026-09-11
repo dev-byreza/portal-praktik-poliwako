@@ -90,7 +90,7 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
       </div>
 
       {/* Main Content Container with Subtle 3D Tilt Reaction */}
-      <div className="relative z-10 flex w-full flex-1 flex-col items-center justify-center px-3 py-4 sm:px-6 sm:py-6">
+      <div className="relative z-10 flex w-full flex-1 flex-col items-center justify-center px-3 py-2 sm:px-6 sm:py-6">
       <div
         className="w-full max-w-5xl flex flex-col items-center transition-transform duration-200 ease-out will-change-transform px-1 sm:px-2"
         style={{
@@ -120,7 +120,7 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
           {/* CARD 1: PORTAL MAHASISWA */}
           <div
             onClick={() => onSelectRole('STUDENT', '/mahasiswa')}
-            className="group relative backdrop-blur-2xl bg-slate-900/75 hover:bg-slate-900/95 rounded-3xl p-4 sm:p-7 border border-white/15 hover:border-cyan-400/60 ring-1 ring-cyan-500/20 hover:ring-2 hover:ring-cyan-400/40 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] hover:shadow-[0_25px_60px_-15px_rgba(56,189,248,0.25)] transition-all duration-300 cursor-pointer flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden md:aspect-[4/2.5] min-h-[185px] sm:min-h-[230px] md:min-h-[290px]"
+            className="group relative backdrop-blur-2xl bg-slate-900/75 hover:bg-slate-900/95 rounded-3xl p-3 sm:p-7 border border-white/15 hover:border-cyan-400/60 ring-1 ring-cyan-500/20 hover:ring-2 hover:ring-cyan-400/40 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] hover:shadow-[0_25px_60px_-15px_rgba(56,189,248,0.25)] transition-all duration-300 cursor-pointer flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden md:aspect-[4/2.5] min-h-[170px] sm:min-h-[230px] md:min-h-[290px]"
           >
             {/* Top Specular Glow */}
             <div className="absolute top-0 left-0 right-0 h-20 sm:h-28 bg-gradient-to-b from-cyan-500/10 via-transparent to-transparent pointer-events-none rounded-t-3xl" />
@@ -140,7 +140,7 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
               <h3 className="text-lg sm:text-2xl lg:text-3xl font-black text-white group-hover:text-cyan-300 transition-colors tracking-tight leading-tight mt-1.5 sm:mt-2 mb-1.5">
                 Portal Praktik Mahasiswa
               </h3>
-              <p className="text-[11px] sm:text-sm text-slate-400 leading-relaxed">
+              <p className="text-[11px] sm:text-sm text-slate-400 leading-relaxed line-clamp-2 sm:line-clamp-none">
                 Akses modul materi, presensi praktik harian (WITA), penugasan, instruksi kerja, dan upload laporan menggunakan <strong>NIM</strong>.
               </p>
             </div>
@@ -157,7 +157,7 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
           {/* CARD 2: PORTAL INSTRUKTUR */}
           <div
             onClick={() => onSelectRole('INSTRUCTOR', '/instruktur')}
-            className="group relative backdrop-blur-2xl bg-slate-900/75 hover:bg-slate-900/95 rounded-3xl p-4 sm:p-7 border border-white/15 hover:border-indigo-400/60 ring-1 ring-indigo-500/20 hover:ring-2 hover:ring-indigo-400/40 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] hover:shadow-[0_25px_60px_-15px_rgba(99,102,241,0.25)] transition-all duration-300 cursor-pointer flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden md:aspect-[4/2.5] min-h-[185px] sm:min-h-[230px] md:min-h-[290px]"
+            className="group relative backdrop-blur-2xl bg-slate-900/75 hover:bg-slate-900/95 rounded-3xl p-3 sm:p-7 border border-white/15 hover:border-indigo-400/60 ring-1 ring-indigo-500/20 hover:ring-2 hover:ring-indigo-400/40 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] hover:shadow-[0_25px_60px_-15px_rgba(99,102,241,0.25)] transition-all duration-300 cursor-pointer flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden md:aspect-[4/2.5] min-h-[170px] sm:min-h-[230px] md:min-h-[290px]"
           >
             {/* Top Specular Glow */}
             <div className="absolute top-0 left-0 right-0 h-20 sm:h-28 bg-gradient-to-b from-indigo-500/10 via-transparent to-transparent pointer-events-none rounded-t-3xl" />
@@ -177,7 +177,7 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
               <h3 className="text-lg sm:text-2xl lg:text-3xl font-black text-white group-hover:text-indigo-300 transition-colors tracking-tight leading-tight mt-1.5 sm:mt-2 mb-1.5">
                 Portal Instruktur & Dosen
               </h3>
-              <p className="text-[11px] sm:text-sm text-slate-400 leading-relaxed">
+              <p className="text-[11px] sm:text-sm text-slate-400 leading-relaxed line-clamp-2 sm:line-clamp-none">
                 Kelola kurikulum praktik, input nilai OBE, rekap export Excel, pemantauan presensi, dan manajemen database mahasiswa.
               </p>
             </div>
