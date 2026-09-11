@@ -4,6 +4,20 @@ import { useApp } from '../../context/AppContext';
 import { Course, PracticePeriod, LearningUnit } from '../../types';
 import { ArrowRight, BookOpen, ClipboardList, Award } from 'lucide-react';
 import { hasSuccessfulSubmission } from '../../utils/studentProgress';
+import { getWitaDateString } from '../../utils/dateUtils';
+
+const getVisibleAttendanceDays = (startDate?: string): number => {
+  const startParts = String(startDate || '').split('-').map(Number);
+  if (startParts.length !== 3 || startParts.some(Number.isNaN)) return 5;
+
+  const start = Date.UTC(startParts[0], startParts[1] - 1, startParts[2]);
+  const todayParts = getWitaDateString().split('-').map(Number);
+  if (todayParts.length !== 3 || todayParts.some(Number.isNaN)) return 5;
+
+  const today = Date.UTC(todayParts[0], todayParts[1] - 1, todayParts[2]);
+  const elapsedDays = Math.floor((today - start) / 86400000) + 1;
+  return Math.max(0, Math.min(5, elapsedDays));
+};
 interface Props {
   course?: Course; period?: PracticePeriod; units: LearningUnit[];
   onLearn: (unitId?: string) => void; onGrade: () => void; onProject: () => void;
@@ -21,6 +35,7 @@ export const StudentDashboard: React.FC<Props> = ({course, period, units, onLear
   const pending = progressUnits.filter(unit => !hasSuccessfulSubmission(mySubmissions, unit.assignment?.id)).sort((a,b) => (a.assignment?.deadline || '9999').localeCompare(b.assignment?.deadline || '9999'));
   const extra = remedials.filter(r => mine(r) && ['PENDING_SUBMISSION','BELUM_LULUS'].includes(r.status));
   const record = attendance.find(mine);
+  const visibleAttendanceDays = getVisibleAttendanceDays(period?.startDate);
   const project = participants.find(mine);
   return <div className="space-y-5 min-w-0">
     <section className="rounded-2xl bg-gradient-to-br from-blue-950 to-blue-800 p-5 sm:p-7 text-white">
@@ -44,6 +59,6 @@ export const StudentDashboard: React.FC<Props> = ({course, period, units, onLear
     </nav>
     <section className="border rounded-2xl p-4 sm:p-5"><h2 className="font-bold">Periode praktik</h2><p className="text-sm mt-2">{period?.name || 'Belum ada periode'}</p>{period && <p className="text-sm text-slate-600 mt-1">{period.startDate} – {period.endDate} • WITA</p>}<p className="text-xs text-slate-500 mt-2">{period?.status === 'ACTIVE' ? 'Periode sedang berlangsung' : period?.status === 'COMPLETED' ? 'Periode telah berakhir' : 'Periksa jadwal periode sebelum memulai praktik.'}</p></section>
     <section className="border rounded-2xl p-4 sm:p-5"><h2 className="font-bold">Tugas saya</h2>{pending.length ? <ul className="divide-y mt-2">{pending.map(unit => <li key={unit.id}><button onClick={() => onLearn(unit.id)} className="w-full min-h-14 py-3 flex items-center gap-3 text-left"><div className="min-w-0 flex-1"><p className="font-medium text-sm break-words">{unit.assignment?.title}</p><p className="text-xs text-slate-500 mt-1">Batas: {formatSubmissionDeadline(unit.assignment?.deadline || '')} WITA</p></div><ArrowRight size={17}/></button></li>)}</ul> : <p className="text-sm text-slate-500 mt-3">{units.some(u => u.assignment) ? 'Semua tugas telah dikumpulkan. Periksa nilai untuk hasil evaluasi.' : 'Belum ada tugas yang diberikan.'}</p>}</section>
-    <section className="border rounded-2xl p-4 sm:p-5"><h2 className="font-bold">Catatan presensi</h2>{record ? <><div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-3">{(['day1','day2','day3','day4','day5'] as const).map((day,index) => <div key={day} className="rounded-lg bg-slate-50 p-3"><p className="text-xs text-slate-500">Hari {index+1}</p><p className="text-sm font-semibold mt-1">{record[day]}</p></div>)}</div><p className="text-xs text-slate-500 mt-3">Catatan sistem dapat berubah setelah pemeriksaan instruktur. Hubungi instruktur jika ada ketidaksesuaian.</p></> : <p className="text-sm text-slate-500 mt-3">Belum ada catatan presensi.</p>}</section>
+    <section className="border rounded-2xl p-4 sm:p-5"><h2 className="font-bold">Catatan presensi</h2>{record ? <><div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-3">{(['day1','day2','day3','day4','day5'] as const).map((day,index) => <div key={day} className="rounded-lg bg-slate-50 p-3"><p className="text-xs text-slate-500">Hari {index+1}</p><p className="text-sm font-semibold mt-1">{index < visibleAttendanceDays ? record[day] : '-'}</p></div>)}</div><p className="text-xs text-slate-500 mt-3">Hari praktik yang belum tiba ditampilkan sebagai tanda strip (-). Catatan sistem dapat berubah setelah pemeriksaan instruktur.</p></> : <p className="text-sm text-slate-500 mt-3">Belum ada catatan presensi.</p>}</section>
   </div>;
 };
