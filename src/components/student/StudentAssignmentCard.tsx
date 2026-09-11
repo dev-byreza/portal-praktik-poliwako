@@ -10,7 +10,8 @@ import {
   Clock,
   AlertCircle,
   Eye,
-  Trash2
+  Trash2,
+  RefreshCw
 } from 'lucide-react';
 import { PDFViewerModal } from '../common/PDFViewerModal';
 import { formatDeadline, formatWitaDateTime } from '../../utils/dateUtils';
@@ -213,17 +214,50 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
 
             {/* Re-upload is controlled by the assignment deadline only. */}
             {!isDeadlinePassed && (
-              <div className="mt-4 pt-3 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500">
-                <span>Ingin memperbarui file tugas?</span>
-                <label className="text-blue-600 hover:text-blue-700 font-semibold cursor-pointer underline">
-                  Ganti File
-                  <input
-                    type="file"
-                    accept={fileRule((assignment.allowedFileType || 'PDF') as AllowedFileType).accept}
-                    onChange={handleFileInputChange}
-                    className="hidden"
-                  />
-                </label>
+              <div className="mt-4 pt-3 border-t border-slate-200 flex flex-col gap-3 text-xs text-slate-500">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span>Ingin memperbarui file tugas?</span>
+                  <label className="text-blue-600 hover:text-blue-700 font-semibold cursor-pointer underline">
+                    Ganti File
+                    <input
+                      type="file"
+                      accept={fileRule((assignment.allowedFileType || 'PDF') as AllowedFileType).accept}
+                      onChange={handleFileInputChange}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {selectedFile && (
+                  <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <RefreshCw className="w-5 h-5 text-blue-600 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-900 break-all">File baru: {selectedFile.name}</p>
+                        <p className="text-[10px] text-slate-500">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Belum disimpan</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFile(null)}
+                        className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
+                        aria-label="Batalkan file baru"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleUpload}
+                        disabled={isUploading}
+                        className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition-colors shadow-sm disabled:opacity-60"
+                      >
+                        {isUploading ? 'Menyimpan...' : 'Simpan File Baru'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
