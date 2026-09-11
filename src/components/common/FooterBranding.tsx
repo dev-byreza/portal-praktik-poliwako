@@ -12,8 +12,8 @@ export const FooterBranding: React.FC<FooterBrandingProps> = ({
   const isDark = theme === 'dark';
 
   const mastercadLinkClass = compact
-    ? 'inline-flex h-10 w-[150px] items-center justify-center transition-transform hover:scale-[1.02]'
-    : 'inline-flex h-12 w-[180px] items-center justify-center transition-transform hover:scale-[1.02] sm:h-14 sm:w-[210px]';
+    ? 'inline-flex h-10 w-full max-w-[150px] items-center justify-center transition-transform hover:scale-[1.02]'
+    : 'inline-flex h-12 w-full max-w-[180px] items-center justify-center transition-transform hover:scale-[1.02] sm:h-14 sm:max-w-[210px]';
 
   const mastercadImageClass = compact
     ? 'h-8 w-full object-contain'
@@ -33,7 +33,7 @@ export const FooterBranding: React.FC<FooterBrandingProps> = ({
         Product by
       </span>
 
-      <div className="flex w-full flex-wrap items-center justify-center gap-2.5">
+      <div className="flex w-full flex-col items-center justify-center gap-1.5 sm:flex-row sm:flex-wrap sm:gap-2.5">
         <a
           href="https://www.tiktok.com/@mastercad.id"
           target="_blank"

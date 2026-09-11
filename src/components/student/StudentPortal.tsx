@@ -82,6 +82,17 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     return () => window.clearInterval(timer);
   }, []);
 
+  // Keep the course outline closed when a desktop window is narrowed into
+  // the mobile layout. It can still be opened manually from the compact menu.
+  React.useEffect(() => {
+    const handleViewportResize = () => {
+      if (window.innerWidth < 1024) setIsOutlineOpen(false);
+    };
+    handleViewportResize();
+    window.addEventListener('resize', handleViewportResize);
+    return () => window.removeEventListener('resize', handleViewportResize);
+  }, []);
+
   // Catalog view state (PRD Option B: Course Catalog & Switcher)
   const [isViewingCatalog, setIsViewingCatalog] = useState<boolean>(() => {
     return !sessionStorage.getItem('poliwako_in_workspace');
@@ -532,13 +543,13 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
           {/* Progress Bar Header (Compact) */}
           {currentStudent && (
-            <div className="mt-2 pt-1.5 border-t border-slate-800/70 flex items-center justify-between gap-3 text-[11px]">
-              <div className="flex items-center gap-2">
+            <div className="mt-2 pt-1.5 border-t border-slate-800/70 flex flex-col items-stretch gap-2 text-[11px] sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
                 <span className="text-slate-400">Progres Upload Tugas:</span>
                 <span className="font-bold text-cyan-300">{progressStats.completed} dari {progressStats.total} Unit Tersimpan ({progressStats.percentage}%)</span>
               </div>
-              
-              <div className="w-48 sm:w-64 bg-slate-800 rounded-full h-1.5 overflow-hidden border border-slate-700/80 shrink-0">
+
+              <div className="w-full sm:w-48 lg:w-64 bg-slate-800 rounded-full h-1.5 overflow-hidden border border-slate-700/80 shrink-0">
                 <div
                   className="bg-gradient-to-r from-blue-500 to-teal-400 h-full transition-all duration-500 ease-out"
                   style={{ width: `${progressStats.percentage}%` }}
@@ -550,7 +561,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
       </div>
 
       {/* Main Workspace Layout (PRD Section 68) */}
-      <div className="flex-1 min-h-0 w-full px-4 sm:px-6 lg:px-8 py-3.5 overflow-hidden">
+      <div className="flex-1 min-h-0 w-full min-w-0 px-4 sm:px-6 lg:px-8 py-3.5 overflow-x-hidden overflow-y-hidden">
         <div className={`grid grid-cols-1 lg:grid-cols-12 ${isOutlineOpen ? 'xl:grid-cols-[320px_minmax(0,1fr)]' : 'xl:grid-cols-1'} gap-5 h-full min-h-0`}>
           
           {/* Left Column: Course Outline / Navigation Sidebar */}
@@ -686,7 +697,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
         )}
 
           {/* Right Column: Main Content Area with Flexible / Sticky Header */}
-          <div className={`${isOutlineOpen ? 'lg:col-span-9 xl:col-span-1' : 'col-span-12 xl:col-span-1'} h-full min-h-0 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all`}>
+          <div className={`${isOutlineOpen ? 'lg:col-span-9 xl:col-span-1' : 'col-span-12 xl:col-span-1'} h-full min-h-0 min-w-0 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all`}>
             
             <nav aria-label="Navigasi mahasiswa" className="grid grid-cols-4 border-b border-slate-200 px-2 sm:px-4 shrink-0">
               {([
@@ -714,7 +725,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
               ))}
             </nav>
             {/* Flexible / Sticky Top Header Bar (Course Outline Toggle + Previous/Next) */}
-            <div className="bg-white border-b border-slate-200/90 px-4 sm:px-6 py-1.5 flex items-center justify-between shrink-0 z-20">
+            <div className="bg-white border-b border-slate-200/90 px-3 sm:px-6 py-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 shrink-0 z-20">
               {!isOutlineOpen && (
               <button
                 type="button"
@@ -732,7 +743,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
               </button>
               )}
 
-              <div className="flex items-center gap-3 text-xs sm:text-sm font-medium text-slate-600">
+              <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 text-xs sm:text-sm font-medium text-slate-600">
                 <button
                   type="button"
                   disabled={isPrevDisabled}
@@ -760,7 +771,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
             </div>
 
             {/* Scrollable Material Content Area */}
-            <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar p-5 sm:p-7 lg:p-5 xl:p-6">
+            <div className="flex-1 min-h-0 min-w-0 overflow-y-auto no-scrollbar p-4 sm:p-7 lg:p-5 xl:p-6">
               <div className="max-w-4xl lg:max-w-5xl mx-auto w-full space-y-6">
             
                 {/* Identity prompt warning if not logged in */}

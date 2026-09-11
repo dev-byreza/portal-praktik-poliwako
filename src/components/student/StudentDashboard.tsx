@@ -37,8 +37,8 @@ export const StudentDashboard: React.FC<Props> = ({course, period, units, onLear
   const record = attendance.find(mine);
   const visibleAttendanceDays = getVisibleAttendanceDays(period?.startDate);
   const project = participants.find(mine);
-  return <div className="space-y-5 min-w-0">
-    <section className="rounded-2xl bg-gradient-to-br from-blue-950 to-blue-800 p-5 sm:p-7 text-white">
+  return <div className="min-w-0 space-y-5">
+    <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-blue-950 to-blue-800 p-5 sm:p-7 text-white">
       <p className="text-xs uppercase tracking-widest text-cyan-200">Dashboard mahasiswa</p>
       <h1 className="text-2xl sm:text-3xl font-bold mt-2 break-words">Halo, {currentStudent?.name || 'Mahasiswa'}</h1>
       <p className="text-sm text-blue-100 mt-2">{course?.name || 'Mata kuliah belum tersedia'}</p>
@@ -49,7 +49,7 @@ export const StudentDashboard: React.FC<Props> = ({course, period, units, onLear
       </div>
     </section>
     {!isLiveBackend && <p className="bg-amber-50 border border-amber-200 p-3 rounded-xl text-sm text-amber-900">Mode lokal: aktivitas dan berkas pada perangkat ini belum tersinkron ke instruktur.</p>}
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <section className="rounded-xl border p-4"><p className="text-sm text-slate-500">Progres upload tugas</p><p className="text-2xl font-bold mt-2">{done}<span className="text-sm font-normal text-slate-500"> / {totalProgressUnits} unit</span></p><progress aria-label="Progres upload tugas" value={done} max={totalProgressUnits || 1} className="w-full h-2 mt-3 accent-blue-600"/><p className="text-xs text-slate-500 mt-2">Berdasarkan upload yang berhasil tersimpan.</p></section>
       <section className="rounded-xl border p-4"><p className="text-sm text-slate-500">Tugas belum dikirim</p><p className="text-2xl font-bold mt-2">{pending.length}</p><p className="text-xs text-slate-500 mt-3">{extra.length} tugas tambahan perlu dikerjakan</p></section>
     </div>
