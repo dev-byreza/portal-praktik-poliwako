@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { PDFViewerModal } from '../common/PDFViewerModal';
 import { ModalPortal } from '../common/ModalPortal';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 import { formatDeadline, toDateTimeLocalWita, fromDateTimeLocalWita } from '../../utils/dateUtils';
 import { getYouTubeVideoId, toYouTubeEmbedUrl } from '../../utils/youtubeUtils';
 
@@ -90,6 +91,13 @@ export const LearningContentStudio: React.FC = () => {
   const [assignCountdownMinutes, setAssignCountdownMinutes] = useState('5');
 
   const [pdfPreview, setPdfPreview] = useState<{ isOpen: boolean; title: string; url?: string } | null>(null);
+  const [confirmState, setConfirmState] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    variant: 'danger' | 'warning';
+    onConfirm: () => void;
+  } | null>(null);
 
   // Filter periods of active course
   const coursePeriods = useMemo(() => {
@@ -526,9 +534,13 @@ export const LearningContentStudio: React.FC = () => {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (confirm(`Hapus Unit ${unit.unitNumber}?`)) {
-                          deleteLearningUnit(unit.id);
-                        }
+                        setConfirmState({
+                          title: 'Hapus Unit?',
+                          message: `Unit ${unit.unitNumber} dan seluruh materi di dalamnya akan dihapus.`,
+                          confirmLabel: 'Hapus Unit',
+                          variant: 'danger',
+                          onConfirm: () => deleteLearningUnit(unit.id),
+                        });
                       }}
                       className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
                       title="Hapus Unit"
@@ -1480,6 +1492,22 @@ export const LearningContentStudio: React.FC = () => {
             </div>
           </div>
         </ModalPortal>
+      )}
+
+      {confirmState && (
+        <ConfirmDialog
+          isOpen={true}
+          title={confirmState.title}
+          message={confirmState.message}
+          confirmLabel={confirmState.confirmLabel}
+          variant={confirmState.variant}
+          onCancel={() => setConfirmState(null)}
+          onConfirm={() => {
+            const action = confirmState.onConfirm;
+            setConfirmState(null);
+            action();
+          }}
+        />
       )}
 
     </div>

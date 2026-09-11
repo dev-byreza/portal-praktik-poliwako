@@ -20,6 +20,7 @@ import {
   KeyRound
 } from 'lucide-react';
 import { ModalPortal } from '../common/ModalPortal';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 import { getProdiFromClass } from '../../utils/academicUtils';
 
 export const MasterStudentManager: React.FC = () => {
@@ -32,6 +33,13 @@ export const MasterStudentManager: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
+  const [confirmState, setConfirmState] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    variant: 'danger' | 'warning';
+    onConfirm: () => void;
+  } | null>(null);
 
   // Form states for manual student add/edit
   const [formNim, setFormNim] = useState('');
@@ -331,9 +339,13 @@ export const MasterStudentManager: React.FC = () => {
                         {std.hasCreatedPassword && (
                           <button
                             onClick={() => {
-                              if (confirm(`Reset password untuk mahasiswa ${std.name} (${std.nim})? Mahasiswa akan diminta membuat password baru saat login berikutnya.`)) {
-                                resetStudentPassword(std.id);
-                              }
+                              setConfirmState({
+                                title: 'Reset Password Mahasiswa?',
+                                message: `Mahasiswa ${std.name} (${std.nim}) akan diminta membuat password baru saat login berikutnya.`,
+                                confirmLabel: 'Reset Password',
+                                variant: 'warning',
+                                onConfirm: () => resetStudentPassword(std.id),
+                              });
                             }}
                             className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                             title="Reset Password Mahasiswa"
@@ -348,11 +360,15 @@ export const MasterStudentManager: React.FC = () => {
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
-                        <button
-                          onClick={() => {
-                            if (confirm(`Hapus mahasiswa ${std.name} (${std.nim}) dari Master?`)) {
-                              deleteStudent(std.id);
-                            }
+                          <button
+                            onClick={() => {
+                            setConfirmState({
+                              title: 'Hapus Mahasiswa?',
+                              message: `Data mahasiswa ${std.name} (${std.nim}) akan dihapus dari Master.`,
+                              confirmLabel: 'Hapus Data',
+                              variant: 'danger',
+                              onConfirm: () => deleteStudent(std.id),
+                            });
                           }}
                           className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                           title="Hapus Mahasiswa"
@@ -624,6 +640,22 @@ export const MasterStudentManager: React.FC = () => {
           </div>
           </div>
         </ModalPortal>
+      )}
+
+      {confirmState && (
+        <ConfirmDialog
+          isOpen={true}
+          title={confirmState.title}
+          message={confirmState.message}
+          confirmLabel={confirmState.confirmLabel}
+          variant={confirmState.variant}
+          onCancel={() => setConfirmState(null)}
+          onConfirm={() => {
+            const action = confirmState.onConfirm;
+            setConfirmState(null);
+            action();
+          }}
+        />
       )}
 
     </div>

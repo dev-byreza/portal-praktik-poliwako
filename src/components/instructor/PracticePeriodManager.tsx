@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { ModalPortal } from '../common/ModalPortal';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 import {
   computePeriodEndDate,
   formatPeriodRange,
@@ -69,6 +70,13 @@ export const PracticePeriodManager: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isBulkNimModalOpen, setIsBulkNimModalOpen] = useState(false);
+  const [confirmState, setConfirmState] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    variant: 'danger' | 'warning';
+    onConfirm: () => void;
+  } | null>(null);
 
   // Period Form states (Create)
   const [startDateInput, setStartDateInput] = useState<string>(getWitaDateString());
@@ -251,13 +259,19 @@ export const PracticePeriodManager: React.FC = () => {
       showToast('Tidak Dapat Dihapus', 'Minimal harus ada 1 periode praktik untuk mata kuliah ini.', 'warning');
       return;
     }
-    if (confirm(`Yakin ingin menghapus "${period.name}"? Data kehadiran dan nilai mahasiswa pada periode ini akan dihapus.`)) {
-      deletePeriod(period.id);
-      const remaining = coursePeriods.filter(p => p.id !== period.id);
-      if (remaining.length > 0) {
-        setSelectedPeriodId(remaining[0].id);
-      }
-    }
+    setConfirmState({
+      title: 'Hapus Periode Praktik?',
+      message: `Periode "${period.name}" beserta data kehadiran dan nilai mahasiswa akan dihapus.`,
+      confirmLabel: 'Hapus Periode',
+      variant: 'danger',
+      onConfirm: () => {
+        deletePeriod(period.id);
+        const remaining = coursePeriods.filter(p => p.id !== period.id);
+        if (remaining.length > 0) {
+          setSelectedPeriodId(remaining[0].id);
+        }
+      },
+    });
   };
 
   // Bulk NIM live lookup & validation (PRD Section 27 & 96)
@@ -578,9 +592,13 @@ export const PracticePeriodManager: React.FC = () => {
                             <td className="py-3 px-4 text-right">
                               <button
                                 onClick={() => {
-                                  if (confirm(`Keluarkan ${part.student.name} dari periode ini?`)) {
-                                    removeParticipant(part.id);
-                                  }
+                                  setConfirmState({
+                                    title: 'Keluarkan Peserta?',
+                                    message: `${part.student.name} akan dikeluarkan dari periode praktik ini.`,
+                                    confirmLabel: 'Keluarkan',
+                                    variant: 'warning',
+                                    onConfirm: () => removeParticipant(part.id),
+                                  });
                                 }}
                                 className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
                                 title="Keluarkan Peserta"
@@ -1090,6 +1108,22 @@ export const PracticePeriodManager: React.FC = () => {
           </div>
           </div>
         </ModalPortal>
+      )}
+
+      {confirmState && (
+        <ConfirmDialog
+          isOpen={true}
+          title={confirmState.title}
+          message={confirmState.message}
+          confirmLabel={confirmState.confirmLabel}
+          variant={confirmState.variant}
+          onCancel={() => setConfirmState(null)}
+          onConfirm={() => {
+            const action = confirmState.onConfirm;
+            setConfirmState(null);
+            action();
+          }}
+        />
       )}
 
     </div>
