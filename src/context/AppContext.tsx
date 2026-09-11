@@ -803,7 +803,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }
           return p;
         }));
-        showToast('Hebat! 100% Selesai', 'Seluruh unit pembelajaran telah tuntas. Final Project sekarang dapat diakses!', 'success');
+        showToast('Hebat! 100% Selesai', 'Seluruh unit pembelajaran telah tuntas.', 'success');
       } else {
         showToast('Unit Selesai', `Unit ${periodUnits[targetUnitIndex].unitNumber} ditandai selesai. Unit berikutnya terbuka.`, 'success');
       }

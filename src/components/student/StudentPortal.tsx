@@ -257,7 +257,6 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     return { completed, total, percentage };
   }, [unitProgress, studentSession, periodUnits]);
 
-  const isLearningComplete = progressStats.percentage === 100;
   const isFinalProjectActive = activePeriod?.finalProjectEnabled === true;
 
   // Check assignment submission for current unit
@@ -663,20 +662,20 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
                 {/* Final Project Tab Button */}
                 <button
-                  disabled={!isLearningComplete || !isFinalProjectActive}
+                  disabled={!isFinalProjectActive}
                   onClick={() => {
-                    if (isLearningComplete && isFinalProjectActive) setActiveTab('FINAL_PROJECT');
+                    if (isFinalProjectActive) setActiveTab('FINAL_PROJECT');
                   }}
                   className={`w-full text-left px-3 py-2.5 transition-all flex items-start gap-2.5 border-t border-slate-200 ${
                     activeTab === 'FINAL_PROJECT'
                       ? 'bg-indigo-50 border-l-[3px] border-indigo-600 text-indigo-900'
-                      : isLearningComplete && isFinalProjectActive
+                      : isFinalProjectActive
                       ? 'bg-gradient-to-r from-blue-50/50 to-indigo-50/50 hover:bg-indigo-50/80 text-slate-700'
                       : 'opacity-60 bg-slate-50 cursor-not-allowed'
                   }`}
                 >
                   <div className="mt-0.5 shrink-0">
-                    {isLearningComplete && isFinalProjectActive ? (
+                    {isFinalProjectActive ? (
                       <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-xs">
                         <Sparkles className="w-3 h-3" />
                       </div>
@@ -1001,7 +1000,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
             {/* Tab: Final Project */}
             {activeTab === 'FINAL_PROJECT' && (
               <StudentFinalProjectCard
-                isUnlocked={isLearningComplete && isFinalProjectActive}
+                isUnlocked={isFinalProjectActive}
                 isActive={isFinalProjectActive}
                 driveUrl={activePeriod?.finalProjectDriveUrl}
                 description={activePeriod?.finalProjectDescription}
