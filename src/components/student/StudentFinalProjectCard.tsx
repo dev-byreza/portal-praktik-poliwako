@@ -1,13 +1,12 @@
 import React, {useState} from 'react';
 import {useApp} from '../../context/AppContext';
-export const StudentFinalProjectCard: React.FC<{isUnlocked: boolean; isActive: boolean; driveUrl?: string; description?: string}> = ({isUnlocked,isActive,driveUrl,description}) => {
+export const StudentFinalProjectCard: React.FC<{isActive: boolean; driveUrl?: string; description?: string}> = ({isActive,driveUrl,description}) => {
   const {studentSession, participants, confirmFinalProject, isLiveBackend} = useApp();
   const participant=participants.find(p=>p.studentId===studentSession?.studentId && p.periodId===studentSession?.periodId);
   const [url,setUrl]=useState(participant?.finalProjectUrl || ''); const [checked,setChecked]=useState(false);
   const [busy,setBusy]=useState(false); const [error,setError]=useState('');
   const status=participant?.finalProjectReviewStatus;
   if (!isActive) return <section className="p-5 bg-slate-50 border rounded-xl"><h2 className="font-bold">Berkas akhir belum diaktifkan</h2><p className="text-sm mt-2">Instruktur belum mengaktifkan menu pengumpulan untuk periode praktik ini.</p></section>;
-  if (!isUnlocked) return <section className="p-5 bg-slate-50 border rounded-xl"><h2 className="font-bold">Final project belum terbuka</h2><p className="text-sm mt-2">Tandai seluruh materi selesai dipelajari untuk membuka pengumpulan.</p></section>;
   const submit=async(e: React.FormEvent)=>{e.preventDefault();if(!checked||busy)return;setBusy(true);setError('');try{await confirmFinalProject(url);setChecked(false);}catch(e){setError(e instanceof Error?e.message:'Pengumpulan gagal.');}finally{setBusy(false);}};
   return <section className="space-y-4 p-4 sm:p-6 border rounded-2xl">
     <h2 className="text-xl font-bold">Final project praktik</h2>{description && <p className="text-sm whitespace-pre-line text-slate-600">{description}</p>}<p className="text-sm text-slate-600">Kirim tautan hasil pekerjaan Anda. Instruktur akan memeriksa kelengkapan berkas sebelum menyatakan proyek diterima.</p>

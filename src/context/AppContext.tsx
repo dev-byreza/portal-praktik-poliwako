@@ -109,7 +109,6 @@ interface AppContextType {
   clearStudentIdentity: () => void;
 
   // Student Actions
-  toggleUnitCompletion: (unitId: string) => void;
   submitAssignment: (assignmentId: string, file: File, submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST', allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY') => Promise<{ success: boolean; message?: string }>;
   confirmFinalProject: (url: string) => Promise<void>;
   reviewFinalProject: (participantId: string, status: 'REVISION_REQUIRED' | 'ACCEPTED', feedback: string) => Promise<void>;
@@ -760,72 +759,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setStudentSessionState(null);
     StorageService.setStudentSession(null);
     showToast('Sesi Selesai', 'Anda telah keluar dari ruang praktik mahasiswa.', 'info');
-  };
-
-  // Progressive Locking logic for Learning Unit
-  const toggleUnitCompletion = (unitId: string) => {
-    if (!studentSession) return;
-    const { studentId, periodId } = studentSession;
-    
-    // Get all units for this period sorted by unitNumber
-    const periodUnits = learningUnits
-      .filter(u => u.periodId === periodId)
-      .sort((a, b) => a.unitNumber - b.unitNumber);
-    
-    const targetUnitIndex = periodUnits.findIndex(u => u.id === unitId);
-    if (targetUnitIndex === -1) return;
-
-    const existingProg = unitProgress.find(p => p.studentId === studentId && p.unitId === unitId && p.periodId === periodId);
-    const isCurrentlyCompleted = existingProg?.isCompleted || false;
-
-    if (!isCurrentlyCompleted) {
-      // Mark as completed
-      const newProgress: UnitProgress = {
-        id: `up-${Date.now()}`,
-        studentId,
-        unitId,
-        periodId,
-        isCompleted: true,
-        completedAt: getWitaDateString()
-      };
-      const updatedList = unitProgress.filter(p => !(p.studentId === studentId && p.unitId === unitId && p.periodId === periodId));
-      updatedList.push(newProgress);
-      setUnitProgress(updatedList);
-
-      // Check if all units for this period are completed
-      const completedUnitIds = new Set(updatedList.filter(p => p.studentId === studentId && p.periodId === periodId && p.isCompleted).map(p => p.unitId));
-      const allDone = periodUnits.every(u => completedUnitIds.has(u.id));
-
-      if (allDone) {
-        setParticipants(prev => prev.map(p => {
-          if (p.periodId === periodId && p.studentId === studentId && p.progressStatus === 'IN_PROGRESS') {
-            return { ...p, progressStatus: 'LEARNING_COMPLETE' };
-          }
-          return p;
-        }));
-        showToast('Hebat! 100% Selesai', 'Seluruh unit pembelajaran telah tuntas.', 'success');
-      } else {
-        showToast('Unit Selesai', `Unit ${periodUnits[targetUnitIndex].unitNumber} ditandai selesai. Unit berikutnya terbuka.`, 'success');
-      }
-    } else {
-      // Rollback: Uncomplete target unit AND all subsequent units (PRD Section 470)
-      const subsequentUnitIds = periodUnits.slice(targetUnitIndex).map(u => u.id);
-      const filtered = unitProgress.filter(p => {
-        if (p.studentId === studentId && p.periodId === periodId && subsequentUnitIds.includes(p.unitId)) {
-          return false;
-        }
-        return true;
-      });
-      setUnitProgress(filtered);
-
-      setParticipants(prev => prev.map(p => {
-        if (p.periodId === periodId && p.studentId === studentId && (p.progressStatus === 'LEARNING_COMPLETE' || p.progressStatus === 'PROJECT_SUBMITTED')) {
-          return { ...p, progressStatus: 'IN_PROGRESS' };
-        }
-        return p;
-      }));
-      showToast('Status Dibatalkan', `Progres Unit ${periodUnits[targetUnitIndex].unitNumber} dan unit sesudahnya direset.`, 'info');
-    }
   };
 
   // Student Assignment Submission
@@ -1829,7 +1762,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         resetStudentPassword,
         setStudentIdentity,
         clearStudentIdentity,
-        toggleUnitCompletion,
         submitAssignment,
         confirmFinalProject,
         reviewFinalProject,

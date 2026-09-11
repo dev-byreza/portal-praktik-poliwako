@@ -12,6 +12,7 @@ import {
   UserRound
 } from 'lucide-react';
 import { formatPeriodRange } from '../../utils/dateUtils';
+import { hasSuccessfulSubmission } from '../../utils/studentProgress';
 
 interface StudentCourseCatalogProps {
   onSelectCourse: (courseSlug: string) => void;
@@ -25,7 +26,7 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
     periods,
     participants,
     learningUnits,
-    unitProgress,
+    submissions,
     clearStudentIdentity
   } = useApp();
 
@@ -185,12 +186,13 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
               ? learningUnits.filter(u => u.periodId === activePeriod.id)
               : [];
 
-            // Calculate student progress
-            const completedCount = currentStudent && activePeriod
-              ? unitProgress.filter(p => p.studentId === currentStudent.id && p.periodId === activePeriod.id && p.isCompleted).length
-              : 0;
-
-            const totalUnits = units.length;
+            // Progress increases only after an uploaded file is saved.
+            const progressUnits = units.filter(unit => Boolean(unit.assignment));
+            const currentSubmissions = currentStudent && activePeriod
+              ? submissions.filter(submission => submission.studentId === currentStudent.id && submission.periodId === activePeriod.id)
+              : [];
+            const completedCount = progressUnits.filter(unit => hasSuccessfulSubmission(currentSubmissions, unit.assignment?.id)).length;
+            const totalUnits = progressUnits.length || units.length;
             const progressPercent = totalUnits > 0 ? Math.round((completedCount / totalUnits) * 100) : 0;
             const isCompletedAll = totalUnits > 0 && completedCount === totalUnits;
 

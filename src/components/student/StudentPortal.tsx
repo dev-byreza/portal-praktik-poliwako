@@ -34,6 +34,7 @@ import { StudentCourseCatalog } from './StudentCourseCatalog';
 import { PDFViewerModal } from '../common/PDFViewerModal';
 import { formatPeriodRange } from '../../utils/dateUtils';
 import { toYouTubeEmbedUrl } from '../../utils/youtubeUtils';
+import { hasSuccessfulSubmission } from '../../utils/studentProgress';
 import { CountdownLockedPanel, CountdownModal, getCountdownEndAt, isCountdownLocked } from './StudentCountdownGate';
 
 interface StudentPortalProps {
@@ -46,15 +47,12 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     activeCourseId,
     periods,
     learningUnits,
-    unitProgress,
     participants,
     submissions,
     studentSession,
     currentStudent,
     setStudentIdentity,
-    toggleUnitCompletion,
-    clearStudentIdentity,
-    showToast
+    clearStudentIdentity
   } = useApp();
 
   const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false);
@@ -212,50 +210,33 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     });
   }, [currentUnit?.id, currentUnit?.unitNumber, currentUnit?.title, currentUnitCountdownLocked, currentUnitCountdownEndAt]);
 
-  // Progressive Locking logic for Student (PRD Section 34, 35, 36)
+  // Unit access is always open. A completed state is shown only after the
+  // student's uploaded file has been saved successfully.
   const unitStatusMap = useMemo(() => {
-    const map = new Map<string, 'COMPLETED' | 'AVAILABLE' | 'LOCKED'>();
-    if (!studentSession || !currentStudent) {
-      // If not logged in, first unit is available, others locked
-      periodUnits.forEach((u, idx) => {
-        map.set(u.id, idx === 0 ? 'AVAILABLE' : 'LOCKED');
-      });
-      return map;
-    }
-
-    const { studentId, periodId } = studentSession;
-    const completedSet = new Set(
-      unitProgress
-        .filter(p => p.studentId === studentId && p.periodId === periodId && p.isCompleted)
-        .map(p => p.unitId)
-    );
-
-    let unlockNext = true;
-    for (const unit of periodUnits) {
-      const submitted = !unit.assignment || submissions.some(s =>
-        s.assignmentId === unit.assignment?.id && s.studentId === studentId && s.periodId === periodId
+    const map = new Map<string, 'COMPLETED' | 'AVAILABLE'>();
+    const currentSubmissions = studentSession
+      ? submissions.filter(s => s.studentId === studentSession.studentId && s.periodId === studentSession.periodId)
+      : [];
+    periodUnits.forEach(unit => {
+      map.set(
+        unit.id,
+        hasSuccessfulSubmission(currentSubmissions, unit.assignment?.id) ? 'COMPLETED' : 'AVAILABLE'
       );
-      if (completedSet.has(unit.id) && submitted) {
-        map.set(unit.id, 'COMPLETED');
-      } else if (unlockNext) {
-        map.set(unit.id, 'AVAILABLE');
-        unlockNext = false; // only the immediate next unit is unlocked
-      } else {
-        map.set(unit.id, 'LOCKED');
-      }
-    }
+    });
     return map;
-  }, [periodUnits, studentSession, currentStudent, unitProgress, submissions]);
+  }, [periodUnits, studentSession, submissions]);
 
-  // Calculate Progress % (PRD Section 36)
+  // Progress is driven by successfully saved uploads, never by navigation.
   const progressStats = useMemo(() => {
-    if (!studentSession || periodUnits.length === 0) return { completed: 0, total: periodUnits.length, percentage: 0 };
-    const { studentId, periodId } = studentSession;
-    const completed = unitProgress.filter(p => p.studentId === studentId && p.periodId === periodId && p.isCompleted).length;
-    const total = periodUnits.length;
+    const progressUnits = periodUnits.filter(unit => Boolean(unit.assignment));
+    const currentSubmissions = studentSession
+      ? submissions.filter(s => s.studentId === studentSession.studentId && s.periodId === studentSession.periodId)
+      : [];
+    const total = progressUnits.length || periodUnits.length;
+    const completed = progressUnits.filter(unit => hasSuccessfulSubmission(currentSubmissions, unit.assignment?.id)).length;
     const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
     return { completed, total, percentage };
-  }, [unitProgress, studentSession, periodUnits]);
+  }, [periodUnits, submissions, studentSession]);
 
   const isFinalProjectActive = activePeriod?.finalProjectEnabled === true;
 
@@ -263,14 +244,13 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
   const currentAssignmentSubmission = useMemo(() => {
     if (!currentUnit?.assignment || !studentSession) return undefined;
     return submissions.find(
-      s => s.assignmentId === currentUnit.assignment?.id &&
-           s.studentId === studentSession.studentId &&
-           s.periodId === studentSession.periodId
+      submission => submission.assignmentId === currentUnit.assignment?.id &&
+        submission.studentId === studentSession.studentId &&
+        submission.periodId === studentSession.periodId
     );
   }, [submissions, currentUnit, studentSession]);
 
   const currentUnitIndex = periodUnits.findIndex(u => u.id === currentUnit?.id);
-  const isCurrentUnitCompleted = currentUnit ? unitStatusMap.get(currentUnit.id) === 'COMPLETED' : false;
 
   const isPrevDisabled = useMemo(() => {
     if (activeTab === 'DASHBOARD') return true;
@@ -285,9 +265,6 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     if (activeTab === 'GRADE') return true;
     if (activeTab === 'FINAL_PROJECT') return false;
     if (activeTab === 'UNITS') {
-      // Keep the action visibly available so students can see that another
-      // unit exists. Submission requirements are enforced by handleNextUnit,
-      // which shows a clear notification when an upload is still missing.
       return periodUnits.length === 0;
     }
     return false;
@@ -295,13 +272,6 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
   const handleNextUnit = () => {
     if (activeTab === 'UNITS') {
-      if (currentUnit?.assignment && !currentAssignmentSubmission) {
-        showToast('Tugas Belum Diunggah', 'Upload file tugas pada unit ini terlebih dahulu untuk membuka unit berikutnya.', 'warning');
-        return;
-      }
-      if (currentUnit && !isCurrentUnitCompleted && currentStudent) {
-        toggleUnitCompletion(currentUnit.id);
-      }
       if (currentUnitIndex < periodUnits.length - 1) {
         const nextUnit = periodUnits[currentUnitIndex + 1];
         setSelectedUnitId(nextUnit.id);
@@ -561,8 +531,8 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
           {currentStudent && (
             <div className="mt-2 pt-1.5 border-t border-slate-800/70 flex items-center justify-between gap-3 text-[11px]">
               <div className="flex items-center gap-2">
-                <span className="text-slate-400">Progres Pembelajaran:</span>
-                <span className="font-bold text-cyan-300">{progressStats.completed} dari {progressStats.total} Unit Selesai ({progressStats.percentage}%)</span>
+                <span className="text-slate-400">Progres Upload Tugas:</span>
+                <span className="font-bold text-cyan-300">{progressStats.completed} dari {progressStats.total} Unit Tersimpan ({progressStats.percentage}%)</span>
               </div>
               
               <div className="w-48 sm:w-64 bg-slate-800 rounded-full h-1.5 overflow-hidden border border-slate-700/80 shrink-0">
@@ -596,26 +566,20 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
               {/* Units List */}
               <div className="divide-y divide-slate-100 flex-1 min-h-0 overflow-y-auto no-scrollbar">
-                {periodUnits.map((unit, index) => {
-                  const status = unitStatusMap.get(unit.id) || 'LOCKED';
+                {periodUnits.map((unit) => {
+                  const status = unitStatusMap.get(unit.id) || 'AVAILABLE';
                   const isSelected = activeTab === 'UNITS' && currentUnit?.id === unit.id;
-                  const isLocked = status === 'LOCKED';
 
                   return (
                     <button
                       key={unit.id}
-                      disabled={isLocked && !currentStudent}
                       onClick={() => {
-                        if (!isLocked || currentStudent) {
-                          setSelectedUnitId(unit.id);
-                          setActiveTab('UNITS');
-                        }
+                        setSelectedUnitId(unit.id);
+                        setActiveTab('UNITS');
                       }}
                       className={`w-full text-left px-3 py-2.5 transition-all flex items-start gap-2.5 ${
                         isSelected
                           ? 'bg-blue-50/80 border-l-[3px] border-blue-600 text-blue-900 shadow-xs'
-                          : isLocked
-                          ? 'opacity-60 bg-slate-50/50 cursor-not-allowed hover:bg-slate-100/50'
                           : 'hover:bg-slate-50 text-slate-700'
                       }`}
                     >
@@ -629,11 +593,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                           <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-[10px]">
                             {unit.unitNumber}
                           </div>
-                        ) : (
-                          <div className="w-5 h-5 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center">
-                            <Lock className="w-3 h-3" />
-                          </div>
-                        )}
+                        ) : null}
                       </div>
 
                       <div className="min-w-0 flex-1">
@@ -788,7 +748,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                   disabled={isNextDisabled}
                   onClick={handleNextUnit}
                   className="inline-flex items-center gap-1 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition-colors py-1 px-1.5 rounded hover:bg-slate-50"
-                  title={currentUnit?.assignment && !currentAssignmentSubmission ? 'Upload tugas pada unit ini terlebih dahulu' : 'Unit Berikutnya'}
+                  title="Unit Berikutnya"
                 >
                   <span>Next unit</span>
                   <ChevronRight className="w-4 h-4" />
@@ -1000,7 +960,6 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
             {/* Tab: Final Project */}
             {activeTab === 'FINAL_PROJECT' && (
               <StudentFinalProjectCard
-                isUnlocked={isFinalProjectActive}
                 isActive={isFinalProjectActive}
                 driveUrl={activePeriod?.finalProjectDriveUrl}
                 description={activePeriod?.finalProjectDescription}

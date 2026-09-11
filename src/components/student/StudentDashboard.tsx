@@ -3,17 +3,21 @@ import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { Course, PracticePeriod, LearningUnit } from '../../types';
 import { ArrowRight, BookOpen, ClipboardList, Award } from 'lucide-react';
+import { hasSuccessfulSubmission } from '../../utils/studentProgress';
 interface Props {
   course?: Course; period?: PracticePeriod; units: LearningUnit[];
   onLearn: (unitId?: string) => void; onGrade: () => void; onProject: () => void;
 }
 export const StudentDashboard: React.FC<Props> = ({course, period, units, onLearn, onGrade, onProject}) => {
-  const {currentStudent, studentSession, unitProgress, submissions, remedials, attendance, isLiveBackend, participants} = useApp();
+  const {currentStudent, studentSession, submissions, remedials, attendance, isLiveBackend, participants} = useApp();
   const mine = (item: {studentId: string; periodId: string}) => item.studentId === studentSession?.studentId && item.periodId === period?.id;
-  const completed = new Set(unitProgress.filter(p => mine(p) && p.isCompleted).map(p => p.unitId));
-  const done = units.filter(u => completed.has(u.id)).length;
-  const next = units.find(u => !completed.has(u.id));
-  const pending = units.filter(u => u.assignment && !submissions.some(s => mine(s) && s.assignmentId === u.assignment?.id && !s.fileUrl.includes('/dummy.pdf'))).sort((a,b) => (a.assignment?.deadline || '9999').localeCompare(b.assignment?.deadline || '9999'));
+  const mySubmissions = submissions.filter(mine);
+  const progressUnits = units.filter(unit => Boolean(unit.assignment));
+  const completed = new Set(progressUnits.filter(unit => hasSuccessfulSubmission(mySubmissions, unit.assignment?.id)).map(unit => unit.id));
+  const done = progressUnits.filter(unit => completed.has(unit.id)).length;
+  const totalProgressUnits = progressUnits.length || units.length;
+  const next = progressUnits.find(unit => !completed.has(unit.id));
+  const pending = progressUnits.filter(unit => !hasSuccessfulSubmission(mySubmissions, unit.assignment?.id)).sort((a,b) => (a.assignment?.deadline || '9999').localeCompare(b.assignment?.deadline || '9999'));
   const extra = remedials.filter(r => mine(r) && ['PENDING_SUBMISSION','BELUM_LULUS'].includes(r.status));
   const record = attendance.find(mine);
   const project = participants.find(mine);
@@ -23,14 +27,14 @@ export const StudentDashboard: React.FC<Props> = ({course, period, units, onLear
       <h1 className="text-2xl sm:text-3xl font-bold mt-2 break-words">Halo, {currentStudent?.name || 'Mahasiswa'}</h1>
       <p className="text-sm text-blue-100 mt-2">{course?.name || 'Mata kuliah belum tersedia'}</p>
       <div className="mt-5 rounded-xl bg-white/10 p-4">
-        <p className="font-semibold">{extra.length ? `${extra.length} tugas tambahan perlu ditindaklanjuti` : pending.length ? `${pending.length} tugas belum dikumpulkan` : next ? 'Lanjutkan materi praktik Anda' : units.length ? 'Materi sudah ditandai selesai' : 'Materi belum tersedia'}</p>
+        <p className="font-semibold">{extra.length ? `${extra.length} tugas tambahan perlu ditindaklanjuti` : pending.length ? `${pending.length} tugas belum dikumpulkan` : next ? 'Lanjutkan tugas praktik Anda' : progressUnits.length ? 'Semua tugas sudah tersimpan' : 'Materi belum tersedia'}</p>
         <p className="text-sm text-blue-100 mt-1">{extra.length ? 'Buka nilai dan remedial untuk melihat instruksi.' : pending[0]?.assignment ? `${pending[0].assignment.title} • ${formatSubmissionDeadline(pending[0].assignment.deadline)} WITA` : next?.title || 'Periksa hasil penilaian atau informasi dari instruktur.'}</p>
         <button onClick={() => extra.length ? onGrade() : onLearn(pending[0]?.id || next?.id)} disabled={!extra.length && !units.length} className="mt-4 min-h-11 px-4 bg-white text-blue-900 rounded-xl font-semibold inline-flex items-center gap-2 disabled:opacity-50">{extra.length ? 'Lihat remedial' : pending.length ? 'Buka tugas' : 'Lanjut belajar'}<ArrowRight size={17}/></button>
       </div>
     </section>
     {!isLiveBackend && <p className="bg-amber-50 border border-amber-200 p-3 rounded-xl text-sm text-amber-900">Mode lokal: aktivitas dan berkas pada perangkat ini belum tersinkron ke instruktur.</p>}
     <div className="grid grid-cols-2 gap-3">
-      <section className="rounded-xl border p-4"><p className="text-sm text-slate-500">Materi dipelajari</p><p className="text-2xl font-bold mt-2">{done}<span className="text-sm font-normal text-slate-500"> / {units.length} unit</span></p><progress aria-label="Progres materi" value={done} max={units.length || 1} className="w-full h-2 mt-3 accent-blue-600"/><p className="text-xs text-slate-500 mt-2">Berdasarkan tanda selesai mahasiswa.</p></section>
+      <section className="rounded-xl border p-4"><p className="text-sm text-slate-500">Progres upload tugas</p><p className="text-2xl font-bold mt-2">{done}<span className="text-sm font-normal text-slate-500"> / {totalProgressUnits} unit</span></p><progress aria-label="Progres upload tugas" value={done} max={totalProgressUnits || 1} className="w-full h-2 mt-3 accent-blue-600"/><p className="text-xs text-slate-500 mt-2">Berdasarkan upload yang berhasil tersimpan.</p></section>
       <section className="rounded-xl border p-4"><p className="text-sm text-slate-500">Tugas belum dikirim</p><p className="text-2xl font-bold mt-2">{pending.length}</p><p className="text-xs text-slate-500 mt-3">{extra.length} tugas tambahan perlu dikerjakan</p></section>
     </div>
     {project?.finalProjectReviewStatus === 'REVISION_REQUIRED' && <button onClick={onProject} className="w-full text-left p-4 rounded-xl bg-amber-50 border border-amber-200"><strong className="text-amber-900">Final project perlu revisi</strong><p className="text-sm mt-1">{project.finalProjectFeedback || 'Buka proyek untuk melihat tindak lanjut.'}</p></button>}
