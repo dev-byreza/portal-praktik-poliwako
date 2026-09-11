@@ -32,6 +32,15 @@
   }
 }
 
+/* Prevent mobile page scrolling from moving the fullscreen portal shell away
+   from its viewport-anchored footer. Internal student/instructor surfaces keep
+   their own scroll containers where needed. */
+html.portal-viewport-locked,
+html.portal-viewport-locked body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 /* Animations */
 @keyframes fadeIn {
   from {

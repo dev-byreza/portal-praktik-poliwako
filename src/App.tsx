@@ -168,10 +168,23 @@ export const App: React.FC = () => {
 
   const isDarkFullscreenGate = activeRoute !== 'INSTRUCTOR' || !isInstructorLoggedIn;
 
+  useEffect(() => {
+    const root = document.documentElement;
+    const lockClass = 'portal-viewport-locked';
+
+    if (isDarkFullscreenGate) {
+      root.classList.add(lockClass);
+    } else {
+      root.classList.remove(lockClass);
+    }
+
+    return () => root.classList.remove(lockClass);
+  }, [isDarkFullscreenGate]);
+
   return (
     <div className={`selection:bg-blue-600 selection:text-white ${
       isDarkFullscreenGate
-        ? 'portal-shell-background h-screen h-[100dvh] w-screen overflow-hidden flex flex-col'
+        ? 'portal-shell-background h-screen h-[100dvh] w-screen overflow-hidden overscroll-none flex flex-col'
         : 'min-h-screen bg-slate-100 flex flex-col'
     }`}>
       
