@@ -953,7 +953,6 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                   <StudentAssignmentCard
                     assignment={currentUnit.assignment}
                     submission={currentAssignmentSubmission}
-                    isPeriodExpired={activePeriod?.status === 'COMPLETED'}
                   />
                 )}
 

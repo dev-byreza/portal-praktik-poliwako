@@ -269,15 +269,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     };
 
-    // Keep shared period settings (including the final-project Drive link) fresh
-    // when the student returns to an already-open portal tab.
-    const refreshLivePeriods = async () => {
+    // Keep shared period settings and assignments (including edited deadlines)
+    // fresh when the student returns to an already-open portal tab.
+    const refreshLiveData = async () => {
       if (!isLiveBackend || document.visibilityState === 'hidden') return;
-      const latestPeriods = await ApiService.getPeriods();
-      if (isMounted && latestPeriods.length > 0) setPeriods(latestPeriods);
+      try {
+        const [latestPeriods, latestUnits] = await Promise.all([
+          ApiService.getPeriods(),
+          ApiService.getLearningUnits(),
+        ]);
+        if (!isMounted) return;
+        if (latestPeriods.length > 0) setPeriods(latestPeriods);
+        setLearningUnits(latestUnits);
+      } catch (error) {
+        console.warn('Refresh data portal notice:', error);
+      }
     };
-    const handleWindowFocus = () => { void refreshLivePeriods(); };
-    const refreshTimer = window.setInterval(() => { void refreshLivePeriods(); }, 30000);
+    const handleWindowFocus = () => { void refreshLiveData(); };
+    const refreshTimer = window.setInterval(() => { void refreshLiveData(); }, 30000);
 
     syncBackendData();
     window.addEventListener('focus', handleWindowFocus);

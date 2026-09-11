@@ -18,7 +18,6 @@ import { formatDeadline, formatWitaDateTime } from '../../utils/dateUtils';
 interface StudentAssignmentCardProps {
   assignment: Assignment;
   submission?: Submission;
-  isPeriodExpired?: boolean;
 }
 
 type AllowedFileType = 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY';
@@ -57,7 +56,6 @@ const fileRule = (type: AllowedFileType) => {
 export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
   assignment,
   submission,
-  isPeriodExpired = false
 }) => {
   const { currentStudent, studentSession, submitAssignment, showToast } = useApp();
   const [isDragging, setIsDragging] = useState(false);
@@ -213,8 +211,8 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
               </div>
             </div>
 
-            {/* Re-upload Option if period still active */}
-            {!isPeriodExpired && !isDeadlinePassed && (
+            {/* Re-upload is controlled by the assignment deadline only. */}
+            {!isDeadlinePassed && (
               <div className="mt-4 pt-3 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500">
                 <span>Ingin memperbarui file tugas?</span>
                 <label className="text-blue-600 hover:text-blue-700 font-semibold cursor-pointer underline">
@@ -232,7 +230,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
         ) : (
           /* File Upload Dropzone */
           <div>
-            {!isPeriodExpired && !isDeadlinePassed ? (
+            {!isDeadlinePassed ? (
               <div>
                 <div
                   onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
@@ -293,9 +291,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
               <div className="p-4 bg-amber-50 text-amber-800 rounded-xl border border-amber-200 flex items-start gap-3 text-sm leading-relaxed">
                 <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
                 <span>
-                  {isDeadlinePassed
-                    ? 'Batas waktu pengumpulan tugas telah berakhir. Materi masih dapat diakses untuk dipelajari.'
-                    : 'Periode pengumpulan tugas telah berakhir. Materi masih dapat diakses untuk dipelajari.'}
+                  Batas waktu pengumpulan tugas telah berakhir. Materi masih dapat diakses untuk dipelajari.
                 </span>
               </div>
             )}
