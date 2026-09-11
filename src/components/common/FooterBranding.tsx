@@ -12,20 +12,20 @@ export const FooterBranding: React.FC<FooterBrandingProps> = ({
   const isDark = theme === 'dark';
 
   const mastercadLinkClass = compact
-    ? 'inline-flex h-10 w-full max-w-[150px] items-center justify-center transition-transform hover:scale-[1.02]'
-    : 'inline-flex h-12 w-full max-w-[180px] items-center justify-center transition-transform hover:scale-[1.02] sm:h-14 sm:max-w-[210px]';
+    ? 'inline-flex h-8 w-[clamp(72px,24vw,150px)] shrink-0 items-center justify-center transition-transform hover:scale-[1.02] sm:h-10 sm:w-[150px]'
+    : 'inline-flex h-8 w-[clamp(82px,28vw,180px)] shrink-0 items-center justify-center transition-transform hover:scale-[1.02] sm:h-12 sm:w-[180px] lg:h-14 lg:w-[210px]';
 
   const mastercadImageClass = compact
-    ? 'h-8 w-full object-contain'
-    : 'h-10 w-full object-contain sm:h-12';
+    ? 'h-6 w-full object-contain sm:h-8'
+    : 'h-7 w-full object-contain sm:h-10 lg:h-12';
 
   const githubLinkClass = isDark
-    ? 'inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-white/90 shadow-sm backdrop-blur-md transition-colors hover:border-cyan-300/40 hover:bg-white/10'
-    : 'inline-flex items-center gap-1.5 rounded-full border border-slate-300/70 bg-white/25 px-2.5 py-1 text-slate-700 shadow-sm backdrop-blur-md transition-colors hover:bg-white/50';
+    ? 'inline-flex shrink-0 items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-1 text-white/90 shadow-sm backdrop-blur-md transition-colors hover:border-cyan-300/40 hover:bg-white/10 sm:gap-2 sm:px-3 sm:py-1.5'
+    : 'inline-flex shrink-0 items-center gap-1 rounded-full border border-slate-300/70 bg-white/25 px-2 py-1 text-slate-700 shadow-sm backdrop-blur-md transition-colors hover:bg-white/50 sm:gap-1.5 sm:px-2.5 sm:py-1';
 
-  const githubIconClass = 'h-4 w-4';
-  const githubNameClass = compact ? 'text-[11px] font-semibold' : 'text-xs font-semibold';
-  const githubMetaClass = compact ? 'text-[9px] text-slate-400' : 'text-[10px] text-slate-400';
+  const githubIconClass = 'h-3.5 w-3.5 sm:h-4 sm:w-4';
+  const githubNameClass = compact ? 'text-[10px] font-semibold sm:text-[11px]' : 'text-[10px] font-semibold sm:text-xs';
+  const githubMetaClass = compact ? 'text-[8px] text-slate-400 sm:text-[9px]' : 'text-[8px] text-slate-400 sm:text-[10px]';
 
   return (
     <div className="flex w-full flex-col items-center justify-center gap-2.5">
@@ -33,7 +33,7 @@ export const FooterBranding: React.FC<FooterBrandingProps> = ({
         Product by
       </span>
 
-      <div className="flex w-full flex-col items-center justify-center gap-1.5 sm:flex-row sm:flex-wrap sm:gap-2.5">
+      <div className="flex w-full flex-nowrap items-center justify-center gap-1 sm:gap-2.5">
         <a
           href="https://www.tiktok.com/@mastercad.id"
           target="_blank"
@@ -64,14 +64,14 @@ export const FooterBranding: React.FC<FooterBrandingProps> = ({
 
         <span
           className={compact
-            ? 'inline-flex h-9 w-[120px] items-center justify-center'
-            : 'inline-flex h-10 w-[130px] items-center justify-center sm:h-12 sm:w-[155px]'}
+            ? 'inline-flex h-8 w-[clamp(58px,20vw,120px)] shrink-0 items-center justify-center sm:h-9 sm:w-[120px]'
+            : 'inline-flex h-8 w-[clamp(62px,22vw,130px)] shrink-0 items-center justify-center sm:h-10 sm:w-[130px] lg:h-12 lg:w-[155px]'}
           title="RCAD Tutor"
         >
           <img
             src="/rcad-tutor-logo-light.png"
             alt="RCAD Tutor"
-            className={compact ? 'h-7 w-full object-contain' : 'h-8 w-full object-contain sm:h-10'}
+            className={compact ? 'h-5 w-full object-contain sm:h-7' : 'h-6 w-full object-contain sm:h-8 lg:h-10'}
             style={isDark ? undefined : { filter: 'brightness(0)' }}
           />
         </span>
