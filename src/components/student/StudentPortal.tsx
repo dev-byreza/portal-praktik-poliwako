@@ -722,11 +722,29 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
           {/* Right Column: Main Content Area with Flexible / Sticky Header */}
           <div className={`${isOutlineOpen ? 'lg:col-span-9 xl:col-span-1' : 'col-span-12 xl:col-span-1'} h-full min-h-0 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all`}>
             
-            <nav aria-label="Navigasi mahasiswa" className="grid grid-cols-4 gap-1 p-2 border-b shrink-0">
-              {([{key:'DASHBOARD',label:'Beranda'},{key:'UNITS',label:'Materi'},{key:'FINAL_PROJECT',label:'Proyek'},{key:'GRADE',label:'Nilai'}] as const).map(item => <button key={item.key} onClick={() => setActiveTab(item.key)} aria-current={activeTab === item.key ? 'page' : undefined} className={`min-h-11 rounded-lg text-xs sm:text-sm font-semibold ${activeTab === item.key ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{item.label}</button>)}
+            <nav aria-label="Navigasi mahasiswa" className="grid grid-cols-4 border-b border-slate-200 px-2 sm:px-4 shrink-0">
+              {([
+                { key: 'DASHBOARD', label: 'Beranda' },
+                { key: 'UNITS', label: 'Materi' },
+                { key: 'FINAL_PROJECT', label: 'Berkas Akhir' },
+                { key: 'GRADE', label: 'Nilai' },
+              ] as const).map(item => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setActiveTab(item.key)}
+                  aria-current={activeTab === item.key ? 'page' : undefined}
+                  className={`relative min-h-11 sm:min-h-10 px-2 text-xs sm:text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-600 ${activeTab === item.key ? 'font-semibold text-slate-900' : 'font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                >
+                  {item.label}
+                  {activeTab === item.key && (
+                    <span aria-hidden="true" className="absolute bottom-0 left-1/2 h-0.5 w-8 -translate-x-1/2 bg-blue-600" />
+                  )}
+                </button>
+              ))}
             </nav>
             {/* Flexible / Sticky Top Header Bar (Course Outline Toggle + Previous/Next) */}
-            <div className="bg-white border-b border-slate-200/90 px-4 sm:px-6 py-2.5 flex items-center justify-between shrink-0 z-20 shadow-xs">
+            <div className="bg-white border-b border-slate-200/90 px-4 sm:px-6 py-1.5 flex items-center justify-between shrink-0 z-20">
               {!isOutlineOpen && (
               <button
                 type="button"
