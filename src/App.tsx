@@ -232,7 +232,7 @@ export const App: React.FC = () => {
       {(activeRoute === 'ROOT_SELECTOR' ||
         activeRoute === 'NOT_FOUND' ||
         (activeRoute === 'INSTRUCTOR' && !isInstructorLoggedIn)) && (
-        <footer className="relative z-20 shrink-0 border-t border-white/10 bg-gradient-to-r from-blue-950/45 via-slate-900/30 to-indigo-950/45 py-3 text-xs shadow-[0_-12px_40px_rgba(15,23,42,0.2)] backdrop-blur-xl">
+        <footer className="relative z-20 shrink-0 border-t border-white/10 bg-transparent py-3 text-xs">
           <div className="max-w-7xl mx-auto px-4">
             <FooterBranding theme="dark" />
           </div>
