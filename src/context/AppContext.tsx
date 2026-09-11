@@ -269,9 +269,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.warn('Sync from Supabase notice:', e);
       }
     };
+
+    // Keep shared period settings (including the final-project Drive link) fresh
+    // when the student returns to an already-open portal tab.
+    const refreshLivePeriods = async () => {
+      if (!isLiveBackend || document.visibilityState === 'hidden') return;
+      const latestPeriods = await ApiService.getPeriods();
+      if (isMounted && latestPeriods.length > 0) setPeriods(latestPeriods);
+    };
+    const handleWindowFocus = () => { void refreshLivePeriods(); };
+    const refreshTimer = window.setInterval(() => { void refreshLivePeriods(); }, 30000);
+
     syncBackendData();
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('visibilitychange', handleWindowFocus);
     return () => {
       isMounted = false;
+      window.clearInterval(refreshTimer);
+      window.removeEventListener('focus', handleWindowFocus);
+      document.removeEventListener('visibilitychange', handleWindowFocus);
     };
   }, [isLiveBackend, isInstructorLoggedIn, instructor.id, role]);
 
