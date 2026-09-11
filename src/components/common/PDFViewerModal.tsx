@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Download, FileText, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { toGoogleDrivePreviewUrl } from '../../utils/googleDriveUtils';
 
 interface PDFViewerModalProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   const [zoomLevel, setZoomLevel] = useState(100);
   const [previewError, setPreviewError] = useState(false);
   const fileKind = useMemo(() => getFileKind(title, fileUrl || ''), [title, fileUrl]);
+  const previewUrl = useMemo(() => toGoogleDrivePreviewUrl(fileUrl), [fileUrl]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -110,7 +112,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
               <img src={fileUrl} alt={title} onError={() => setPreviewError(true)} className="max-w-none rounded-lg bg-white object-contain shadow-2xl transition-transform duration-150" style={{ width: `${zoomLevel}%`, height: 'auto' }} />
             </div>
           ) : (
-            <iframe src={fileUrl} title={title} onError={() => setPreviewError(true)} className="h-full min-h-[70vh] w-full rounded-lg border border-slate-700 bg-white" />
+            <iframe src={previewUrl} title={title} onError={() => setPreviewError(true)} className="h-full min-h-[70vh] w-full rounded-lg border border-slate-700 bg-white" />
           )}
         </div>
       </div>
