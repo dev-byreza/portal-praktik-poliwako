@@ -42,6 +42,11 @@ import { Badge } from '../common/Badge';
 const canInlinePreview = (fileName?: string): boolean =>
   !!fileName && /\.(pdf|jpe?g|png|webp|gif)$/i.test(fileName);
 
+// Ask the browser PDF viewer to fit the document to the available width. The
+// fragment is client-side only, so signed Supabase URLs remain unchanged.
+const toPdfFitUrl = (url: string): string =>
+  `${url}${url.includes('#') ? '&' : '#'}page=1&zoom=page-width`;
+
 type AllowedFileType = 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY';
 
 const fileTypeLabel = (fileName?: string, configuredType?: AllowedFileType): string => {
@@ -706,19 +711,20 @@ export const GradingWorkspace: React.FC = () => {
               </div>
             </div>
 
-            {/* Simulated Live Sheet Paper */}
+            {/* A4 portrait preview frame */}
             <div className="flex-1 bg-slate-200 p-6 overflow-auto flex justify-center items-start">
-              <div
+              <div className="w-full max-w-[560px] flex flex-col items-center">
+                <div
                 style={{ transform: `scale(${pdfZoom / 100})`, transformOrigin: 'top center' }}
-                className="w-[520px] min-h-[720px] bg-white text-slate-900 rounded-lg shadow-2xl p-6 flex flex-col justify-between border border-slate-300 transition-transform text-xs"
-              >
-                <div>
+                className="relative w-full aspect-[210/297] overflow-hidden rounded-lg border border-slate-300 bg-white text-slate-900 shadow-2xl transition-transform text-xs"
+                >
+                <div className="absolute inset-0 flex min-h-0 flex-col">
                   {activeDocType === 'POST_TEST' ? (
                     postTestFileUrl && canInlinePreview(postTestSubmission?.fileName) ? (
                       <iframe
                         title="File Post-Test Mahasiswa"
-                        src={postTestFileUrl}
-                        className="h-full min-h-[520px] w-full rounded-xl border border-slate-200 bg-white"
+                        src={toPdfFitUrl(postTestFileUrl)}
+                        className="h-full min-h-0 w-full border-0 bg-white"
                       />
                     ) : (
                       <div className="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
@@ -732,8 +738,8 @@ export const GradingWorkspace: React.FC = () => {
                     activeAssignmentSubmission?.fileUrl && canInlinePreview(activeAssignmentSubmission.fileName) ? (
                       <iframe
                         title={activeAssignmentSubmission.fileName}
-                        src={activeAssignmentSubmission.fileUrl}
-                        className="h-full min-h-[520px] w-full rounded-xl border border-slate-200 bg-white"
+                        src={toPdfFitUrl(activeAssignmentSubmission.fileUrl)}
+                        className="h-full min-h-0 w-full border-0 bg-white"
                       />
                     ) : (
                       <div className="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
@@ -746,8 +752,8 @@ export const GradingWorkspace: React.FC = () => {
                   ) : reportSubmission?.fileUrl && canInlinePreview(reportSubmission.fileName) ? (
                     <iframe
                       title={reportSubmission.fileName}
-                      src={reportSubmission.fileUrl}
-                      className="h-full min-h-[520px] w-full rounded-xl border border-slate-200 bg-white"
+                      src={toPdfFitUrl(reportSubmission.fileUrl)}
+                      className="h-full min-h-0 w-full border-0 bg-white"
                     />
                   ) : (
                     <div className="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
@@ -758,8 +764,9 @@ export const GradingWorkspace: React.FC = () => {
                     </div>
                   )}
                 </div>
+                </div>
 
-                <div className="border-t border-slate-200 pt-2 text-[9px] text-slate-400 flex justify-between">
+                <div className="mt-2 w-full border-t border-slate-300 pt-2 text-[9px] text-slate-400 flex justify-between">
                   <span>Portal Praktik Poliwako • File asli mahasiswa</span>
                   <span>{currentParticipant.student.name}</span>
                 </div>
