@@ -505,7 +505,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                     Learning Workspace
                   </span>
                   <span className="text-[11px] text-slate-400 truncate">
-                    {currentCourse?.code} â€¢ {currentCourse?.semester} {currentCourse?.academicYear}
+                    {currentCourse?.code} • {currentCourse?.semester} {currentCourse?.academicYear}
                   </span>
                 </div>
                 <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 mt-0.5">
@@ -540,8 +540,8 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                 </div>
                 <div className="min-w-0">
                   <h4 className="text-xs font-bold text-white leading-tight truncate">{currentStudent.name}</h4>
-                <p className="text-[10px] text-slate-400 font-mono leading-tight truncate whitespace-nowrap" title={`NIM: ${currentStudent.nim} â€¢ Kelas ${currentStudent.className}`}>
-                    NIM: {currentStudent.nim} â€¢ Kelas {currentStudent.className}
+                <p className="text-[10px] text-slate-400 font-mono leading-tight truncate whitespace-nowrap" title={`NIM: ${currentStudent.nim} • Kelas ${currentStudent.className}`}>
+                    NIM: {currentStudent.nim} • Kelas {currentStudent.className}
                   </p>
                 </div>
                 <button

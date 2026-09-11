@@ -760,7 +760,7 @@ export const GradingWorkspace: React.FC = () => {
                 </div>
 
                 <div className="border-t border-slate-200 pt-2 text-[9px] text-slate-400 flex justify-between">
-                  <span>Portal Praktik Poliwako Ã¢â‚¬Â¢ File asli mahasiswa</span>
+                  <span>Portal Praktik Poliwako • File asli mahasiswa</span>
                   <span>{currentParticipant.student.name}</span>
                 </div>
               </div>
@@ -782,7 +782,7 @@ export const GradingWorkspace: React.FC = () => {
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">{currentParticipant.student.name}</h3>
                   <p className="text-[11px] text-slate-500 font-mono">
-                    NIM: {currentParticipant.student.nim} Ã¢â‚¬Â¢ Kelas {currentParticipant.student.className}
+                    NIM: {currentParticipant.student.nim} • Kelas {currentParticipant.student.className}
                   </p>
                 </div>
               </div>
@@ -827,7 +827,7 @@ export const GradingWorkspace: React.FC = () => {
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                <span>{isAutosaving ? 'Menyimpan perubahan...' : 'Ã¢Å“â€œ Perubahan Tersimpan'}</span>
+                <span>{isAutosaving ? 'Menyimpan perubahan...' : '✓ Perubahan Tersimpan'}</span>
               </div>
               <Badge status={existingAssessment?.isPublished ? 'PUBLISHED' : 'ASSESSED'} size="sm" />
             </div>
@@ -1072,7 +1072,7 @@ export const GradingWorkspace: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2 self-end sm:self-auto">
-                    <span className="text-[10px] font-mono text-slate-400">Rata2: {subCpmkPracticeScore} Ã¢â‚¬Â¢ Kontribusi:</span>
+                    <span className="text-[10px] font-mono text-slate-400">Rata2: {subCpmkPracticeScore} • Kontribusi:</span>
                     <span className="text-xs font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200">
                       {(subCpmkPracticeScore * 0.50).toFixed(1)} Poin
                     </span>
@@ -1160,7 +1160,7 @@ export const GradingWorkspace: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2 self-end sm:self-auto">
-                    <span className="text-[10px] font-mono text-slate-400">Rata2: {assignmentScore} Ã¢â‚¬Â¢ Kontribusi:</span>
+                    <span className="text-[10px] font-mono text-slate-400">Rata2: {assignmentScore} • Kontribusi:</span>
                     <span className="text-xs font-mono font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-lg border border-teal-200">
                       {(assignmentScore * 0.15).toFixed(1)} Poin
                     </span>
@@ -1208,7 +1208,7 @@ export const GradingWorkspace: React.FC = () => {
                               </span>
                               <span className="text-[10px] text-slate-500">
                                 {studentSubmission
-                                  ? `${fileTypeLabel(studentSubmission.fileName, task.allowedFileType)} Tugas Ã¢â‚¬Â¢ ${studentSubmission.fileSize} Ã¢â‚¬Â¢ Diunggah: ${formatWitaDateTime(studentSubmission.submittedAt)}`
+                                  ? `${fileTypeLabel(studentSubmission.fileName, task.allowedFileType)} Tugas • ${studentSubmission.fileSize} • Diunggah: ${formatWitaDateTime(studentSubmission.submittedAt)}`
                                   : 'Belum ada file yang diunggah mahasiswa.'}
                               </span>
                             </div>
@@ -1312,7 +1312,7 @@ export const GradingWorkspace: React.FC = () => {
                       </span>
                       <span className="text-[10px] text-slate-500">
                         {postTestFileUrl
-                          ? `${fileTypeLabel(postTestSubmission?.fileName)} post-test${postTestSubmission?.fileSize ? ` Ã¢â‚¬Â¢ ${postTestSubmission.fileSize}` : ''} Ã¢â‚¬Â¢ Diunggah: ${postTestSubmission?.submittedAt ? formatWitaDateTime(postTestSubmission.submittedAt) : 'Waktu tidak tersedia'} Ã¢â‚¬Â¢ tersimpan di Supabase Storage.`
+                          ? `${fileTypeLabel(postTestSubmission?.fileName)} post-test${postTestSubmission?.fileSize ? ` • ${postTestSubmission.fileSize}` : ''} • Diunggah: ${postTestSubmission?.submittedAt ? formatWitaDateTime(postTestSubmission.submittedAt) : 'Waktu tidak tersedia'} • tersimpan di Supabase Storage.`
                           : 'Belum ada file post-test yang diunggah mahasiswa.'}
                       </span>
                     </div>
@@ -1570,7 +1570,7 @@ export const GradingWorkspace: React.FC = () => {
                         {reportSubmission?.fileName || 'Belum ada file laporan'}
                       </span>
                       <span className="text-[10px] text-slate-500">
-                        {reportSubmission ? `${fileTypeLabel(reportSubmission.fileName)} laporan Ã¢â‚¬Â¢ ${reportSubmission.fileSize} Ã¢â‚¬Â¢ Diunggah: ${formatWitaDateTime(reportSubmission.submittedAt)}` : 'Belum ada file laporan yang diunggah mahasiswa.'}
+                        {reportSubmission ? `${fileTypeLabel(reportSubmission.fileName)} laporan • ${reportSubmission.fileSize} • Diunggah: ${formatWitaDateTime(reportSubmission.submittedAt)}` : 'Belum ada file laporan yang diunggah mahasiswa.'}
                       </span>
                     </div>
                   </div>
