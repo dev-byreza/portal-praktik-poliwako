@@ -57,6 +57,7 @@ export const LearningContentStudio: React.FC = () => {
   const [isProjectLinkModalOpen, setIsProjectLinkModalOpen] = useState(false);
   const [projectDriveUrlInput, setProjectDriveUrlInput] = useState('');
   const [projectDescriptionInput, setProjectDescriptionInput] = useState('');
+  const [projectEnabledInput, setProjectEnabledInput] = useState(false);
 
   // Modals
   const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
@@ -119,6 +120,7 @@ export const LearningContentStudio: React.FC = () => {
     if (!activeSelectedPeriod) return;
     setProjectDriveUrlInput(activeSelectedPeriod.finalProjectDriveUrl || '');
     setProjectDescriptionInput(activeSelectedPeriod.finalProjectDescription || '');
+    setProjectEnabledInput(activeSelectedPeriod.finalProjectEnabled === true);
     setIsProjectLinkModalOpen(true);
   };
 
@@ -130,6 +132,7 @@ export const LearningContentStudio: React.FC = () => {
       ...activeSelectedPeriod,
       finalProjectDriveUrl: url || undefined,
       finalProjectDescription: projectDescriptionInput.trim() || undefined,
+      finalProjectEnabled: projectEnabledInput,
     });
     setIsProjectLinkModalOpen(false);
     showToast('Project Akhir Diperbarui', 'Link Google Drive project akhir berhasil disinkronkan.', 'success');
@@ -445,7 +448,7 @@ export const LearningContentStudio: React.FC = () => {
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
                     <ExternalLink className="w-3.5 h-3.5" />
-                    Project Akhir
+                    Project Akhir {activeSelectedPeriod.finalProjectEnabled ? '(Aktif)' : '(Nonaktif)'}
                   </div>
                   {activeSelectedPeriod.finalProjectDriveUrl ? (
                     <a
@@ -821,6 +824,18 @@ export const LearningContentStudio: React.FC = () => {
                     className="w-full resize-y rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20"
                   />
                 </div>
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3">
+                  <input
+                    type="checkbox"
+                    checked={projectEnabledInput}
+                    onChange={e => setProjectEnabledInput(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 accent-blue-600"
+                  />
+                  <span>
+                    <span className="block text-xs font-bold text-blue-950">Aktifkan Berkas Akhir untuk mahasiswa</span>
+                    <span className="mt-0.5 block text-[11px] leading-relaxed text-blue-800/80">Jika tidak dicentang, menu pengumpulan tetap terkunci bagi mahasiswa pada periode ini.</span>
+                  </span>
+                </label>
                 <div className="flex justify-end gap-2">
                   <button type="button" onClick={() => setIsProjectLinkModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">Batal</button>
                   <button type="submit" className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-500">Simpan Link</button>

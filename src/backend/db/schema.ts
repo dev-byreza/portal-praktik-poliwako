@@ -161,6 +161,7 @@ export const practicePeriods = pgTable('practice_periods', {
   endDate: date('end_date').notNull(), // 5 days by default
   status: varchar('status', { length: 30 }).notNull().default('UPCOMING'), // 'UPCOMING' | 'ACTIVE' | 'COMPLETED'
   finalProjectDriveUrl: text('final_project_drive_url'),
+  finalProjectEnabled: boolean('final_project_enabled').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({

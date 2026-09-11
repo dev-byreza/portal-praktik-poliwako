@@ -87,6 +87,7 @@ export interface PracticePeriod {
   autoStatus?: boolean; // If true (or undefined), status is automatically calculated based on internet realtime date
   finalProjectDriveUrl?: string;
   finalProjectDescription?: string;
+  finalProjectEnabled?: boolean;
   createdAt: string;
 }
 

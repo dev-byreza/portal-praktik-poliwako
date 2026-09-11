@@ -1038,6 +1038,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       autoStatus: periodData.autoStatus ?? true,
       finalProjectDriveUrl: periodData.finalProjectDriveUrl || undefined,
       finalProjectDescription: periodData.finalProjectDescription || undefined,
+      finalProjectEnabled: periodData.finalProjectEnabled === true,
       createdAt: getWitaDateString()
     };
 

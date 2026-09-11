@@ -75,6 +75,7 @@ export const PracticePeriodManager: React.FC = () => {
   const [periodNameInput, setPeriodNameInput] = useState<string>('');
   const [driveUrlInput, setDriveUrlInput] = useState<string>('');
   const [projectDescriptionInput, setProjectDescriptionInput] = useState<string>('');
+  const [projectEnabledInput, setProjectEnabledInput] = useState(false);
 
   // Edit Period Form states
   const [editNameInput, setEditNameInput] = useState<string>('');
@@ -83,6 +84,7 @@ export const PracticePeriodManager: React.FC = () => {
   const [editStatusInput, setEditStatusInput] = useState<'UPCOMING' | 'ACTIVE' | 'COMPLETED'>('UPCOMING');
   const [editDriveUrlInput, setEditDriveUrlInput] = useState<string>('');
   const [editProjectDescriptionInput, setEditProjectDescriptionInput] = useState<string>('');
+  const [editProjectEnabledInput, setEditProjectEnabledInput] = useState(false);
   const [autoCalculateEndDate, setAutoCalculateEndDate] = useState<boolean>(true);
 
   // Bulk NIM states (PRD Section 27)
@@ -154,6 +156,7 @@ export const PracticePeriodManager: React.FC = () => {
     setPeriodNameInput(`Minggu Praktik ke-${nextNum}`);
     setDriveUrlInput('');
     setProjectDescriptionInput('');
+    setProjectEnabledInput(false);
     setIsCreateModalOpen(true);
   };
 
@@ -167,7 +170,8 @@ export const PracticePeriodManager: React.FC = () => {
       finalProjectDriveUrl: driveUrlInput
         ? driveUrlInput.trim()
         : undefined,
-      finalProjectDescription: projectDescriptionInput.trim() || undefined
+      finalProjectDescription: projectDescriptionInput.trim() || undefined,
+      finalProjectEnabled: projectEnabledInput
     });
     if (newPeriod) {
       setSelectedPeriodId(newPeriod.id);
@@ -185,6 +189,7 @@ export const PracticePeriodManager: React.FC = () => {
     setEditStatusInput(target.status || computePeriodStatus(target.startDate, target.endDate, getWitaDateString()));
     setEditDriveUrlInput(target.finalProjectDriveUrl || '');
     setEditProjectDescriptionInput(target.finalProjectDescription || '');
+    setEditProjectEnabledInput(target.finalProjectEnabled === true);
     setAutoCalculateEndDate(true);
     setIsEditModalOpen(true);
   };
@@ -224,7 +229,8 @@ export const PracticePeriodManager: React.FC = () => {
       status: editStatusInput,
       autoStatus: true,
       finalProjectDriveUrl: editDriveUrlInput.trim() || undefined,
-      finalProjectDescription: editProjectDescriptionInput.trim() || undefined
+      finalProjectDescription: editProjectDescriptionInput.trim() || undefined,
+      finalProjectEnabled: editProjectEnabledInput
     };
     updatePeriod(updated);
     setIsEditModalOpen(false);
@@ -684,6 +690,14 @@ export const PracticePeriodManager: React.FC = () => {
                 />
               </div>
 
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3">
+                <input type="checkbox" checked={projectEnabledInput} onChange={e => setProjectEnabledInput(e.target.checked)} className="mt-0.5 h-4 w-4 accent-blue-600" />
+                <span>
+                  <span className="block text-xs font-bold text-blue-950">Aktifkan Berkas Akhir untuk mahasiswa</span>
+                  <span className="mt-0.5 block text-[11px] leading-relaxed text-blue-800/80">Mahasiswa dapat membuka menu dan mengirim berkas hanya jika opsi ini dicentang.</span>
+                </span>
+              </label>
+
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button
                   type="button"
@@ -851,6 +865,14 @@ export const PracticePeriodManager: React.FC = () => {
                   className="w-full resize-y px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
+
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3">
+                <input type="checkbox" checked={editProjectEnabledInput} onChange={e => setEditProjectEnabledInput(e.target.checked)} className="mt-0.5 h-4 w-4 accent-blue-600" />
+                <span>
+                  <span className="block text-xs font-bold text-blue-950">Aktifkan Berkas Akhir untuk mahasiswa</span>
+                  <span className="mt-0.5 block text-[11px] leading-relaxed text-blue-800/80">Matikan opsi ini untuk mengunci menu pengumpulan pada periode ini.</span>
+                </span>
+              </label>
 
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button

@@ -445,6 +445,7 @@ export class ApiService {
         status: p.status,
         finalProjectDriveUrl: p.final_project_drive_url || undefined,
         finalProjectDescription: p.final_project_description || undefined,
+        finalProjectEnabled: p.final_project_enabled === true,
         createdAt: p.created_at,
       }));
     } catch {
@@ -476,6 +477,7 @@ export class ApiService {
           status: period.status,
           final_project_drive_url: period.finalProjectDriveUrl,
           final_project_description: period.finalProjectDescription || null,
+          final_project_enabled: period.finalProjectEnabled === true,
           updated_at: new Date().toISOString(),
         });
         if (error) throw error;
@@ -501,6 +503,7 @@ export class ApiService {
           status: p.status,
           final_project_drive_url: p.finalProjectDriveUrl,
           final_project_description: p.finalProjectDescription || null,
+          final_project_enabled: p.finalProjectEnabled === true,
           updated_at: new Date().toISOString(),
         }));
         const { error } = await supabase.from('practice_periods').upsert(rows);
