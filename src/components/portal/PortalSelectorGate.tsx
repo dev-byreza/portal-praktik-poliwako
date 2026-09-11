@@ -1,5 +1,5 @@
 // Portal Choice Landing Gate (PRD Root Selector: Portal Instruktur vs Portal Mahasiswa)
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import {
   ShieldCheck,
   GraduationCap,
@@ -18,6 +18,37 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
   const { isInstructorLoggedIn } = useApp();
   const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
   const [rawMouse, setRawMouse] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
+  const [fitScale, setFitScale] = useState(1);
+  const gateRef = useRef<HTMLDivElement>(null);
+  const contentViewportRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const gate = gateRef.current;
+    const viewport = contentViewportRef.current;
+    const content = contentRef.current;
+    if (!gate || !viewport || !content) return;
+
+    const measureAvailableSpace = () => {
+      const availableHeight = viewport.clientHeight;
+      const naturalContentHeight = content.scrollHeight;
+      if (!availableHeight || !naturalContentHeight) return;
+
+      // Fit the complete header/cards block inside the space left by the footer.
+      // The scale is only reduced when a short viewport requires it, so normal
+      // desktop and portrait layouts keep their intended size.
+      const nextScale = Math.min(1, (availableHeight - 8) / naturalContentHeight);
+      setFitScale(Math.max(0.58, Number(nextScale.toFixed(3))));
+    };
+
+    const resizeObserver = new ResizeObserver(measureAvailableSpace);
+    resizeObserver.observe(gate);
+    resizeObserver.observe(viewport);
+    resizeObserver.observe(content);
+    measureAvailableSpace();
+
+    return () => resizeObserver.disconnect();
+  }, []);
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -32,9 +63,10 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
 
   return (
     <div
+      ref={gateRef}
       onPointerMove={handlePointerMove}
       onMouseMove={handlePointerMove}
-      className="portal-selector-gate relative flex-1 min-h-0 w-full h-full flex flex-col overflow-hidden bg-slate-950 select-none"
+      className="portal-selector-gate relative flex-1 min-h-0 h-full w-full flex flex-col overflow-hidden bg-slate-950 select-none"
     >
       {/* Animated & Pointer-Reactive Background Mesh & Glow Orbs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -90,11 +122,15 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
       </div>
 
       {/* Main Content Container with Subtle 3D Tilt Reaction */}
-      <div className="relative z-10 flex w-full flex-1 flex-col items-center justify-center px-3 py-2 sm:px-6 sm:py-6">
       <div
-        className="w-full max-w-5xl flex flex-col items-center transition-transform duration-200 ease-out will-change-transform px-1 sm:px-2"
+        ref={contentViewportRef}
+        className="relative z-10 flex min-h-0 w-full flex-1 flex-col items-center justify-center overflow-hidden px-3 py-2 sm:px-6 sm:py-6"
+      >
+      <div
+        ref={contentRef}
+        className="w-full max-w-5xl min-h-0 flex flex-col items-center transition-transform duration-200 ease-out will-change-transform px-1 sm:px-2"
         style={{
-          transform: `perspective(1000px) rotateY(${(mousePos.x - 0.5) * 3}deg) rotateX(${(mousePos.y - 0.5) * -3}deg)`,
+          transform: `perspective(1000px) rotateY(${(mousePos.x - 0.5) * 3}deg) rotateX(${(mousePos.y - 0.5) * -3}deg) scale(${fitScale})`,
         }}
       >
         {/* Brand Header */}
