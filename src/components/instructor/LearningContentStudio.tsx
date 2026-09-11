@@ -939,7 +939,7 @@ export const LearningContentStudio: React.FC = () => {
       {isMaterialModalOpen && (
         <ModalPortal>
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto flex flex-col">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto flex flex-col">
             <div className="p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
               <h3 className="text-base font-bold text-white">{editingMaterial ? 'Edit Lampiran Materi' : 'Tambah Lampiran Materi'}</h3>
               <button onClick={() => setIsMaterialModalOpen(false)} className="text-slate-400 hover:text-white">
@@ -1027,11 +1027,11 @@ export const LearningContentStudio: React.FC = () => {
                     Catatan / Teks Instruksi
                   </label>
                   <textarea
-                    rows={3}
+                    rows={12}
                     value={matText}
                     onChange={e => setMatText(e.target.value)}
                     placeholder="Instruksi langkah kerja..."
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    className="w-full min-h-[300px] resize-y px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   ></textarea>
                 </div>
               )}
