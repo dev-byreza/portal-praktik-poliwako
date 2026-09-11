@@ -192,7 +192,19 @@ export async function uploadSubmissionPDF(
 
   const kind = (path.submissionType || 'ASSIGNMENT').toLowerCase();
   const storagePrefix = `${path.courseId}/${path.periodId}/${path.studentId}/${kind}/${path.assignmentId}/`;
-  const replacementPath = path.replaceStoragePath?.startsWith(storagePrefix)
+  // Existing submissions may have been created before the submission type
+  // column was synchronized, so their folder can be `report` while the
+  // current assignment is now marked as `assignment` (or vice versa). Reuse
+  // the old object when all identity segments still match instead of silently
+  // creating a second file under a different folder.
+  const replacementParts = path.replaceStoragePath?.split('/');
+  const replacementPath = replacementParts?.length === 6
+    && replacementParts[0] === path.courseId
+    && replacementParts[1] === path.periodId
+    && replacementParts[2] === path.studentId
+    && ['assignment', 'report', 'post_test', 'remedial'].includes(replacementParts[3])
+    && replacementParts[4] === path.assignmentId
+    && Boolean(replacementParts[5])
     ? path.replaceStoragePath
     : undefined;
   const safeFileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
