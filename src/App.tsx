@@ -244,7 +244,7 @@ export const App: React.FC = () => {
       {/* Shared View Footer - Product by dev-byreza (Aktif di halaman login & gate) */}
       {(activeRoute === 'NOT_FOUND' ||
         (activeRoute === 'INSTRUCTOR' && !isInstructorLoggedIn)) && (
-        <footer className="relative z-20 shrink-0 border-t border-white/10 bg-transparent py-3 text-xs">
+        <footer className="relative z-30 shrink-0 border-t border-white/10 bg-transparent py-3 text-xs">
           <div className="max-w-7xl mx-auto px-4">
             <FooterBranding theme="dark" />
           </div>

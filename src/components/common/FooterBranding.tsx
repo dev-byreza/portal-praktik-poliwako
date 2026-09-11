@@ -26,19 +26,20 @@ export const FooterBranding: React.FC<FooterBrandingProps> = ({
   const githubIconClass = 'h-3.5 w-3.5 sm:h-4 sm:w-4';
   const githubNameClass = compact ? 'text-[10px] font-semibold sm:text-[11px]' : 'text-[10px] font-semibold sm:text-xs';
   const githubMetaClass = compact ? 'text-[8px] text-slate-400 sm:text-[9px]' : 'text-[8px] text-slate-400 sm:text-[10px]';
+  const logoLayerClass = `footer-logo-layer ${isDark ? 'footer-logo-layer-dark' : 'footer-logo-layer-light'}`;
 
   return (
-    <div className="flex w-full flex-col items-center justify-center gap-2.5">
+    <div className="relative z-30 flex w-full flex-col items-center justify-center gap-2.5">
       <span className={isDark ? 'text-xs font-normal text-slate-400' : 'text-[10px] text-slate-500'}>
         Product by
       </span>
 
-      <div className="flex w-full flex-nowrap items-center justify-center gap-1 sm:gap-2.5">
+      <div className="relative z-30 flex w-full flex-nowrap items-center justify-center gap-1 sm:gap-2.5">
         <a
           href="https://www.tiktok.com/@mastercad.id"
           target="_blank"
           rel="noopener noreferrer"
-          className={mastercadLinkClass}
+          className={`${mastercadLinkClass} ${logoLayerClass}`}
           title="MasterCAD di TikTok"
         >
           <img
@@ -63,9 +64,9 @@ export const FooterBranding: React.FC<FooterBrandingProps> = ({
         </a>
 
         <span
-          className={compact
+          className={`${compact
             ? 'inline-flex h-8 w-[clamp(58px,20vw,120px)] shrink-0 items-center justify-center sm:h-9 sm:w-[120px]'
-            : 'inline-flex h-8 w-[clamp(62px,22vw,130px)] shrink-0 items-center justify-center sm:h-10 sm:w-[130px] lg:h-12 lg:w-[155px]'}
+            : 'inline-flex h-8 w-[clamp(62px,22vw,130px)] shrink-0 items-center justify-center sm:h-10 sm:w-[130px] lg:h-12 lg:w-[155px]'} ${logoLayerClass}`}
           title="RCAD Tutor"
         >
           <img

@@ -453,7 +453,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
             isEmbedded={true}
           />
         </div>
-        <footer className="w-full shrink-0 border-t border-white/10 bg-transparent px-4 py-3 text-center">
+        <footer className="relative z-30 w-full shrink-0 border-t border-white/10 bg-transparent px-4 py-3 text-center">
           <FooterBranding theme="dark" />
         </footer>
       </div>
