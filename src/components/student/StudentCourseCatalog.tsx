@@ -313,7 +313,7 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
           })}
         </div>
 
-        <footer className="mt-12 border-t border-white/10 bg-slate-900/35 pt-5 pb-8 text-center shadow-[0_-12px_40px_rgba(15,23,42,0.18)] backdrop-blur-xl">
+        <footer className="mt-12 border-t border-white/10 bg-gradient-to-r from-blue-950/45 via-slate-900/30 to-indigo-950/45 pt-5 pb-8 text-center shadow-[0_-12px_40px_rgba(15,23,42,0.18)] backdrop-blur-xl">
           <FooterBranding theme="dark" />
         </footer>
       </main>
