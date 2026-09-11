@@ -269,18 +269,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     };
 
-    // Keep shared period settings and assignments (including edited deadlines)
-    // fresh when the student returns to an already-open portal tab.
+    // Keep shared period settings, assignments, and instructor submissions
+    // fresh when either portal stays open while another user makes a change.
     const refreshLiveData = async () => {
       if (!isLiveBackend || document.visibilityState === 'hidden') return;
       try {
-        const [latestPeriods, latestUnits] = await Promise.all([
+        const [latestPeriods, latestUnits, latestSubmissions] = await Promise.all([
           ApiService.getPeriods(),
           ApiService.getLearningUnits(),
+          role === 'INSTRUCTOR' ? ApiService.getSubmissions() : Promise.resolve(null),
         ]);
         if (!isMounted) return;
         if (latestPeriods.length > 0) setPeriods(latestPeriods);
         setLearningUnits(latestUnits);
+        if (latestSubmissions) setSubmissions(latestSubmissions);
       } catch (error) {
         console.warn('Refresh data portal notice:', error);
       }
