@@ -144,7 +144,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 overflow-hidden">
         
         {/* Assignment Header */}
-        <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4 mb-4 pb-4 border-b border-slate-100">
+        <div className="flex flex-col md:flex-row items-start justify-between gap-3 md:gap-4 mb-4 pb-4 border-b border-slate-100">
           <div className="min-w-0 w-full">
             <div className="inline-flex max-w-full items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 mb-2">
               <FileText className="w-3.5 h-3.5" />
@@ -154,11 +154,11 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
             <p className="text-sm text-slate-600 mt-1.5 leading-relaxed break-words">{assignment.description}</p>
           </div>
 
-          <div className="w-full sm:w-auto text-left sm:text-right shrink-0">
-            <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2">
-              <div className="inline-flex max-w-full items-start gap-1 text-[11px] sm:text-xs text-amber-600 font-medium bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-200">
+          <div className="w-full md:w-auto max-w-full text-left md:text-right shrink-0">
+            <div className="flex flex-wrap items-center justify-start md:justify-end gap-2">
+              <div className="inline-flex max-w-full min-w-0 items-start gap-1 text-[11px] sm:text-xs text-amber-600 font-medium bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-200">
                 <Clock className="w-3.5 h-3.5 shrink-0 mt-px" />
-                <span className="leading-tight">Tenggat: {formatDeadline(assignment.deadline)}</span>
+                <span className="min-w-0 leading-tight whitespace-normal break-words">Tenggat: {formatDeadline(assignment.deadline)}</span>
               </div>
               {remainingMilliseconds !== null && (
                 <div
@@ -170,7 +170,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                   aria-live="polite"
                 >
                   <Clock className="w-3.5 h-3.5 shrink-0" />
-                  <span>
+                  <span className="min-w-0 whitespace-normal break-words">
                     {isDeadlinePassed
                       ? 'Waktu pengumpulan telah berakhir'
                       : `Sisa waktu: ${formatRemainingTime(remainingMilliseconds)}`}
