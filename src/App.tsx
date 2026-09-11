@@ -171,7 +171,7 @@ export const App: React.FC = () => {
   return (
     <div className={`selection:bg-blue-600 selection:text-white ${
       isDarkFullscreenGate
-        ? 'h-screen w-screen overflow-hidden flex flex-col bg-slate-900'
+        ? 'portal-shell-background h-screen w-screen overflow-hidden flex flex-col'
         : 'min-h-screen bg-slate-100 flex flex-col'
     }`}>
       
