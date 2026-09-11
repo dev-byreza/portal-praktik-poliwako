@@ -232,9 +232,9 @@ export const App: React.FC = () => {
       {(activeRoute === 'ROOT_SELECTOR' ||
         activeRoute === 'NOT_FOUND' ||
         (activeRoute === 'INSTRUCTOR' && !isInstructorLoggedIn)) && (
-        <footer className="bg-slate-900 border-t border-slate-800/80 py-3 shrink-0 text-xs relative z-20">
+        <footer className="shrink-0 border-t border-white/10 bg-slate-900/35 py-3 text-xs shadow-[0_-12px_40px_rgba(15,23,42,0.2)] backdrop-blur-xl relative z-20">
           <div className="max-w-7xl mx-auto px-4">
-            <FooterBranding theme="dark" showDiscord showGithubAudience />
+            <FooterBranding theme="dark" />
           </div>
 
           {/* Contextual Navigation Buttons */}

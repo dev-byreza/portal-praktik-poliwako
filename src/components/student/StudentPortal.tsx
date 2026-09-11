@@ -345,7 +345,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
       <div 
         onPointerMove={handlePointerMove}
         onMouseMove={handlePointerMove}
-        className="relative flex-1 min-h-0 w-full h-full flex flex-col justify-center items-center p-4 overflow-y-auto overflow-x-hidden bg-slate-950 select-none py-6"
+        className="relative flex-1 min-h-0 w-full h-full flex flex-col overflow-hidden bg-slate-950 select-none"
       >
         
         {/* Animated & Pointer-Reactive Background Mesh & Glow Orbs */}
@@ -430,7 +430,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
         {/* Login Gate Frame with subtle 3D tilt reaction */}
         <div 
-          className="relative z-10 w-full flex items-center justify-center transition-transform duration-200 ease-out will-change-transform"
+          className="relative z-10 flex min-h-0 w-full flex-1 items-center justify-center overflow-y-auto overflow-x-hidden px-4 py-6 transition-transform duration-200 ease-out will-change-transform"
           style={{
             transform: `perspective(1000px) rotateY(${(mousePos.x - 0.5) * 5}deg) rotateX(${(mousePos.y - 0.5) * -5}deg)`,
           }}
@@ -442,7 +442,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
             isEmbedded={true}
           />
         </div>
-        <footer className="w-full shrink-0 border-t border-slate-800 bg-slate-900 px-4 py-3 text-center">
+        <footer className="w-full shrink-0 border-t border-white/10 bg-slate-900/35 px-4 py-3 text-center shadow-[0_-12px_40px_rgba(15,23,42,0.2)] backdrop-blur-xl">
           <FooterBranding theme="dark" />
         </footer>
       </div>
