@@ -270,6 +270,10 @@ export const App: React.FC = () => {
               <img src="/mastercad-logo-light.png" alt="MasterCAD" className="h-10 sm:h-12 w-full object-contain" />
             </a>
 
+            <span className="inline-flex h-10 w-[130px] items-center justify-center sm:h-12 sm:w-[155px]" title="RCAD Tutor">
+              <img src="/rcad-tutor-logo-light.png" alt="RCAD Tutor" className="h-8 sm:h-10 w-full object-contain" />
+            </span>
+
             {/* Discord Icon */}
             <a
               href="https://discord.gg"
