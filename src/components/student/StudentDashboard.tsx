@@ -355,7 +355,7 @@ export const StudentDashboard: React.FC<Props> = ({ course, period, units, onLea
                           <span className="text-sm font-bold text-slate-900 break-words">{item.title}</span>
                           <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${styles.badge}`}>{item.badge}</span>
                         </span>
-                        <span className="mt-1 block text-xs leading-relaxed text-slate-600">{item.description}</span>
+                        <span className="mt-1 block break-words text-xs leading-relaxed text-slate-600 [overflow-wrap:anywhere]">{item.description}</span>
                       </span>
                       <ArrowRight className="h-4 w-4 shrink-0 text-slate-400" />
                     </span>

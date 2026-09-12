@@ -178,18 +178,18 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 overflow-hidden">
         
         {/* Assignment Header */}
-        <div className="flex flex-col md:flex-row items-start justify-between gap-3 md:gap-4 mb-4 pb-4 border-b border-slate-100">
-          <div className="min-w-0 w-full">
+        <div className="mb-4 flex flex-col items-start justify-between gap-3 border-b border-slate-100 pb-4 xl:flex-row xl:gap-4">
+          <div className="min-w-0 w-full xl:flex-1">
             <div className="inline-flex max-w-full items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 mb-2">
               <FileText className="w-3.5 h-3.5" />
               <span className="leading-tight">Tugas Praktik (Wajib {fileRule((assignment.allowedFileType || 'PDF') as AllowedFileType).label})</span>
             </div>
-            <h3 className="text-base sm:text-lg font-bold text-slate-900 break-words">{assignment.title}</h3>
-            <p className="text-sm text-slate-600 mt-1.5 leading-relaxed break-words">{assignment.description}</p>
+            <h3 className="break-words text-base font-bold text-slate-900 [overflow-wrap:anywhere] sm:text-lg">{assignment.title}</h3>
+            <p className="mt-1.5 break-words text-sm leading-relaxed text-slate-600 [overflow-wrap:anywhere]">{assignment.description}</p>
           </div>
 
-          <div className="w-full md:w-auto max-w-full text-left md:text-right shrink-0">
-            <div className="flex flex-wrap items-center justify-start md:justify-end gap-2">
+          <div className="w-full max-w-full shrink-0 text-left xl:w-auto xl:text-right">
+            <div className="flex flex-wrap items-center justify-start gap-2 xl:justify-end">
               <div className="inline-flex max-w-full min-w-0 items-start gap-1 text-[11px] sm:text-xs text-amber-600 font-medium bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-200">
                 <Clock className="w-3.5 h-3.5 shrink-0 mt-px" />
                 <span className="min-w-0 leading-tight whitespace-normal break-words">Tenggat: {formatDeadline(assignment.deadline)}</span>
@@ -234,13 +234,13 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                 </div>
               </div>
             )}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-col justify-between gap-3 xl:flex-row xl:items-center">
               <div className="flex items-center gap-3 min-w-0">
                 <div className={`flex h-10 w-10 items-center justify-center rounded-lg font-bold ${isRevisionRequired ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
                   {isRevisionRequired ? <RefreshCw className="h-6 w-6" /> : <CheckCircle2 className="h-6 w-6" />}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <h4 className="text-xs font-bold text-slate-800 break-all">{submission.fileName}</h4>
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                       isRevisionRequired
@@ -258,7 +258,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+              <div className="flex flex-wrap items-center gap-2 self-start xl:self-auto">
                 <button
                   type="button"
                   onClick={() => setIsPreviewOpen(true)}
@@ -281,7 +281,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
             {/* An instructor-requested revision remains replaceable after the regular deadline. */}
             {canUpload && (
               <div className="mt-4 pt-3 border-t border-slate-200 flex flex-col gap-3 text-xs text-slate-500">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex flex-col justify-between gap-2 xl:flex-row xl:items-center">
                   <span>{isRevisionRequired ? 'Unggah berkas yang sudah diperbaiki.' : 'Ingin memperbarui file tugas?'}</span>
                   <label className="text-blue-600 hover:text-blue-700 font-semibold cursor-pointer underline">
                     {isRevisionRequired ? 'Pilih File Revisi' : 'Ganti File'}
@@ -295,7 +295,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                 </div>
 
                 {selectedFile && (
-                  <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex flex-col justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/80 p-3 xl:flex-row xl:items-center">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <RefreshCw className="w-5 h-5 text-blue-600 shrink-0" />
                       <div className="min-w-0">
@@ -304,7 +304,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <div className="flex w-full items-center justify-end gap-2 xl:w-auto">
                       <button
                         type="button"
                         onClick={() => setSelectedFile(null)}
@@ -360,7 +360,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
 
                 {/* Selected File Preview before submit */}
                 {selectedFile && (
-                  <div className="mt-4 p-3 bg-blue-50/80 border border-blue-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="mt-4 flex flex-col justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/80 p-3 xl:flex-row xl:items-center">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <FileText className="w-5 h-5 text-blue-600 shrink-0" />
                       <div>
@@ -369,7 +369,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <div className="flex w-full items-center justify-end gap-2 xl:w-auto">
                       <button
                         onClick={() => setSelectedFile(null)}
                         className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"

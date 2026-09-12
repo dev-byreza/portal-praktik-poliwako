@@ -715,7 +715,7 @@ export const LearningContentStudio: React.FC = () => {
 
               {/* Assignment Box */}
               <div className="pt-6 border-t border-slate-100">
-                <div className="flex items-center justify-between mb-3">
+                <div className="mb-3 flex flex-col items-start justify-between gap-3 xl:flex-row xl:items-center">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                     <FileText className="w-4 h-4 text-amber-500" />
                     <span>Tugas Praktik Mahasiswa (Pengumpulan File)</span>
@@ -741,10 +741,10 @@ export const LearningContentStudio: React.FC = () => {
 
                 {activeSelectedUnit.assignment ? (
                   <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-5">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h5 className="text-xs font-bold text-amber-950">{activeSelectedUnit.assignment.title}</h5>
+                    <div className="flex flex-col items-start justify-between gap-4 xl:flex-row">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h5 className="break-words text-xs font-bold text-amber-950 [overflow-wrap:anywhere]">{activeSelectedUnit.assignment.title}</h5>
                           <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-200 text-amber-900 rounded">
                             {activeSelectedUnit.assignment.allowedFileType === 'ANY'
                               ? 'ALL FILES'
@@ -758,13 +758,13 @@ export const LearningContentStudio: React.FC = () => {
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-amber-800 mt-1 leading-relaxed">{activeSelectedUnit.assignment.description}</p>
+                        <p className="mt-1 break-words text-xs leading-relaxed text-amber-800 [overflow-wrap:anywhere]">{activeSelectedUnit.assignment.description}</p>
                         <p className="text-[11px] text-amber-700 font-mono mt-2">
                           Tenggat: {formatDeadline(activeSelectedUnit.assignment.deadline)} • Bobot: {activeSelectedUnit.assignment.maxScore} Poin
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex shrink-0 items-center gap-1 self-end xl:self-start">
                         <button
                           onClick={() => handleOpenEditAssignment(activeSelectedUnit.assignment!)}
                           className="p-1.5 text-amber-600 hover:text-blue-600 rounded transition-colors"
