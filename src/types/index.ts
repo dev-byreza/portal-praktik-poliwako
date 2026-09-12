@@ -243,6 +243,20 @@ export interface FeedbackRule {
   message: string;
 }
 
+export type AnnouncementPriority = 'INFO' | 'IMPORTANT' | 'URGENT';
+
+export interface Announcement {
+  id: string;
+  courseId: string;
+  periodId?: string;
+  title: string;
+  message: string;
+  priority: AnnouncementPriority;
+  isActive: boolean;
+  publishedAt: string;
+  expiresAt?: string;
+}
+
 export interface DailyPerformance {
   date: string;
   dayLabel: string;

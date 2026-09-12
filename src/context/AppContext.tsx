@@ -20,6 +20,7 @@ import {
   Assessment,
   RemedialAssignment,
   FeedbackRule,
+  Announcement,
 } from '../types';
 import { StorageService } from '../services/storageService';
 import { isSupabaseConfigured, uploadSubmissionPDF } from '../services/supabaseClient';
@@ -83,6 +84,7 @@ interface AppContextType {
   assessments: Assessment[];
   remedials: RemedialAssignment[];
   feedbackRules: FeedbackRule[];
+  announcements: Announcement[];
 
   // Student Session & Authentication
   studentSession: { studentId: string; courseSlug: string; periodId: string } | null;
@@ -150,6 +152,9 @@ interface AppContextType {
   createRemedialTask: (remedial: Partial<RemedialAssignment>) => Promise<RemedialAssignment>;
   gradeRemedialTask: (remedialId: string, status: 'LULUS' | 'BELUM_LULUS') => Promise<void>;
 
+  createAnnouncement: (announcement: Omit<Announcement, 'id' | 'publishedAt'>) => Promise<Announcement>;
+  deleteAnnouncement: (announcementId: string) => Promise<void>;
+
   saveCustomFeedbackRules: (rules: FeedbackRule[]) => void;
   resetToDefaultData: () => void;
 
@@ -198,6 +203,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [assessments, setAssessments] = useState<Assessment[]>(StorageService.getAssessments());
   const [remedials, setRemedials] = useState<RemedialAssignment[]>(StorageService.getRemedials());
   const [feedbackRules, setFeedbackRules] = useState<FeedbackRule[]>(StorageService.getFeedbackRules());
+  const [announcements, setAnnouncements] = useState<Announcement[]>(StorageService.getAnnouncements());
   const [studentSession, setStudentSessionState] = useState(StorageService.getStudentSession());
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
 
@@ -212,7 +218,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!isLiveBackend) return;
         const authInstructorId = await ApiService.getCurrentInstructorId();
         const courseScope = authInstructorId || (role === 'STUDENT' && !isInstructorLoggedIn ? undefined : null);
-        const [liveCourses, liveStudents, livePeriods, liveParticipants, liveUnits, liveAttendance, liveSubmissions, liveAssessments, liveInstructorDirectory, liveRemedials] = await Promise.all([
+        const [liveCourses, liveStudents, livePeriods, liveParticipants, liveUnits, liveAttendance, liveSubmissions, liveAssessments, liveInstructorDirectory, liveRemedials, liveAnnouncements] = await Promise.all([
           courseScope === null ? Promise.resolve([]) : ApiService.getCourses(courseScope),
           ApiService.getStudents(),
           ApiService.getPeriods(),
@@ -223,9 +229,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ApiService.getAssessments(),
           ApiService.getInstructorDirectory(),
           ApiService.getRemedials().catch(() => null),
+          ApiService.getAnnouncements(),
         ]);
         if (!isMounted) return;
         if (liveRemedials) setRemedials(liveRemedials);
+        if (liveAnnouncements) setAnnouncements(liveAnnouncements);
         if (liveCourses) {
           setCourses(liveCourses);
           if (liveCourses.length === 0) {
@@ -274,15 +282,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const refreshLiveData = async () => {
       if (!isLiveBackend || document.visibilityState === 'hidden') return;
       try {
-        const [latestPeriods, latestUnits, latestSubmissions] = await Promise.all([
+        const [latestPeriods, latestUnits, latestSubmissions, latestAnnouncements] = await Promise.all([
           ApiService.getPeriods(),
           ApiService.getLearningUnits(),
           role === 'INSTRUCTOR' ? ApiService.getSubmissions() : Promise.resolve(null),
+          ApiService.getAnnouncements(),
         ]);
         if (!isMounted) return;
         if (latestPeriods.length > 0) setPeriods(latestPeriods);
         setLearningUnits(latestUnits);
         if (latestSubmissions) setSubmissions(latestSubmissions);
+        setAnnouncements(latestAnnouncements);
       } catch (error) {
         console.warn('Refresh data portal notice:', error);
       }
@@ -345,6 +355,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     StorageService.saveFeedbackRules(feedbackRules);
   }, [feedbackRules]);
+
+  useEffect(() => {
+    StorageService.saveAnnouncements(announcements);
+  }, [announcements]);
 
   const showToast = (title: string, message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
     const id = `toast-${Date.now()}-${Math.random()}`;
@@ -1711,6 +1725,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast('Aturan Feedback Disimpan', 'Konfigurasi rentang nilai dan template pesan feedback berhasil diperbarui.', 'success');
   };
 
+  const createAnnouncement = async (data: Omit<Announcement, 'id' | 'publishedAt'>): Promise<Announcement> => {
+    const announcement: Announcement = {
+      ...data,
+      id: newEntityId('announcement'),
+      publishedAt: new Date().toISOString(),
+    };
+    const saved = await ApiService.saveAnnouncement(announcement);
+    setAnnouncements(prev => [saved, ...prev.filter(item => item.id !== announcement.id && item.id !== saved.id)]);
+    showToast('Pengumuman Diterbitkan', 'Pengumuman sudah tampil pada dashboard mahasiswa.', 'success');
+    return saved;
+  };
+
+  const deleteAnnouncement = async (announcementId: string): Promise<void> => {
+    await ApiService.deleteAnnouncement(announcementId);
+    setAnnouncements(prev => prev.filter(item => item.id !== announcementId));
+    showToast('Pengumuman Dihapus', 'Pengumuman tidak lagi tampil pada dashboard mahasiswa.', 'info');
+  };
+
   const resetToDefaultData = () => {
     StorageService.resetToDefault();
     setInstructor(StorageService.getInstructor());
@@ -1735,6 +1767,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setAssessments(StorageService.getAssessments());
     setRemedials(StorageService.getRemedials());
     setFeedbackRules(StorageService.getFeedbackRules());
+    setAnnouncements(StorageService.getAnnouncements());
     setStudentSessionState(null);
     showToast('Data Direset', 'Seluruh data demo Politeknik Sorowako berhasil dikembalikan ke keadaan awal.', 'info');
   };
@@ -1765,6 +1798,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         assessments,
         remedials,
         feedbackRules,
+        announcements,
         studentSession,
         currentStudent,
         verifyStudentNim,
@@ -1805,6 +1839,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         unpublishPeriodGrades,
         createRemedialTask,
         gradeRemedialTask,
+        createAnnouncement,
+        deleteAnnouncement,
         saveCustomFeedbackRules,
         resetToDefaultData,
         toasts,

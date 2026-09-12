@@ -10,6 +10,7 @@ import {
   Clock,
   AlertCircle,
   Eye,
+  Download,
   Trash2,
   RefreshCw
 } from 'lucide-react';
@@ -138,6 +139,36 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
     }
   };
 
+  const handleDownloadReceipt = () => {
+    if (!submission) return;
+    const receipt = [
+      'BUKTI PENGUMPULAN TUGAS',
+      'Portal Praktik Poliwako',
+      '',
+      `Nomor bukti : ${submission.id}`,
+      `Mahasiswa    : ${currentStudent?.name || '-'}`,
+      `NIM          : ${currentStudent?.nim || '-'}`,
+      `Tugas        : ${assignment.title}`,
+      `Nama berkas  : ${submission.fileName}`,
+      `Ukuran       : ${submission.fileSize}`,
+      `Dikirim      : ${formatWitaDateTime(submission.submittedAt)}`,
+      `Status       : ${submission.status === 'GRADED' ? 'Sudah dinilai' : 'Terkumpul'}`,
+      `Periode ID   : ${studentSession?.periodId || submission.periodId}`,
+      '',
+      'Simpan bukti ini sebagai catatan pengumpulan Anda.',
+    ].join('\n');
+    const blob = new Blob([receipt], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `bukti-${assignment.title.toLowerCase().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'tugas'}-${submission.id.slice(0, 8)}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    showToast('Bukti Disimpan', 'Bukti pengumpulan berhasil diunduh.', 'success');
+  };
+
   return (
     <>
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 overflow-hidden">
@@ -201,13 +232,22 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 self-start sm:self-auto">
+              <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
                 <button
+                  type="button"
                   onClick={() => setIsPreviewOpen(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
                 >
                   <Eye className="w-3.5 h-3.5" />
                   <span>Lihat / Unduh File</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadReceipt}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs font-semibold rounded-lg transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Bukti Pengumpulan</span>
                 </button>
               </div>
             </div>

@@ -25,6 +25,7 @@ import {
   FeedbackRule,
   InstructorProfile,
   PublicInstructorProfile,
+  Announcement,
 } from '../types';
 
 const isUuid = (value: string): boolean => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -1158,5 +1159,77 @@ export class ApiService {
         throw err;
       }
     }
+  }
+
+  // ====================================================================
+  // ANNOUNCEMENTS
+  // ====================================================================
+  static async getAnnouncements(courseId?: string): Promise<Announcement[]> {
+    if (!this.isLiveBackend() || !supabase) {
+      const cached = StorageService.getAnnouncements();
+      return courseId ? cached.filter(item => item.courseId === courseId) : cached;
+    }
+
+    try {
+      let query = supabase.from('announcements').select('*').order('published_at', { ascending: false });
+      if (courseId) query = query.eq('course_id', courseId);
+      const { data, error } = await query;
+      if (error) throw error;
+      const announcements = (data || []).map((row: any): Announcement => ({
+        id: row.id,
+        courseId: row.course_id,
+        periodId: row.period_id || undefined,
+        title: row.title,
+        message: row.message,
+        priority: row.priority || 'INFO',
+        isActive: Boolean(row.is_active),
+        publishedAt: row.published_at,
+        expiresAt: row.expires_at || undefined,
+      }));
+      StorageService.saveAnnouncements(announcements);
+      return announcements;
+    } catch (error) {
+      console.warn('Unable to load announcements from Supabase:', error);
+      const cached = StorageService.getAnnouncements();
+      return courseId ? cached.filter(item => item.courseId === courseId) : cached;
+    }
+  }
+
+  static async saveAnnouncement(announcement: Announcement): Promise<Announcement> {
+    let saved = announcement;
+    if (this.isLiveBackend() && supabase) {
+      const databaseAnnouncementId = await databaseId(announcement.id, 'announcement');
+      const { data, error } = await supabase.from('announcements').upsert({
+        id: databaseAnnouncementId,
+        course_id: announcement.courseId,
+        period_id: announcement.periodId || null,
+        title: announcement.title,
+        message: announcement.message,
+        priority: announcement.priority,
+        is_active: announcement.isActive,
+        published_at: announcement.publishedAt,
+        expires_at: announcement.expiresAt || null,
+      }).select('*').single();
+      if (error) throw new Error(`Pengumuman gagal disimpan: ${error.message}`);
+      saved = {
+        ...announcement,
+        id: data.id,
+        publishedAt: data.published_at,
+      };
+    }
+
+    StorageService.saveAnnouncements([
+      ...StorageService.getAnnouncements().filter(item => item.id !== announcement.id && item.id !== saved.id),
+      saved,
+    ]);
+    return saved;
+  }
+
+  static async deleteAnnouncement(announcementId: string): Promise<void> {
+    if (this.isLiveBackend() && supabase) {
+      const { error } = await supabase.from('announcements').delete().eq('id', await databaseId(announcementId, 'announcement'));
+      if (error) throw new Error(`Pengumuman gagal dihapus: ${error.message}`);
+    }
+    StorageService.saveAnnouncements(StorageService.getAnnouncements().filter(item => item.id !== announcementId));
   }
 }

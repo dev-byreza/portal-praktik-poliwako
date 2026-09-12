@@ -22,6 +22,8 @@ import {
 import { Badge } from '../common/Badge';
 import { formatPeriodRange } from '../../utils/dateUtils';
 import { getGradePredicate } from '../../utils/gradeCalculators';
+import { isSubmissionClosed } from '../../utils/submissionDeadline';
+import { AnnouncementManager } from './AnnouncementManager';
 
 interface DashboardOverviewProps {
   onNavigateTab: (tab: string) => void;
@@ -36,6 +38,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     submissions,
     assessments,
     attendance,
+    remedials,
     learningUnits,
     unitProgress,
     activeCourseId
@@ -105,6 +108,99 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       ineligibleCount
     };
   }, [filteredParticipants, learningUnits, unitProgress, assessments, attendance]);
+
+  const actionQueue = useMemo(() => {
+    const participantKeys = new Set(filteredParticipants.map(p => `${p.periodId}_${p.studentId}`));
+    const relevantSubmissions = submissions.filter(s => participantKeys.has(`${s.periodId}_${s.studentId}`));
+    const submittedParticipantKeys = new Set(relevantSubmissions.map(s => `${s.periodId}_${s.studentId}`));
+    filteredParticipants.forEach(p => {
+      if (p.finalProjectConfirmed) submittedParticipantKeys.add(`${p.periodId}_${p.studentId}`);
+    });
+
+    const assessedParticipantKeys = new Set(
+      assessments
+        .filter(a => a.finalScore > 0 && participantKeys.has(`${a.periodId}_${a.studentId}`))
+        .map(a => `${a.periodId}_${a.studentId}`)
+    );
+    const pendingGrading = [...submittedParticipantKeys].filter(key => !assessedParticipantKeys.has(key)).length;
+    const remedialReviews = remedials.filter(r => participantKeys.has(`${r.periodId}_${r.studentId}`) && r.status === 'SUBMITTED').length;
+    const unpublishedGrades = assessments.filter(a => (
+      participantKeys.has(`${a.periodId}_${a.studentId}`) && a.finalScore > 0 && !a.isPublished
+    )).length;
+    const projectRevisions = filteredParticipants.filter(p => p.finalProjectReviewStatus === 'REVISION_REQUIRED').length;
+
+    let overdueSubmissions = 0;
+    filteredParticipants.forEach(participant => {
+      const periodAssignments = learningUnits
+        .filter(unit => unit.periodId === participant.periodId && unit.assignment && isSubmissionClosed(unit.assignment.deadline))
+        .map(unit => unit.assignment!);
+      periodAssignments.forEach(assignment => {
+        const hasSubmission = relevantSubmissions.some(submission => (
+          submission.assignmentId === assignment.id
+          && submission.periodId === participant.periodId
+          && submission.studentId === participant.studentId
+        ));
+        if (!hasSubmission) overdueSubmissions += 1;
+      });
+    });
+
+    return [
+      {
+        id: 'remedial-review',
+        count: remedialReviews,
+        title: 'Remedial menunggu pemeriksaan',
+        description: 'Berkas remedial sudah dikirim dan perlu keputusan lulus.',
+        tab: 'ATTENDANCE',
+        tone: 'rose',
+        icon: AlertTriangle,
+      },
+      {
+        id: 'project-revision',
+        count: projectRevisions,
+        title: 'Final project masih direvisi',
+        description: 'Pantau mahasiswa yang belum mengirim perbaikan final project.',
+        tab: 'GRADING',
+        tone: 'amber',
+        icon: Clock,
+      },
+      {
+        id: 'pending-grading',
+        count: pendingGrading,
+        title: 'Siap untuk dinilai',
+        description: 'Mahasiswa sudah mengumpulkan pekerjaan tetapi belum dinilai.',
+        tab: 'GRADING',
+        tone: 'blue',
+        icon: Award,
+      },
+      {
+        id: 'unpublished-grades',
+        count: unpublishedGrades,
+        title: 'Nilai belum dipublikasikan',
+        description: 'Nilai sudah tersimpan sebagai draft dan belum terlihat mahasiswa.',
+        tab: 'GRADING',
+        tone: 'blue',
+        icon: CheckCircle,
+      },
+      {
+        id: 'low-attendance',
+        count: kpiStats.ineligibleCount,
+        title: 'Kehadiran di bawah 75%',
+        description: 'Periksa presensi dan siapkan tindak lanjut remedial.',
+        tab: 'ATTENDANCE',
+        tone: 'rose',
+        icon: AlertTriangle,
+      },
+      {
+        id: 'overdue-submissions',
+        count: overdueSubmissions,
+        title: 'Tugas melewati tenggat',
+        description: 'Jumlah tugas-mahasiswa yang belum memiliki berkas setelah tenggat.',
+        tab: 'STUDIO',
+        tone: 'amber',
+        icon: Clock,
+      },
+    ].filter(item => item.count > 0);
+  }, [assessments, filteredParticipants, kpiStats.ineligibleCount, learningUnits, remedials, submissions]);
 
   // Top 3 Rankings (PRD Section 15)
   const topRankings = useMemo(() => {
@@ -482,6 +578,77 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         </div>
 
       </div>
+
+      {/* Prioritized operational queue */}
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              <h2 className="text-base font-black text-slate-900">Perlu tindakan</h2>
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              Antrean operasional dari filter periode dan kelas yang sedang dipilih.
+            </p>
+          </div>
+          {actionQueue.length > 0 && (
+            <span className="w-fit rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+              {actionQueue.reduce((sum, item) => sum + item.count, 0)} item
+            </span>
+          )}
+        </div>
+
+        {actionQueue.length > 0 ? (
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {actionQueue.map(item => {
+              const containerClass = item.tone === 'rose'
+                ? 'border-rose-200 bg-rose-50/60 hover:bg-rose-50'
+                : item.tone === 'amber'
+                  ? 'border-amber-200 bg-amber-50/60 hover:bg-amber-50'
+                  : 'border-blue-200 bg-blue-50/50 hover:bg-blue-50';
+              const iconClass = item.tone === 'rose'
+                ? 'bg-rose-100 text-rose-700'
+                : item.tone === 'amber'
+                  ? 'bg-amber-100 text-amber-700'
+                  : 'bg-blue-100 text-blue-700';
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onNavigateTab(item.tab)}
+                  className={`rounded-2xl border p-4 text-left transition-colors ${containerClass}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconClass}`}>
+                      <item.icon className="h-5 w-5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-bold text-slate-900">{item.title}</span>
+                        <span className="text-xl font-black text-slate-900">{item.count}</span>
+                      </span>
+                      <span className="mt-1 block text-xs leading-relaxed text-slate-600">{item.description}</span>
+                      <span className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-slate-700">
+                        Tindak lanjuti <ArrowUpRight className="h-3.5 w-3.5" />
+                      </span>
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-4 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
+            <CheckCircle2 className="h-5 w-5 shrink-0" />
+            <div>
+              <p className="text-sm font-bold">Tidak ada antrean mendesak</p>
+              <p className="mt-1 text-xs">Semua aktivitas pada filter ini sudah tertangani.</p>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <AnnouncementManager />
 
       {/* Main Charts & Rankings Row: Top 3 Periode (Left, Bigger) & Daily Chart (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">

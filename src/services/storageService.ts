@@ -14,7 +14,8 @@ import {
   AttendanceRecord,
   Assessment,
   RemedialAssignment,
-  FeedbackRule
+  FeedbackRule,
+  Announcement
 } from '../types';
 
 import {
@@ -45,6 +46,7 @@ const STORAGE_KEYS = {
   ASSESSMENTS: 'poliwako_assessments',
   REMEDIALS: 'poliwako_remedials',
   FEEDBACK_RULES: 'poliwako_feedback_rules',
+  ANNOUNCEMENTS: 'poliwako_announcements',
   CURRENT_STUDENT_SESSION: 'poliwako_student_session',
   ACTIVE_COURSE_ID: 'poliwako_active_course_id',
   INSTRUCTOR_LOGGED_IN: 'poliwako_instructor_logged_in'
@@ -67,6 +69,7 @@ if (typeof window !== 'undefined' && !localStorage.getItem(CLEAN_VERSION_KEY)) {
   if (localStorage.getItem(STORAGE_KEYS.ASSESSMENTS) === null) localStorage.setItem(STORAGE_KEYS.ASSESSMENTS, JSON.stringify(INITIAL_ASSESSMENTS));
   if (localStorage.getItem(STORAGE_KEYS.REMEDIALS) === null) localStorage.setItem(STORAGE_KEYS.REMEDIALS, JSON.stringify(INITIAL_REMEDIALS));
   if (localStorage.getItem(STORAGE_KEYS.FEEDBACK_RULES) === null) localStorage.setItem(STORAGE_KEYS.FEEDBACK_RULES, JSON.stringify(INITIAL_FEEDBACK_RULES));
+  if (localStorage.getItem(STORAGE_KEYS.ANNOUNCEMENTS) === null) localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify([]));
   if (localStorage.getItem(STORAGE_KEYS.ACTIVE_COURSE_ID) === null) localStorage.setItem(STORAGE_KEYS.ACTIVE_COURSE_ID, 'course-cad-1-1');
   localStorage.removeItem(STORAGE_KEYS.INSTRUCTOR_LOGGED_IN);
 }
@@ -107,6 +110,7 @@ export class StorageService {
     setItem(STORAGE_KEYS.ASSESSMENTS, []);
     setItem(STORAGE_KEYS.REMEDIALS, []);
     setItem(STORAGE_KEYS.FEEDBACK_RULES, INITIAL_FEEDBACK_RULES);
+    setItem(STORAGE_KEYS.ANNOUNCEMENTS, []);
   }
 
   static getInstructor(): InstructorProfile {
@@ -331,6 +335,14 @@ export class StorageService {
 
   static saveFeedbackRules(rules: FeedbackRule[]): void {
     setItem(STORAGE_KEYS.FEEDBACK_RULES, rules);
+  }
+
+  static getAnnouncements(): Announcement[] {
+    return getItem<Announcement[]>(STORAGE_KEYS.ANNOUNCEMENTS, []);
+  }
+
+  static saveAnnouncements(announcements: Announcement[]): void {
+    setItem(STORAGE_KEYS.ANNOUNCEMENTS, announcements);
   }
 
   // Student Session
