@@ -112,6 +112,7 @@ interface AppContextType {
 
   // Student Actions
   submitAssignment: (assignmentId: string, file: File, submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST', allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY') => Promise<{ success: boolean; message?: string }>;
+  reviewSubmission: (submissionId: string, status: 'REVISION_REQUIRED' | 'ACCEPTED', feedback: string) => Promise<void>;
   confirmFinalProject: (url: string) => Promise<void>;
   reviewFinalProject: (participantId: string, status: 'REVISION_REQUIRED' | 'ACCEPTED', feedback: string) => Promise<void>;
   submitStudentRemedial: (remedialId: string, file: File) => Promise<void>;
@@ -801,13 +802,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       (unit) => unit.periodId === periodId && unit.assignment?.id === assignmentId
     )?.assignment;
     const deadlineTimestamp = assignment ? parseAssignmentDeadline(assignment.deadline) : null;
-    if (deadlineTimestamp !== null && Date.now() >= deadlineTimestamp) {
+    const existing = submissions.find((item) => item.assignmentId === assignmentId && item.studentId === studentId && item.periodId === periodId);
+    const isRequestedRevision = existing?.status === 'REVISION_REQUIRED';
+    if (deadlineTimestamp !== null && Date.now() >= deadlineTimestamp && !isRequestedRevision) {
       const message = 'Batas waktu pengumpulan sudah berakhir. Tunggu instruktur memperbarui deadline sebelum mengunggah.';
       showToast('Tenggat Berakhir', message, 'error');
       return { success: false, message };
     }
 
-    const existing = submissions.find((item) => item.assignmentId === assignmentId && item.studentId === studentId && item.periodId === periodId);
     const upload = await uploadSubmissionPDF(file, {
       courseId: period.courseId,
       periodId,
@@ -826,7 +828,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const submission: Submission = {
       id: existing?.id || crypto.randomUUID(), assignmentId, studentId, periodId,
       fileName: file.name, fileUrl: upload.publicUrl, fileSize: (file.size / (1024 * 1024)).toFixed(2) + ' MB', submissionType,
-      storagePath: upload.storagePath, submittedAt: new Date().toISOString(), status: 'SUBMITTED'
+      storagePath: upload.storagePath, submittedAt: new Date().toISOString(), status: 'SUBMITTED',
+      reviewFeedback: undefined, reviewedAt: undefined, revisionNumber: (existing?.revisionNumber || 0) + 1,
     };
 
     try {
@@ -1725,6 +1728,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast('Aturan Feedback Disimpan', 'Konfigurasi rentang nilai dan template pesan feedback berhasil diperbarui.', 'success');
   };
 
+  const reviewSubmission = async (submissionId: string, status: 'REVISION_REQUIRED' | 'ACCEPTED', feedback: string) => {
+    if (!isInstructorLoggedIn) throw new Error('Masuk sebagai instruktur terlebih dahulu.');
+    const current = submissions.find(item => item.id === submissionId);
+    if (!current) throw new Error('Berkas mahasiswa tidak ditemukan.');
+    if (status === 'REVISION_REQUIRED' && !feedback.trim()) throw new Error('Tuliskan instruksi revisi untuk mahasiswa.');
+
+    const updated: Submission = {
+      ...current,
+      status,
+      reviewFeedback: feedback.trim() || undefined,
+      reviewedAt: new Date().toISOString(),
+      revisionNumber: current.revisionNumber || 1,
+    };
+    const saved = await ApiService.reviewSubmission(updated);
+    setSubmissions(previous => previous.map(item => item.id === saved.id ? saved : item));
+    showToast(
+      status === 'ACCEPTED' ? 'Berkas Diterima' : 'Revisi Diminta',
+      status === 'ACCEPTED' ? 'Status penerimaan tugas sudah terlihat oleh mahasiswa.' : 'Catatan revisi sudah dikirim ke dashboard mahasiswa.',
+      status === 'ACCEPTED' ? 'success' : 'info'
+    );
+  };
+
   const createAnnouncement = async (data: Omit<Announcement, 'id' | 'publishedAt'>): Promise<Announcement> => {
     const announcement: Announcement = {
       ...data,
@@ -1808,6 +1833,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setStudentIdentity,
         clearStudentIdentity,
         submitAssignment,
+        reviewSubmission,
         confirmFinalProject,
         reviewFinalProject,
         submitStudentRemedial,

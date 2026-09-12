@@ -112,9 +112,13 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
   const actionQueue = useMemo(() => {
     const participantKeys = new Set(filteredParticipants.map(p => `${p.periodId}_${p.studentId}`));
     const relevantSubmissions = submissions.filter(s => participantKeys.has(`${s.periodId}_${s.studentId}`));
-    const submittedParticipantKeys = new Set(relevantSubmissions.map(s => `${s.periodId}_${s.studentId}`));
+    const submittedParticipantKeys = new Set(
+      relevantSubmissions
+        .filter(submission => submission.status !== 'REVISION_REQUIRED')
+        .map(s => `${s.periodId}_${s.studentId}`)
+    );
     filteredParticipants.forEach(p => {
-      if (p.finalProjectConfirmed) submittedParticipantKeys.add(`${p.periodId}_${p.studentId}`);
+      if (p.finalProjectConfirmed && p.finalProjectReviewStatus !== 'REVISION_REQUIRED') submittedParticipantKeys.add(`${p.periodId}_${p.studentId}`);
     });
 
     const assessedParticipantKeys = new Set(
@@ -128,6 +132,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       participantKeys.has(`${a.periodId}_${a.studentId}`) && a.finalScore > 0 && !a.isPublished
     )).length;
     const projectRevisions = filteredParticipants.filter(p => p.finalProjectReviewStatus === 'REVISION_REQUIRED').length;
+    const assignmentRevisions = relevantSubmissions.filter(submission => submission.status === 'REVISION_REQUIRED').length;
 
     let overdueSubmissions = 0;
     filteredParticipants.forEach(participant => {
@@ -145,6 +150,15 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     });
 
     return [
+      {
+        id: 'assignment-revision',
+        count: assignmentRevisions,
+        title: 'Berkas tugas masih direvisi',
+        description: 'Mahasiswa sudah menerima catatan dan perlu mengunggah berkas perbaikan.',
+        tab: 'GRADING',
+        tone: 'rose',
+        icon: AlertTriangle,
+      },
       {
         id: 'remedial-review',
         count: remedialReviews,

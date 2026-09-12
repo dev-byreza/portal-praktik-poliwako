@@ -168,8 +168,11 @@ export interface Submission {
   fileSize: string;
   storagePath?: string;
   submittedAt: string;
-  status: 'SUBMITTED' | 'GRADED';
+  status: 'SUBMITTED' | 'REVISION_REQUIRED' | 'ACCEPTED' | 'GRADED';
   submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST' | 'REMEDIAL';
+  reviewFeedback?: string;
+  reviewedAt?: string;
+  revisionNumber?: number;
 }
 
 export type AttendanceStatus = 'HADIR' | 'IZIN' | 'SAKIT' | 'ALPA';

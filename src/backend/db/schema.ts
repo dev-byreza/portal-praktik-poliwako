@@ -340,7 +340,10 @@ export const submissions = pgTable('submissions', {
   storagePath: text('storage_path'), // e.g. instructor/course/period/student/assignment.pdf
   submissionType: varchar('submission_type', { length: 20 }).notNull().default('ASSIGNMENT'),
   submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
-  status: varchar('status', { length: 30 }).notNull().default('SUBMITTED'), // 'SUBMITTED' | 'GRADED'
+  status: varchar('status', { length: 30 }).notNull().default('SUBMITTED'), // 'SUBMITTED' | 'REVISION_REQUIRED' | 'ACCEPTED' | 'GRADED'
+  reviewFeedback: text('review_feedback'),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  revisionNumber: integer('revision_number').notNull().default(1),
 }, (table) => ({
   submissionAssignmentStudentIdx: index('submission_assign_student_idx').on(table.assignmentId, table.studentId),
   submissionPeriodIdx: index('submission_period_idx').on(table.periodId),

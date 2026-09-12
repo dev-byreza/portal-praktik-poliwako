@@ -927,6 +927,9 @@ export class ApiService {
       submittedAt: row.submitted_at,
       status: row.status,
       submissionType: row.submission_type || 'ASSIGNMENT',
+      reviewFeedback: row.review_feedback || undefined,
+      reviewedAt: row.reviewed_at || undefined,
+      revisionNumber: Number(row.revision_number || 1),
     })));
   }
 
@@ -1009,17 +1012,29 @@ export class ApiService {
       submittedAt: new Date().toISOString(),
     };
     if (this.isLiveBackend() && supabase) {
+      const submissionClient = supabase;
       const submissionPayload = {
         id: persistedSubmission.id, assignment_id: persistedSubmission.assignmentId, student_id: persistedSubmission.studentId, period_id: persistedSubmission.periodId,
         file_name: persistedSubmission.fileName, file_url: persistedSubmission.fileUrl, file_size: persistedSubmission.fileSize,
         storage_path: persistedSubmission.storagePath || null, submitted_at: persistedSubmission.submittedAt, status: persistedSubmission.status,
         submission_type: persistedSubmission.submissionType || 'ASSIGNMENT',
+        review_feedback: persistedSubmission.reviewFeedback || null,
+        reviewed_at: persistedSubmission.reviewedAt || null,
+        revision_number: persistedSubmission.revisionNumber || 1,
       };
-      let { data, error } = await supabase.from('submissions').upsert(submissionPayload).select('submitted_at').single();
-      if (error && /submission_type|column .* does not exist/i.test(error.message || '')) {
+      const persistSubmissionPayload = async (payload: typeof submissionPayload | Omit<typeof submissionPayload, 'submission_type' | 'review_feedback' | 'reviewed_at' | 'revision_number'>) => (
+        persistedSubmission.revisionNumber && persistedSubmission.revisionNumber > 1
+          ? submissionClient.from('submissions').update(payload).eq('id', persistedSubmission.id).select('submitted_at').single()
+          : submissionClient.from('submissions').upsert(payload).select('submitted_at').single()
+      );
+      let { data, error } = await persistSubmissionPayload(submissionPayload);
+      if (error && /submission_type|review_feedback|reviewed_at|revision_number|column .* does not exist/i.test(error.message || '')) {
         const legacyPayload = { ...submissionPayload };
         delete (legacyPayload as any).submission_type;
-        ({ data, error } = await supabase.from('submissions').upsert(legacyPayload).select('submitted_at').single());
+        delete (legacyPayload as any).review_feedback;
+        delete (legacyPayload as any).reviewed_at;
+        delete (legacyPayload as any).revision_number;
+        ({ data, error } = await persistSubmissionPayload(legacyPayload));
       }
       if (error) throw error;
       if (data?.submitted_at) persistedSubmission.submittedAt = data.submitted_at;
@@ -1027,6 +1042,37 @@ export class ApiService {
     const stored = StorageService.getSubmissions().filter((item) => !(item.assignmentId === persistedSubmission.assignmentId && item.studentId === persistedSubmission.studentId && item.periodId === persistedSubmission.periodId));
     StorageService.saveSubmissions([...stored, persistedSubmission]);
     return persistedSubmission;
+  }
+
+  static async reviewSubmission(submission: Submission): Promise<Submission> {
+    if (this.isLiveBackend() && supabase) {
+      const { data, error } = await supabase
+        .from('submissions')
+        .update({
+          status: submission.status,
+          review_feedback: submission.reviewFeedback || null,
+          reviewed_at: submission.reviewedAt || null,
+        })
+        .eq('id', submission.id)
+        .select('status, review_feedback, reviewed_at, revision_number')
+        .single();
+      if (error) {
+        if (/review_feedback|reviewed_at|revision_number|column .* does not exist/i.test(error.message || '')) {
+          throw new Error('Fitur pemeriksaan tugas belum aktif di Supabase. Jalankan migrasi 0019_submission_review_workflow.sql.');
+        }
+        throw error;
+      }
+      submission = {
+        ...submission,
+        status: data.status,
+        reviewFeedback: data.review_feedback || undefined,
+        reviewedAt: data.reviewed_at || undefined,
+        revisionNumber: Number(data.revision_number || submission.revisionNumber || 1),
+      };
+    }
+    const stored = StorageService.getSubmissions().map(item => item.id === submission.id ? submission : item);
+    StorageService.saveSubmissions(stored);
+    return submission;
   }
 
   static async saveAssessment(assessment: Assessment): Promise<void> {

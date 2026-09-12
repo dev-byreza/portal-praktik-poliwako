@@ -48,6 +48,7 @@ const toPdfFitUrl = (url: string): string =>
   `${url}${url.includes('#') ? '&' : '#'}page=1&zoom=page-width`;
 
 type AllowedFileType = 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY';
+type StudentQueueFilter = 'ALL' | 'READY' | 'REVISION' | 'UNPUBLISHED';
 
 const fileTypeLabel = (fileName?: string, configuredType?: AllowedFileType): string => {
   if (configuredType) {
@@ -72,6 +73,7 @@ export const GradingWorkspace: React.FC = () => {
     feedbackRules,
     attendance,
     learningUnits,
+    reviewSubmission,
     saveAssessment,
     publishPeriodGrades,
     showToast
@@ -82,6 +84,10 @@ export const GradingWorkspace: React.FC = () => {
   const [pdfZoom, setPdfZoom] = useState<number>(100);
   const [isAutosaving, setIsAutosaving] = useState<boolean>(false);
   const [customFeedback, setCustomFeedback] = useState<string>('');
+  const [studentQueueFilter, setStudentQueueFilter] = useState<StudentQueueFilter>('ALL');
+  const [studentSearch, setStudentSearch] = useState<string>('');
+  const [submissionReviewFeedback, setSubmissionReviewFeedback] = useState<string>('');
+  const [isReviewSaving, setIsReviewSaving] = useState<boolean>(false);
 
   // Top Category Tabs Navigation & file preview visibility
   const [activeCategoryTab, setActiveCategoryTab] = useState<'QUALITY' | 'ATTITUDE' | 'CREATIVITY' | 'REPORT' | 'ALL'>('QUALITY');
@@ -117,7 +123,37 @@ export const GradingWorkspace: React.FC = () => {
     return participants.filter(p => p.periodId === activeSelectedPeriod.id);
   }, [participants, activeSelectedPeriod]);
 
-  const currentParticipant = periodParticipants[currentStudentIndex] || periodParticipants[0];
+  const queueCounts = useMemo(() => {
+    if (!activeSelectedPeriod) return { ready: 0, revision: 0, unpublished: 0 };
+    return periodParticipants.reduce((counts, participant) => {
+      const studentFiles = submissions.filter(item => item.periodId === activeSelectedPeriod.id && item.studentId === participant.studentId);
+      const assessment = assessments.find(item => item.periodId === activeSelectedPeriod.id && item.studentId === participant.studentId);
+      if (studentFiles.some(item => item.status === 'SUBMITTED' || item.status === 'ACCEPTED') && !(assessment && assessment.finalScore > 0)) counts.ready += 1;
+      if (studentFiles.some(item => item.status === 'REVISION_REQUIRED')) counts.revision += 1;
+      if (assessment && assessment.finalScore > 0 && !assessment.isPublished) counts.unpublished += 1;
+      return counts;
+    }, { ready: 0, revision: 0, unpublished: 0 });
+  }, [activeSelectedPeriod, assessments, periodParticipants, submissions]);
+
+  const gradingParticipants = useMemo(() => {
+    if (!activeSelectedPeriod) return [];
+    const query = studentSearch.trim().toLowerCase();
+    return periodParticipants.filter(participant => {
+      if (query && !`${participant.student.name} ${participant.student.nim} ${participant.student.className}`.toLowerCase().includes(query)) return false;
+      const studentFiles = submissions.filter(item => item.periodId === activeSelectedPeriod.id && item.studentId === participant.studentId);
+      const assessment = assessments.find(item => item.periodId === activeSelectedPeriod.id && item.studentId === participant.studentId);
+      if (studentQueueFilter === 'READY') return studentFiles.some(item => item.status === 'SUBMITTED' || item.status === 'ACCEPTED') && !(assessment && assessment.finalScore > 0);
+      if (studentQueueFilter === 'REVISION') return studentFiles.some(item => item.status === 'REVISION_REQUIRED');
+      if (studentQueueFilter === 'UNPUBLISHED') return Boolean(assessment && assessment.finalScore > 0 && !assessment.isPublished);
+      return true;
+    });
+  }, [activeSelectedPeriod, assessments, periodParticipants, studentQueueFilter, studentSearch, submissions]);
+
+  const currentParticipant = gradingParticipants[currentStudentIndex] || gradingParticipants[0];
+
+  useEffect(() => {
+    setCurrentStudentIndex(0);
+  }, [activeSelectedPeriod?.id, studentQueueFilter, studentSearch]);
 
   // Current Student Assessment
   const existingAssessment = useMemo(() => {
@@ -224,6 +260,10 @@ export const GradingWorkspace: React.FC = () => {
     : activeDocType === 'ASSIGNMENT'
       ? activeAssignmentSubmission
       : reportSubmission;
+
+  useEffect(() => {
+    setSubmissionReviewFeedback(activeDocumentSubmission?.reviewFeedback || '');
+  }, [activeDocumentSubmission?.id, activeDocumentSubmission?.reviewFeedback]);
 
   // Active Course Sub-CPMKs & Rubrics (OBE Quality Component - PRD Section 45, 46)
   const qualityItems = useMemo(() => {
@@ -428,6 +468,21 @@ export const GradingWorkspace: React.FC = () => {
     showToast('Memuat Berkas Tugas', 'File asli untuk ' + (taskTitle || 'Tugas Praktik') + ' ditampilkan.', 'info');
   };
 
+  const handleReviewSubmission = async (status: 'REVISION_REQUIRED' | 'ACCEPTED') => {
+    if (!activeDocumentSubmission) {
+      showToast('Berkas Belum Ada', 'Pilih berkas mahasiswa yang akan diperiksa.', 'info');
+      return;
+    }
+    setIsReviewSaving(true);
+    try {
+      await reviewSubmission(activeDocumentSubmission.id, status, submissionReviewFeedback);
+    } catch (error) {
+      showToast('Pemeriksaan Gagal', error instanceof Error ? error.message : 'Status berkas tidak dapat disimpan.', 'error');
+    } finally {
+      setIsReviewSaving(false);
+    }
+  };
+
   const handlePostTestScoreChange = (score: number) => {
     setIsAutosaving(true);
     setPostTestScore(score);
@@ -541,7 +596,7 @@ export const GradingWorkspace: React.FC = () => {
     saveAssessment(newAssessment);
     showToast('Penilaian Tersimpan', `Nilai ${currentParticipant.student.name}: ${computedFinalScore} poin berhasil disimpan.`, 'success');
 
-    if (navigateNext && currentStudentIndex < periodParticipants.length - 1) {
+    if (navigateNext && currentStudentIndex < gradingParticipants.length - 1) {
       setCurrentStudentIndex(prev => prev + 1);
     }
   };
@@ -588,6 +643,31 @@ export const GradingWorkspace: React.FC = () => {
             <span>Publikasikan Nilai</span>
           </button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="min-w-[220px] flex-[1_1_240px]">
+          <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Antrean penilaian mahasiswa</p>
+          <p className="mt-0.5 text-xs text-slate-500">Saring mahasiswa berdasarkan pekerjaan yang perlu ditindaklanjuti.</p>
+        </div>
+        <input
+          type="search"
+          value={studentSearch}
+          onChange={event => setStudentSearch(event.target.value)}
+          placeholder="Cari nama, NIM, atau kelas"
+          className="min-w-[200px] flex-[1_1_220px] rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20"
+        />
+        <select
+          value={studentQueueFilter}
+          onChange={event => setStudentQueueFilter(event.target.value as StudentQueueFilter)}
+          className="min-w-[190px] flex-[1_1_210px] rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20"
+        >
+          <option value="ALL">Semua mahasiswa ({periodParticipants.length})</option>
+          <option value="READY">Siap dinilai ({queueCounts.ready})</option>
+          <option value="REVISION">Menunggu revisi ({queueCounts.revision})</option>
+          <option value="UNPUBLISHED">Nilai belum terbit ({queueCounts.unpublished})</option>
+        </select>
+        <span className="self-center whitespace-nowrap text-xs font-semibold text-slate-500">{gradingParticipants.length} ditampilkan</span>
       </div>
 
       {/* Main Split Screen Area (PRD Section 51) */}
@@ -817,11 +897,11 @@ export const GradingWorkspace: React.FC = () => {
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <span className="text-xs font-semibold text-slate-600">
-                  {currentStudentIndex + 1} / {periodParticipants.length}
+                  {currentStudentIndex + 1} / {gradingParticipants.length}
                 </span>
                 <button
-                  disabled={currentStudentIndex >= periodParticipants.length - 1}
-                  onClick={() => setCurrentStudentIndex(prev => Math.min(prev + 1, periodParticipants.length - 1))}
+                  disabled={currentStudentIndex >= gradingParticipants.length - 1}
+                  onClick={() => setCurrentStudentIndex(prev => Math.min(prev + 1, gradingParticipants.length - 1))}
                   className="p-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-30 rounded-lg text-slate-700"
                   title="Mahasiswa Berikutnya"
                 >
@@ -829,6 +909,68 @@ export const GradingWorkspace: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            <section className={`rounded-2xl border p-4 ${
+              activeDocumentSubmission?.status === 'REVISION_REQUIRED'
+                ? 'border-rose-200 bg-rose-50/70'
+                : activeDocumentSubmission?.status === 'ACCEPTED'
+                  ? 'border-emerald-200 bg-emerald-50/70'
+                  : 'border-blue-200 bg-blue-50/60'
+            }`}>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wider text-slate-700">Pemeriksaan berkas aktif</p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    {activeDocumentSubmission
+                      ? `${activeDocumentSubmission.fileName} • Revisi ${activeDocumentSubmission.revisionNumber || 1}`
+                      : 'Buka salah satu tugas, laporan, atau post-test mahasiswa.'}
+                  </p>
+                </div>
+                {activeDocumentSubmission && (
+                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                    activeDocumentSubmission.status === 'REVISION_REQUIRED'
+                      ? 'bg-rose-100 text-rose-800'
+                      : activeDocumentSubmission.status === 'ACCEPTED'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    {activeDocumentSubmission.status === 'REVISION_REQUIRED'
+                      ? 'Perlu revisi'
+                      : activeDocumentSubmission.status === 'ACCEPTED'
+                        ? 'Diterima'
+                        : activeDocumentSubmission.status === 'GRADED'
+                          ? 'Sudah dinilai'
+                          : 'Menunggu pemeriksaan'}
+                  </span>
+                )}
+              </div>
+              <textarea
+                rows={2}
+                value={submissionReviewFeedback}
+                onChange={event => setSubmissionReviewFeedback(event.target.value)}
+                disabled={!activeDocumentSubmission || isReviewSaving}
+                placeholder="Catatan revisi yang jelas, misalnya bagian yang perlu diperbaiki..."
+                className="mt-3 w-full rounded-xl border border-slate-300 bg-white p-3 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+              />
+              <div className="mt-3 flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={!activeDocumentSubmission || isReviewSaving || !submissionReviewFeedback.trim()}
+                  onClick={() => handleReviewSubmission('REVISION_REQUIRED')}
+                  className="rounded-xl border border-rose-300 bg-white px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Minta Revisi
+                </button>
+                <button
+                  type="button"
+                  disabled={!activeDocumentSubmission || isReviewSaving}
+                  onClick={() => handleReviewSubmission('ACCEPTED')}
+                  className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isReviewSaving ? 'Menyimpan...' : 'Terima Berkas'}
+                </button>
+              </div>
+            </section>
 
             {/* Autosave Status Indicator (PRD Section 52) */}
             <div className="flex items-center justify-between text-xs">
@@ -1193,6 +1335,17 @@ export const GradingWorkspace: React.FC = () => {
                                 Modul {task.unitNumber}
                               </span>
                               <h6 className="text-xs font-bold text-slate-900">{task.assignmentTitle}</h6>
+                              {studentSubmission && (
+                                <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
+                                  studentSubmission.status === 'REVISION_REQUIRED'
+                                    ? 'bg-rose-100 text-rose-700'
+                                    : studentSubmission.status === 'ACCEPTED'
+                                      ? 'bg-emerald-100 text-emerald-700'
+                                      : 'bg-blue-100 text-blue-700'
+                                }`}>
+                                  {studentSubmission.status === 'REVISION_REQUIRED' ? 'Perlu revisi' : studentSubmission.status === 'ACCEPTED' ? 'Diterima' : studentSubmission.status === 'GRADED' ? 'Sudah dinilai' : 'Menunggu review'}
+                                </span>
+                              )}
                             </div>
                             <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
                               {task.description}
@@ -1734,7 +1887,16 @@ export const GradingWorkspace: React.FC = () => {
         </div>
       ) : (
         <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center text-slate-400">
-          <p>Belum ada mahasiswa di periode ini.</p>
+          <p>{periodParticipants.length > 0 ? 'Tidak ada mahasiswa yang cocok dengan filter antrean.' : 'Belum ada mahasiswa di periode ini.'}</p>
+          {periodParticipants.length > 0 && (
+            <button
+              type="button"
+              onClick={() => { setStudentQueueFilter('ALL'); setStudentSearch(''); }}
+              className="mt-3 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+            >
+              Tampilkan Semua
+            </button>
+          )}
         </div>
       )}
 

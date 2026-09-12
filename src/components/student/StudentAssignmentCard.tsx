@@ -77,6 +77,8 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
   const remainingMilliseconds = deadlineTimestamp === null ? null : deadlineTimestamp - now;
   const isDeadlinePassed = remainingMilliseconds !== null && remainingMilliseconds <= 0;
   const isUrgent = remainingMilliseconds !== null && remainingMilliseconds > 0 && remainingMilliseconds <= 5 * 60 * 1000;
+  const isRevisionRequired = submission?.status === 'REVISION_REQUIRED';
+  const canUpload = !isDeadlinePassed || isRevisionRequired;
 
   const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -93,7 +95,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
   };
 
   const validateAndSetFile = (file: File) => {
-    if (isDeadlinePassed) {
+    if (!canUpload) {
       showToast('Tenggat Berakhir', 'Batas waktu pengumpulan sudah berakhir. Tunggu instruktur memperbarui deadline.', 'error');
       return;
     }
@@ -121,7 +123,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
 
   const handleUpload = async () => {
     if (!selectedFile) return;
-    if (isDeadlinePassed) {
+    if (!canUpload) {
       showToast('Tenggat Berakhir', 'Batas waktu pengumpulan sudah berakhir. Tunggu instruktur memperbarui deadline.', 'error');
       return;
     }
@@ -152,7 +154,9 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
       `Nama berkas  : ${submission.fileName}`,
       `Ukuran       : ${submission.fileSize}`,
       `Dikirim      : ${formatWitaDateTime(submission.submittedAt)}`,
-      `Status       : ${submission.status === 'GRADED' ? 'Sudah dinilai' : 'Terkumpul'}`,
+      `Status       : ${submission.status === 'REVISION_REQUIRED' ? 'Perlu revisi' : submission.status === 'ACCEPTED' ? 'Diterima instruktur' : submission.status === 'GRADED' ? 'Sudah dinilai' : 'Menunggu pemeriksaan'}`,
+      `Revisi ke    : ${submission.revisionNumber || 1}`,
+      ...(submission.reviewFeedback ? [`Catatan      : ${submission.reviewFeedback}`] : []),
       `Periode ID   : ${studentSession?.periodId || submission.periodId}`,
       '',
       'Simpan bukti ini sebagai catatan pengumpulan Anda.',
@@ -213,21 +217,43 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
         </div>
 
         {submission ? (
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+          <div className={`rounded-xl border p-4 ${isRevisionRequired ? 'border-rose-200 bg-rose-50/60' : 'border-slate-200 bg-slate-50'}`}>
+            {isRevisionRequired && (
+              <div className="mb-4 flex items-start gap-3 rounded-xl border border-rose-200 bg-white p-3 text-rose-900">
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
+                <div>
+                  <p className="text-sm font-bold">Instruktur meminta revisi</p>
+                  <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-rose-800">
+                    {submission.reviewFeedback || 'Periksa kembali berkas lalu unggah versi perbaikan.'}
+                  </p>
+                  {isDeadlinePassed && (
+                    <p className="mt-2 text-[11px] font-semibold text-rose-700">
+                      Unggah ulang tetap dibuka khusus untuk revisi ini meskipun tenggat umum telah lewat.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
-                  <CheckCircle2 className="w-6 h-6" />
+                <div className={`flex h-10 w-10 items-center justify-center rounded-lg font-bold ${isRevisionRequired ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                  {isRevisionRequired ? <RefreshCw className="h-6 w-6" /> : <CheckCircle2 className="h-6 w-6" />}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <h4 className="text-xs font-bold text-slate-800 break-all">{submission.fileName}</h4>
-                    <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-800 rounded-full">
-                      Terkumpul
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                      isRevisionRequired
+                        ? 'bg-rose-100 text-rose-800'
+                        : submission.status === 'ACCEPTED'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {isRevisionRequired ? 'Perlu revisi' : submission.status === 'ACCEPTED' ? 'Diterima' : submission.status === 'GRADED' ? 'Sudah dinilai' : 'Menunggu pemeriksaan'}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    {submission.fileSize} • Diunggah pada {formatWitaDateTime(submission.submittedAt)}
+                    {submission.fileSize} • Revisi {submission.revisionNumber || 1} • Diunggah pada {formatWitaDateTime(submission.submittedAt)}
                   </p>
                 </div>
               </div>
@@ -252,13 +278,13 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
               </div>
             </div>
 
-            {/* Re-upload is controlled by the assignment deadline only. */}
-            {!isDeadlinePassed && (
+            {/* An instructor-requested revision remains replaceable after the regular deadline. */}
+            {canUpload && (
               <div className="mt-4 pt-3 border-t border-slate-200 flex flex-col gap-3 text-xs text-slate-500">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <span>Ingin memperbarui file tugas?</span>
+                  <span>{isRevisionRequired ? 'Unggah berkas yang sudah diperbaiki.' : 'Ingin memperbarui file tugas?'}</span>
                   <label className="text-blue-600 hover:text-blue-700 font-semibold cursor-pointer underline">
-                    Ganti File
+                    {isRevisionRequired ? 'Pilih File Revisi' : 'Ganti File'}
                     <input
                       type="file"
                       accept={fileRule((assignment.allowedFileType || 'PDF') as AllowedFileType).accept}

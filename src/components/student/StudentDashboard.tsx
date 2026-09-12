@@ -119,8 +119,10 @@ export const StudentDashboard: React.FC<Props> = ({ course, period, units, onLea
   const totalProgressUnits = progressUnits.length || units.length;
   const nextAssignment = progressUnits.find(unit => !completed.has(unit.id));
   const nextUnit = nextAssignment || units[0];
+  const revisionSubmissions = mySubmissions.filter(submission => submission.status === 'REVISION_REQUIRED');
   const pending = progressUnits
     .filter(unit => !hasSuccessfulSubmission(mySubmissions, unit.assignment?.id))
+    .filter(unit => !revisionSubmissions.some(submission => submission.assignmentId === unit.assignment?.id))
     .sort((a, b) => (submissionDeadline(a.assignment?.deadline || '') || Number.MAX_SAFE_INTEGER)
       - (submissionDeadline(b.assignment?.deadline || '') || Number.MAX_SAFE_INTEGER));
   const extra = remedials.filter(r => mine(r) && ['PENDING_SUBMISSION', 'BELUM_LULUS'].includes(r.status));
@@ -152,6 +154,21 @@ export const StudentDashboard: React.FC<Props> = ({ course, period, units, onLea
         action: onProject,
       });
     }
+
+    revisionSubmissions.forEach(submission => {
+      const unit = progressUnits.find(item => item.assignment?.id === submission.assignmentId);
+      if (!unit?.assignment) return;
+      items.push({
+        id: `assignment-revision-${submission.id}`,
+        priority: 1,
+        title: `${unit.assignment.title} perlu direvisi`,
+        description: submission.reviewFeedback || 'Buka tugas dan unggah berkas perbaikan sesuai arahan instruktur.',
+        badge: `Revisi ${submission.revisionNumber || 1}`,
+        tone: 'rose',
+        icon: RotateCcw,
+        action: () => onLearn(unit.id),
+      });
+    });
 
     extra.forEach(remedial => {
       const urgency = getDeadlineUrgency(remedial.deadline, now);
@@ -220,7 +237,7 @@ export const StudentDashboard: React.FC<Props> = ({ course, period, units, onLea
     }
 
     return items.sort((a, b) => a.priority - b.priority);
-  }, [assessment?.isPublished, done, extra, now, onGrade, onLearn, onProject, pending, period?.finalProjectEnabled, progressUnits.length, project]);
+  }, [assessment?.isPublished, done, extra, now, onGrade, onLearn, onProject, pending, period?.finalProjectEnabled, progressUnits, project, revisionSubmissions]);
 
   const primaryAction = actions[0];
   const requiredActionCount = actions.filter(item => item.priority < 80).length;
