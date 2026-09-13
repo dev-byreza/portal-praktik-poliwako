@@ -603,13 +603,13 @@ export const LearningContentStudio: React.FC = () => {
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
 
               {/* Unit Info Header */}
-              <div className="flex items-start justify-between gap-4 pb-6 border-b border-slate-100">
-                <div>
+              <div className="space-y-4 pb-6 border-b border-slate-100">
+                <div className="min-w-0">
                   <span className="text-xs font-bold uppercase tracking-wider text-blue-600">
                     Unit {activeSelectedUnit.unitNumber} Detail
                   </span>
-                  <h3 className="text-lg font-bold text-slate-900 mt-1">{activeSelectedUnit.title}</h3>
-                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">{activeSelectedUnit.description}</p>
+                  <h3 className="mt-1 break-words text-lg font-bold text-slate-900">{activeSelectedUnit.title}</h3>
+                  <p className="mt-1 break-words text-xs leading-relaxed text-slate-600">{activeSelectedUnit.description}</p>
                   {activeSelectedUnit.countdownEnabled && (
                     <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[10px] font-bold text-indigo-700">
                       Countdown unit aktif · {activeSelectedUnit.countdownMinutes || 5} menit
@@ -617,7 +617,7 @@ export const LearningContentStudio: React.FC = () => {
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => handleOpenCopyModal(activeSelectedUnit)}
                     className="px-3.5 py-2 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-bold rounded-xl border border-slate-200 transition-colors flex items-center gap-1.5"
