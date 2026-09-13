@@ -279,7 +279,7 @@ export const LearningContentStudio: React.FC = () => {
     const newMat: LearningMaterial = {
       id: editingMaterial?.id || newStudioEntityId('mat'),
       unitId: activeSelectedUnit.id,
-      title: matTitle.trim() || 'Materi Pembelajaran',
+      title: matTitle.trim() || (matType === 'RICHTEXT' ? '' : 'Materi Pembelajaran'),
       type: matType,
       contentUrl: matType === 'YOUTUBE' ? (toYouTubeEmbedUrl(matUrl.trim()) || undefined) : (matUrl.trim() || undefined),
       contentText: matText.trim(),
@@ -1041,14 +1041,14 @@ export const LearningContentStudio: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                  Judul Materi *
+                  Judul Materi {matType === 'RICHTEXT' ? '(opsional)' : '*'}
                 </label>
                 <input
                   type="text"
                   value={matTitle}
                   onChange={e => setMatTitle(e.target.value)}
-                  placeholder="Contoh: Modul SOP K3 CNC Milling"
-                  required
+                  placeholder={matType === 'RICHTEXT' ? 'Kosongkan jika instruksi tidak memiliki judul' : 'Contoh: Modul SOP K3 CNC Milling'}
+                  required={matType !== 'RICHTEXT'}
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>

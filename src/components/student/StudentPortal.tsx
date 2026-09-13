@@ -865,7 +865,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                           {/* Rich Text Material */}
                           {mat.type === 'RICHTEXT' && (
                             <div>
-                              <h4 className="text-xs font-bold text-slate-800 mb-2">{mat.title}</h4>
+                              {mat.title?.trim() && <h4 className="text-xs font-bold text-slate-800 mb-2">{mat.title}</h4>}
                               <div
                                 className="rich-text-content rounded-lg border border-slate-200 bg-white p-4 text-[13px] leading-relaxed text-slate-700"
                                 dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(mat.contentText) }}

@@ -25,16 +25,39 @@ interface InstructorCommandCenterProps {
   setIsCourseWizardOpen: (open: boolean) => void;
 }
 
+const INSTRUCTOR_TAB_STORAGE_KEY = 'poliwako_instructor_last_tab';
+const INSTRUCTOR_TABS = new Set([
+  'DASHBOARD',
+  'STUDENTS',
+  'PERIODS',
+  'STUDIO',
+  'ATTENDANCE',
+  'GRADING',
+  'RECAP',
+  'ANALYTICS',
+  'SETTINGS',
+]);
+
+const getInitialInstructorTab = (): string => {
+  if (typeof window === 'undefined') return 'DASHBOARD';
+  const storedTab = sessionStorage.getItem(INSTRUCTOR_TAB_STORAGE_KEY);
+  return storedTab && INSTRUCTOR_TABS.has(storedTab) ? storedTab : 'DASHBOARD';
+};
+
 export const InstructorCommandCenter: React.FC<InstructorCommandCenterProps> = ({
   onOpenLoginModal,
   isCourseWizardOpen,
   setIsCourseWizardOpen
 }) => {
   const { isInstructorLoggedIn, activeCourse, setRole } = useApp();
-  const [activeTab, setActiveTab] = useState<string>('DASHBOARD');
+  const [activeTab, setActiveTab] = useState<string>(getInitialInstructorTab);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [isCopyCourseOpen, setIsCopyCourseOpen] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    sessionStorage.setItem(INSTRUCTOR_TAB_STORAGE_KEY, activeTab);
+  }, [activeTab]);
 
   if (!isInstructorLoggedIn) {
     return <InstructorLoginGate />;
