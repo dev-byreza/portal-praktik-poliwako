@@ -293,11 +293,10 @@ export const LearningContentStudio: React.FC = () => {
     const updatedMaterials = editingMaterial
       ? activeSelectedUnit.materials.map(material => material.id === editingMaterial.id ? newMat : material)
       : [...activeSelectedUnit.materials, newMat];
-    const isLocalRichTextPrototype = matType === 'RICHTEXT';
     updateLearningUnit({
       ...activeSelectedUnit,
       materials: updatedMaterials
-    }, { localOnly: isLocalRichTextPrototype });
+    });
 
     setIsMaterialModalOpen(false);
     setMatTitle('');
@@ -305,10 +304,8 @@ export const LearningContentStudio: React.FC = () => {
     setMatText('');
     showToast(
       editingMaterial ? 'Materi Diperbarui' : 'Materi Ditambahkan',
-      isLocalRichTextPrototype
-        ? `Materi "${newMat.title}" tersimpan di browser ini untuk uji lokal dan belum dikirim ke server.`
-        : `Materi "${newMat.title}" berhasil disimpan ke Unit ${activeSelectedUnit.unitNumber}.`,
-      'success'
+      `Materi "${newMat.title}" sedang disinkronkan ke Supabase.`,
+      'info'
     );
     setEditingMaterial(null);
   };
@@ -401,6 +398,18 @@ export const LearningContentStudio: React.FC = () => {
     setAssignSubmissionType(assignment.submissionType || 'ASSIGNMENT');
     setAssignCountdownEnabled(Boolean(assignment.countdownEnabled));
     setAssignCountdownMinutes(String(Math.max(1, assignment.countdownMinutes || 5)));
+    setIsAssignmentModalOpen(true);
+  };
+
+  const handleOpenCreateAssignment = () => {
+    if (!activeSelectedUnit) return;
+    setEditingAssignment(null);
+    setAssignTitle(`Tugas Unit ${activeSelectedUnit.unitNumber}: Judul Laporan`);
+    setAssignDesc('Upload dokumen tugas sesuai format yang diizinkan (Maks. 50 MB).');
+    setAssignAllowedFileType('PDF');
+    setAssignSubmissionType('REPORT');
+    setAssignCountdownEnabled(false);
+    setAssignCountdownMinutes('5');
     setIsAssignmentModalOpen(true);
   };
 
@@ -627,13 +636,6 @@ export const LearningContentStudio: React.FC = () => {
                     <span>Salin Unit Ini</span>
                   </button>
                   <button
-                    onClick={handleOpenRichTextComposer}
-                    className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-sm transition-colors flex items-center gap-1.5"
-                  >
-                    <FileText className="w-4 h-4" />
-                    <span>Tulis Materi</span>
-                  </button>
-                  <button
                     onClick={() => {
                       setEditingMaterial(null);
                       setMatType('PDF');
@@ -737,16 +739,16 @@ export const LearningContentStudio: React.FC = () => {
                     </div>
                   ))}
 
-                  {activeSelectedUnit.materials.length === 0 && (
-                    <button
-                      type="button"
-                      onClick={handleOpenRichTextComposer}
-                      className="w-full rounded-xl border border-dashed border-blue-200 bg-blue-50/40 p-5 text-center transition-colors hover:border-blue-400 hover:bg-blue-50"
-                    >
-                      <span className="block text-xs font-bold text-blue-700">Klik di sini untuk menulis materi</span>
-                      <span className="mt-1 block text-[11px] text-slate-500">Gunakan paragraf, daftar, judul, tautan, dan gambar langsung dari editor.</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={handleOpenRichTextComposer}
+                    className="w-full rounded-xl border border-dashed border-blue-200 bg-blue-50/40 p-5 text-center transition-colors hover:border-blue-400 hover:bg-blue-50"
+                  >
+                    <span className="block text-xs font-bold text-blue-700">
+                      {activeSelectedUnit.materials.length === 0 ? 'Klik di sini untuk menulis materi' : 'Klik di sini untuk menulis materi berikutnya'}
+                    </span>
+                    <span className="mt-1 block text-[11px] text-slate-500">Gunakan paragraf, daftar, judul, tautan, dan gambar langsung dari editor.</span>
+                  </button>
                 </div>
               </div>
 
@@ -757,23 +759,6 @@ export const LearningContentStudio: React.FC = () => {
                     <FileText className="w-4 h-4 text-amber-500" />
                     <span>Tugas Praktik Mahasiswa (Pengumpulan File)</span>
                   </h4>
-                  {!activeSelectedUnit.assignment && (
-                    <button
-                      onClick={() => {
-                        setEditingAssignment(null);
-                        setAssignTitle(`Tugas Unit ${activeSelectedUnit.unitNumber}: Judul Laporan`);
-                        setAssignDesc('Upload dokumen tugas sesuai format yang diizinkan (Maks. 50 MB).');
-                        setAssignAllowedFileType('PDF');
-                        setAssignSubmissionType('REPORT');
-                        setAssignCountdownEnabled(false);
-                        setAssignCountdownMinutes('5');
-                        setIsAssignmentModalOpen(true);
-                      }}
-                      className="px-3 py-1 bg-amber-50 text-amber-800 hover:bg-amber-100 rounded-lg text-xs font-bold border border-amber-200 transition-colors"
-                    >
-                      + Buat Tugas Pada Unit Ini
-                    </button>
-                  )}
                 </div>
 
                 {activeSelectedUnit.assignment ? (
@@ -819,11 +804,24 @@ export const LearningContentStudio: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                ) : (
-                  <p className="text-xs text-slate-400 p-4 border border-dashed rounded-xl text-center">
-                    Tidak ada tugas yang diwajibkan pada unit ini. Mahasiswa cukup menandai selesai untuk melanjutkan.
-                  </p>
-                )}
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => activeSelectedUnit.assignment
+                    ? handleOpenEditAssignment(activeSelectedUnit.assignment)
+                    : handleOpenCreateAssignment()}
+                  className="mt-3 w-full rounded-xl border border-dashed border-amber-300 bg-amber-50/50 p-5 text-center transition-colors hover:border-amber-500 hover:bg-amber-50"
+                >
+                  <span className="block text-xs font-bold text-amber-800">
+                    {activeSelectedUnit.assignment ? 'Klik di sini untuk mengubah tugas praktik' : 'Klik di sini untuk menambahkan tugas praktik'}
+                  </span>
+                  <span className="mt-1 block text-[11px] text-amber-700/80">
+                    {activeSelectedUnit.assignment
+                      ? 'Atur kembali judul, instruksi, tenggat, dan format berkas pengumpulan.'
+                      : 'Tambahkan instruksi, tenggat, dan format berkas yang harus dikumpulkan mahasiswa.'}
+                  </span>
+                </button>
               </div>
 
             </div>

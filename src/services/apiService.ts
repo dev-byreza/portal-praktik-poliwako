@@ -834,6 +834,26 @@ export class ApiService {
         }
         if (error) throw error;
 
+        const { data: persistedMaterials, error: verifyMaterialsError } = await supabase
+          .from('learning_materials')
+          .select('id, unit_id, title, type, content_url, content_text')
+          .in('id', materialRows.map(material => material.id));
+        if (verifyMaterialsError) throw verifyMaterialsError;
+        if ((persistedMaterials || []).length !== materialRows.length) {
+          throw new Error('Materi berhasil dikirim tetapi tidak seluruhnya ditemukan saat verifikasi ulang Supabase.');
+        }
+        const persistedMaterialsById = new Map((persistedMaterials || []).map((material: any) => [material.id, material]));
+        for (const material of materialRows) {
+          const persistedMaterial = persistedMaterialsById.get(material.id);
+          if (!persistedMaterial
+            || persistedMaterial.unit_id !== unitId
+            || persistedMaterial.title !== material.title
+            || persistedMaterial.type !== material.type
+            || (persistedMaterial.content_text || null) !== (material.content_text || null)) {
+            throw new Error(`Materi "${material.title}" gagal diverifikasi setelah disimpan ke Supabase.`);
+          }
+        }
+
       }
 
       if (savedAssignment) {
