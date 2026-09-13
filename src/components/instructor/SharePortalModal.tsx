@@ -28,7 +28,7 @@ export const SharePortalModal: React.FC<SharePortalModalProps> = ({ isOpen, onCl
 
   const baseUrl = window.location.origin;
   const generalStudentUrl = `${baseUrl}/mahasiswa`;
-  const courseSpecificUrl = activeCourse ? `${baseUrl}/${activeCourse.slug}` : generalStudentUrl;
+  const courseSpecificUrl = activeCourse ? `${baseUrl}/mahasiswa/unit/${activeCourse.slug}` : generalStudentUrl;
 
   const broadcastTemplate = `📢 *PENGUMUMAN PRAKTIK POLITEKNIK SOROWAKO*
 Mata Kuliah: *${activeCourse?.name || 'Praktik Mahasiswa'}*
@@ -177,7 +177,7 @@ Terima kasih dan selamat belajar!`;
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleOpenNewTab(`/${activeCourse.slug}`)}
+                    onClick={() => handleOpenNewTab(`/mahasiswa/unit/${activeCourse.slug}`)}
                     className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors shrink-0"
                     title="Buka di tab baru"
                   >

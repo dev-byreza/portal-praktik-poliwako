@@ -76,8 +76,8 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       } ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
     >
       {/* Brand Header */}
-      <div className="h-16 px-4 flex items-center justify-between border-b border-slate-800 shrink-0">
-        <div className="flex items-center gap-3 overflow-hidden">
+      <div className={`relative h-16 flex items-center border-b border-slate-800 shrink-0 ${isCollapsed ? 'justify-center px-1' : 'justify-between px-4'}`}>
+        <div className={`flex items-center ${isCollapsed ? 'shrink-0' : 'gap-3 overflow-hidden'}`}>
           <div className="w-10 h-10 rounded-xl bg-white/10 p-1 flex items-center justify-center text-white shrink-0 shadow-lg shadow-cyan-900/20 ring-1 ring-white/20">
             <img src="/logo-poliwako.webp" alt="Logo Politeknik Sorowako" className="w-full h-full object-contain" />
           </div>
@@ -93,7 +93,11 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
 
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="hidden md:block p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
+          className={`hidden md:block text-slate-400 hover:text-white transition-colors shrink-0 ${
+            isCollapsed
+              ? 'absolute -right-3 top-1/2 z-10 -translate-y-1/2 rounded-full border border-slate-700 bg-slate-800 p-2 shadow-lg shadow-slate-950/30 hover:bg-slate-700'
+              : 'rounded-lg p-1.5 hover:bg-slate-800'
+          }`}
           title={isCollapsed ? 'Perluas Sidebar' : 'Ciutkan Sidebar'}
         >
           {isCollapsed ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}

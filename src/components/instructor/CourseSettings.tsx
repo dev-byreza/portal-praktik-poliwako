@@ -135,6 +135,7 @@ export const CourseSettings: React.FC = () => {
   const [localSubCpmks, setLocalSubCpmks] = useState<SubCPMK[]>(activeCourse?.subCpmks || []);
   const [courseName, setCourseName] = useState<string>(activeCourse?.name || '');
   const [courseCode, setCourseCode] = useState<string>(activeCourse?.code || '');
+  const [courseSlug, setCourseSlug] = useState<string>(activeCourse?.slug || '');
   const [courseDepartment, setCourseDepartment] = useState<string>(activeCourse?.department || '');
   const [academicYear, setAcademicYear] = useState<string>(activeCourse?.academicYear || '2026/2027');
   const [semester, setSemester] = useState<'Ganjil' | 'Genap'>(activeCourse?.semester || 'Ganjil');
@@ -150,6 +151,7 @@ export const CourseSettings: React.FC = () => {
     if (activeCourse) {
       setCourseName(activeCourse.name || '');
       setCourseCode(activeCourse.code || '');
+      setCourseSlug(activeCourse.slug || '');
       setCourseDepartment(activeCourse.department || '');
       setAcademicYear(activeCourse.academicYear || '2026/2027');
       setSemester(activeCourse.semester || 'Ganjil');
@@ -284,6 +286,12 @@ export const CourseSettings: React.FC = () => {
       return;
     }
 
+    const normalizedSlug = courseSlug.trim().toLowerCase();
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalizedSlug)) {
+      showToast('Slug Belum Valid', 'Gunakan huruf kecil, angka, dan tanda hubung tanpa spasi.', 'error');
+      return;
+    }
+
     for (let i = 0; i < localSubCpmks.length; i++) {
       if (!localSubCpmks[i].code.trim() || !localSubCpmks[i].description.trim()) {
         showToast('Sub-CPMK Tidak Lengkap', `Kode dan deskripsi pada Sub-CPMK ke-${i + 1} tidak boleh kosong.`, 'error');
@@ -339,6 +347,7 @@ export const CourseSettings: React.FC = () => {
         ...activeCourse,
         name: courseName.trim(),
         code: courseCode.trim() || activeCourse.code,
+        slug: normalizedSlug,
         department: courseDepartment.trim() || activeCourse.department,
         academicYear,
         semester,
@@ -429,6 +438,18 @@ export const CourseSettings: React.FC = () => {
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
               <p className="text-[11px] text-slate-400 mt-1">Kode kurikulum resmi prodi sesuai silabus.</p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">Slug Tautan Mahasiswa</label>
+              <input
+                type="text"
+                value={courseSlug}
+                onChange={e => setCourseSlug(e.target.value.toLowerCase())}
+                placeholder="Contoh: dpp2"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">Tautan langsung: /mahasiswa/unit/{courseSlug || 'slug-mata-kuliah'}.</p>
             </div>
 
             <div>

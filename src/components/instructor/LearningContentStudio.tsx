@@ -30,8 +30,10 @@ import {
 import { PDFViewerModal } from '../common/PDFViewerModal';
 import { ModalPortal } from '../common/ModalPortal';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { RichTextEditor } from '../common/RichTextEditor';
 import { formatDeadline, toDateTimeLocalWita, fromDateTimeLocalWita } from '../../utils/dateUtils';
 import { getYouTubeVideoId, toYouTubeEmbedUrl } from '../../utils/youtubeUtils';
+import { richTextToPlainText } from '../../utils/richText';
 
 const newStudioEntityId = (prefix: string): string => (
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -261,6 +263,10 @@ export const LearningContentStudio: React.FC = () => {
   const handleAddMaterial = (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeSelectedUnit) return;
+    if (matType === 'RICHTEXT' && !richTextToPlainText(matText).trim()) {
+      showToast('Isi Materi Kosong', 'Tulis setidaknya satu paragraf sebelum menyimpan materi.', 'error');
+      return;
+    }
     if ((matType === 'PDF' || matType === 'YOUTUBE' || matType === 'EXTERNAL_LINK') && !matUrl.trim()) {
       showToast('URL Wajib Diisi', 'Masukkan URL file atau konten yang benar. PDF dummy tidak digunakan.', 'error');
       return;
@@ -287,17 +293,36 @@ export const LearningContentStudio: React.FC = () => {
     const updatedMaterials = editingMaterial
       ? activeSelectedUnit.materials.map(material => material.id === editingMaterial.id ? newMat : material)
       : [...activeSelectedUnit.materials, newMat];
+    const isLocalRichTextPrototype = matType === 'RICHTEXT';
     updateLearningUnit({
       ...activeSelectedUnit,
       materials: updatedMaterials
-    });
+    }, { localOnly: isLocalRichTextPrototype });
 
     setIsMaterialModalOpen(false);
     setMatTitle('');
     setMatUrl('');
     setMatText('');
-    showToast(editingMaterial ? 'Materi Diperbarui' : 'Materi Ditambahkan', `Materi "${newMat.title}" berhasil disimpan ke Unit ${activeSelectedUnit.unitNumber}.`, 'success');
+    showToast(
+      editingMaterial ? 'Materi Diperbarui' : 'Materi Ditambahkan',
+      isLocalRichTextPrototype
+        ? `Materi "${newMat.title}" tersimpan di browser ini untuk uji lokal dan belum dikirim ke server.`
+        : `Materi "${newMat.title}" berhasil disimpan ke Unit ${activeSelectedUnit.unitNumber}.`,
+      'success'
+    );
     setEditingMaterial(null);
+  };
+
+  const handleOpenRichTextComposer = () => {
+    if (!activeSelectedUnit) return;
+    setEditingMaterial(null);
+    setMatType('RICHTEXT');
+    setMatTitle(`Materi Unit ${activeSelectedUnit.unitNumber}`);
+    setMatUrl('');
+    setMatText('');
+    setMatCountdownEnabled(false);
+    setMatCountdownMinutes('5');
+    setIsMaterialModalOpen(true);
   };
 
   const handleOpenEditMaterial = (material: LearningMaterial) => {
@@ -392,8 +417,8 @@ export const LearningContentStudio: React.FC = () => {
     <div className="space-y-6">
 
       {/* Header */}
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="min-w-[18rem] flex-1">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200">
               LMS Authoring Studio
@@ -401,19 +426,19 @@ export const LearningContentStudio: React.FC = () => {
             <span className="text-xs text-slate-400">{activeCourse?.name}</span>
           </div>
           <h2 className="text-xl font-bold text-slate-900 mt-1">Pengelolaan Modul & Materi Praktik</h2>
-          <p className="text-xs text-slate-500">
+          <p className="max-w-2xl text-xs leading-relaxed text-slate-500">
             Susun tahapan unit pembelajaran bertahap (progressive locking), sematkan video YouTube, modul PDF, instruksi teks, dan penugasan.
           </p>
         </div>
 
         {/* Period Selector */}
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-500 font-medium">Pilih Periode:</span>
+        <div className="flex min-w-[18rem] flex-1 flex-wrap items-center justify-end gap-3">
+          <div className="flex shrink-0 items-center gap-2 text-xs">
+            <span className="shrink-0 font-medium text-slate-500">Pilih Periode:</span>
             <select
               value={activeSelectedPeriod?.id || ''}
               onChange={e => setSelectedPeriodId(e.target.value)}
-              className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="max-w-[15rem] px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             >
               {coursePeriods.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
@@ -424,7 +449,7 @@ export const LearningContentStudio: React.FC = () => {
           <button
             onClick={() => handleOpenCopyModal()}
             disabled={periodUnits.length === 0}
-            className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 hover:text-blue-600 font-bold text-xs rounded-xl border border-slate-300 shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="shrink-0 whitespace-nowrap px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 hover:text-blue-600 font-bold text-xs rounded-xl border border-slate-300 shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
             title="Salin modul dari minggu ini ke minggu lain"
           >
             <Copy className="w-4 h-4 text-blue-600" />
@@ -433,7 +458,7 @@ export const LearningContentStudio: React.FC = () => {
 
           <button
             onClick={handleOpenCreateUnit}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-600/30 transition-all flex items-center gap-1.5"
+            className="shrink-0 whitespace-nowrap px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-600/30 transition-all flex items-center gap-1.5"
           >
             <Plus className="w-4 h-4" />
             <span>Tambah Unit</span>
@@ -602,6 +627,13 @@ export const LearningContentStudio: React.FC = () => {
                     <span>Salin Unit Ini</span>
                   </button>
                   <button
+                    onClick={handleOpenRichTextComposer}
+                    className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-sm transition-colors flex items-center gap-1.5"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>Tulis Materi</span>
+                  </button>
+                  <button
                     onClick={() => {
                       setEditingMaterial(null);
                       setMatType('PDF');
@@ -647,7 +679,7 @@ export const LearningContentStudio: React.FC = () => {
                             )}
                           </div>
                           {mat.type === 'RICHTEXT' && (
-                            <p className="text-[11px] text-slate-600 line-clamp-2 mt-1">{mat.contentText}</p>
+                            <p className="mt-1 line-clamp-2 text-[11px] text-slate-600">{richTextToPlainText(mat.contentText)}</p>
                           )}
                           {mat.type === 'YOUTUBE' && (
                             <p className="text-[11px] text-slate-400 font-mono truncate mt-0.5">{mat.contentUrl}</p>
@@ -706,9 +738,14 @@ export const LearningContentStudio: React.FC = () => {
                   ))}
 
                   {activeSelectedUnit.materials.length === 0 && (
-                    <p className="text-xs text-slate-400 p-4 border border-dashed rounded-xl text-center">
-                      Belum ada lampiran materi pada unit ini. Klik "Tambah Materi" di atas.
-                    </p>
+                    <button
+                      type="button"
+                      onClick={handleOpenRichTextComposer}
+                      className="w-full rounded-xl border border-dashed border-blue-200 bg-blue-50/40 p-5 text-center transition-colors hover:border-blue-400 hover:bg-blue-50"
+                    >
+                      <span className="block text-xs font-bold text-blue-700">Klik di sini untuk menulis materi</span>
+                      <span className="mt-1 block text-[11px] text-slate-500">Gunakan paragraf, daftar, judul, tautan, dan gambar langsung dari editor.</span>
+                    </button>
                   )}
                 </div>
               </div>
@@ -951,9 +988,9 @@ export const LearningContentStudio: React.FC = () => {
       {isMaterialModalOpen && (
         <ModalPortal>
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto flex flex-col">
+          <div className={`bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-h-[calc(100vh-2rem)] overflow-y-auto flex flex-col ${matType === 'RICHTEXT' ? 'max-w-4xl' : 'max-w-md'}`}>
             <div className="p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
-              <h3 className="text-base font-bold text-white">{editingMaterial ? 'Edit Lampiran Materi' : 'Tambah Lampiran Materi'}</h3>
+              <h3 className="text-base font-bold text-white">{editingMaterial ? 'Edit Lampiran Materi' : matType === 'RICHTEXT' ? 'Tulis Materi Unit' : 'Tambah Lampiran Materi'}</h3>
               <button onClick={() => setIsMaterialModalOpen(false)} className="text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
@@ -1033,7 +1070,20 @@ export const LearningContentStudio: React.FC = () => {
                 </div>
               )}
 
-              {(matType === 'RICHTEXT' || matType === 'YOUTUBE') && (
+              {matType === 'RICHTEXT' && (
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Isi Materi
+                  </label>
+                  <RichTextEditor
+                    value={matText}
+                    onChange={setMatText}
+                    placeholder="Tulis langkah kerja, teori, atau instruksi praktik di sini..."
+                  />
+                </div>
+              )}
+
+              {matType === 'YOUTUBE' && (
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                     Catatan / Teks Instruksi

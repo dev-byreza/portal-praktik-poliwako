@@ -36,6 +36,7 @@ import { FooterBranding } from '../common/FooterBranding';
 import { formatPeriodRange } from '../../utils/dateUtils';
 import { toYouTubeEmbedUrl } from '../../utils/youtubeUtils';
 import { hasSuccessfulSubmission } from '../../utils/studentProgress';
+import { sanitizeRichTextHtml } from '../../utils/richText';
 import { CountdownLockedPanel, CountdownModal, getCountdownEndAt, isCountdownLocked } from './StudentCountdownGate';
 
 interface StudentPortalProps {
@@ -844,9 +845,10 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                           {mat.type === 'RICHTEXT' && (
                             <div>
                               <h4 className="text-xs font-bold text-slate-800 mb-2">{mat.title}</h4>
-                              <div className="text-xs text-slate-700 whitespace-pre-line leading-relaxed bg-white p-4 rounded-lg border border-slate-200 font-mono text-[11px]">
-                                {mat.contentText}
-                              </div>
+                              <div
+                                className="rich-text-content rounded-lg border border-slate-200 bg-white p-4 text-[13px] leading-relaxed text-slate-700"
+                                dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(mat.contentText) }}
+                              />
                             </div>
                           )}
 

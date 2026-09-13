@@ -49,6 +49,11 @@ interface ToastInfo {
   type: 'success' | 'error' | 'info' | 'warning';
 }
 
+interface LearningUnitUpdateOptions {
+  /** Keeps an experimental edit in this browser and skips the backend sync. */
+  localOnly?: boolean;
+}
+
 interface AppContextType {
   // Roles & Auth
   role: UserRole;
@@ -139,7 +144,7 @@ interface AppContextType {
   importStudentsCSV: (students: Omit<Student, 'id' | 'createdAt'>[]) => { importedCount: number; duplicateCount: number };
 
   createLearningUnit: (unit: Partial<LearningUnit>) => LearningUnit;
-  updateLearningUnit: (unit: LearningUnit) => void;
+  updateLearningUnit: (unit: LearningUnit, options?: LearningUnitUpdateOptions) => void;
   deleteLearningUnit: (unitId: string) => void;
   copyLearningUnits: (sourceUnitIds: string[], targetPeriodIds: string[], overwrite?: boolean) => { copiedCount: number; targetCount: number };
 
@@ -1326,7 +1331,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return newUnit;
   };
 
-  const updateLearningUnit = (updated: LearningUnit) => {
+  const updateLearningUnit = (updated: LearningUnit, options?: LearningUnitUpdateOptions) => {
+    if (options?.localOnly) {
+      setLearningUnits(prev => {
+        const next = prev.map(unit => unit.id === updated.id ? updated : unit);
+        StorageService.saveLearningUnits(next);
+        return next;
+      });
+      return;
+    }
     setLearningUnits(prev => prev.map(u => u.id === updated.id ? updated : u));
     ApiService.saveLearningUnit(updated).then(savedUnit => {
       // Reconcile the optimistic state with the canonical backend response,

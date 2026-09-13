@@ -50,8 +50,11 @@ export const InstructorHeader: React.FC<InstructorHeaderProps> = ({
       <div className="flex items-center gap-2 text-xs min-w-0">
         <span className="hidden sm:inline font-bold text-slate-400">Portal Praktik</span>
         <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
-        <span className="font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100">
-          {activeCourse?.name || 'Mata Kuliah'}
+        <span
+          title={`Mata kuliah aktif: ${activeCourse?.name || 'Mata Kuliah'}`}
+          className="inline-flex max-w-[8rem] shrink-0 items-center rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1 font-semibold text-blue-600 sm:max-w-[15rem]"
+        >
+          <span className="truncate whitespace-nowrap">{activeCourse?.name || 'Mata Kuliah'}</span>
         </span>
         <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
         <h1 className="font-extrabold text-slate-900 text-xs sm:text-sm truncate max-w-[9rem] sm:max-w-none">
