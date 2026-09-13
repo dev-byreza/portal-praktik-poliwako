@@ -41,6 +41,9 @@ const newStudioEntityId = (prefix: string): string => (
     : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 );
 
+const INSTRUCTOR_STUDIO_PERIOD_PREFIX = 'poliwako_instructor_studio_last_period';
+const INSTRUCTOR_STUDIO_UNIT_PREFIX = 'poliwako_instructor_studio_last_unit';
+
 export const LearningContentStudio: React.FC = () => {
   const {
     activeCourseId,
@@ -123,6 +126,53 @@ export const LearningContentStudio: React.FC = () => {
       .filter(u => u.periodId === activeSelectedPeriod.id)
       .sort((a, b) => a.unitNumber - b.unitNumber);
   }, [learningUnits, activeSelectedPeriod]);
+
+  const selectedPeriodStorageKey = `${INSTRUCTOR_STUDIO_PERIOD_PREFIX}:${activeCourseId || 'none'}`;
+
+  // Restore the last selected period when the Studio is mounted after a
+  // refresh. Invalid or deleted periods fall back to the normal active period.
+  React.useEffect(() => {
+    if (coursePeriods.length === 0) return;
+    const storedPeriodId = sessionStorage.getItem(selectedPeriodStorageKey);
+    const storedPeriodIsValid = Boolean(storedPeriodId && coursePeriods.some(period => period.id === storedPeriodId));
+    const selectedPeriodIsValid = Boolean(selectedPeriodId && coursePeriods.some(period => period.id === selectedPeriodId));
+
+    if (storedPeriodIsValid && !selectedPeriodIsValid) {
+      setSelectedPeriodId(storedPeriodId!);
+    } else if (!selectedPeriodIsValid) {
+      const fallbackPeriod = coursePeriods.find(period => period.status === 'ACTIVE')
+        || coursePeriods[coursePeriods.length - 1]
+        || coursePeriods[0];
+      if (fallbackPeriod) setSelectedPeriodId(fallbackPeriod.id);
+    }
+  }, [coursePeriods, selectedPeriodStorageKey]);
+
+  React.useEffect(() => {
+    if (!selectedPeriodId || !coursePeriods.some(period => period.id === selectedPeriodId)) return;
+    sessionStorage.setItem(selectedPeriodStorageKey, selectedPeriodId);
+  }, [coursePeriods, selectedPeriodId, selectedPeriodStorageKey]);
+
+  const selectedUnitStorageKey = `${INSTRUCTOR_STUDIO_UNIT_PREFIX}:${activeCourseId || 'none'}:${activeSelectedPeriod?.id || 'none'}`;
+
+  // Restore the last unit inside the restored period. If it no longer exists,
+  // use the first available unit in that period.
+  React.useEffect(() => {
+    if (periodUnits.length === 0) return;
+    const storedUnitId = sessionStorage.getItem(selectedUnitStorageKey);
+    const storedUnitIsValid = Boolean(storedUnitId && periodUnits.some(unit => unit.id === storedUnitId));
+    const selectedUnitIsValid = Boolean(selectedUnitId && periodUnits.some(unit => unit.id === selectedUnitId));
+
+    if (storedUnitIsValid && !selectedUnitIsValid) {
+      setSelectedUnitId(storedUnitId!);
+    } else if (!selectedUnitIsValid) {
+      setSelectedUnitId(periodUnits[0].id);
+    }
+  }, [periodUnits, selectedUnitStorageKey]);
+
+  React.useEffect(() => {
+    if (!selectedUnitId || !periodUnits.some(unit => unit.id === selectedUnitId)) return;
+    sessionStorage.setItem(selectedUnitStorageKey, selectedUnitId);
+  }, [periodUnits, selectedUnitId, selectedUnitStorageKey]);
 
   const activeSelectedUnit = periodUnits.find(u => u.id === selectedUnitId) || periodUnits[0];
 
