@@ -2,7 +2,7 @@ const HTML_PATTERN = /<\/?[a-z][^>]*>/i;
 
 const allowedTags = new Set([
   'P', 'DIV', 'BR', 'H2', 'H3', 'H4', 'STRONG', 'B', 'EM', 'I', 'U',
-  'UL', 'OL', 'LI', 'A', 'IMG', 'HR', 'SPAN',
+  'UL', 'OL', 'LI', 'BLOCKQUOTE', 'A', 'IMG', 'HR', 'SPAN',
 ]);
 
 const safeImageSource = (value: string): boolean => (
@@ -11,6 +11,10 @@ const safeImageSource = (value: string): boolean => (
 );
 
 const safeLink = (value: string): boolean => /^(https?:|mailto:|#)/i.test(value);
+
+const safeIndentValue = (value: string): boolean => (
+  /^(?:0|(?:\d+(?:\.\d+)?|\.\d+)(?:px|em|rem|%))$/i.test(value.trim())
+);
 
 /**
  * Keeps only the small, presentation-focused HTML subset produced by the
@@ -60,6 +64,14 @@ export const sanitizeRichTextHtml = (value?: string): string => {
     if (['left', 'center', 'right', 'justify'].includes(alignment)) {
       cleanElement.style.textAlign = alignment;
     }
+
+    // `document.execCommand('indent')` stores indentation as an inline
+    // margin/padding or text-indent. Keep only these length-based properties
+    // so the editor does not lose the user's indentation when it re-renders.
+    (['margin-left', 'padding-left', 'text-indent'] as const).forEach(property => {
+      const value = sourceElement.style.getPropertyValue(property).trim();
+      if (safeIndentValue(value)) cleanElement.style.setProperty(property, value);
+    });
 
     Array.from(sourceElement.childNodes).forEach(child => {
       const safeChild = copyNode(child);

@@ -142,6 +142,10 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
       .sort((a, b) => a.unitNumber - b.unitNumber);
   }, [learningUnits, activePeriod]);
 
+  // Keep the last opened unit isolated per student, course, and practice
+  // period so a refresh returns to the same course-outline item.
+  const selectedUnitStorageKey = `poliwako_student_last_unit:${currentStudent?.id || 'anonymous'}:${currentCourse?.id || selectedCourseSlug}:${activePeriod?.id || 'none'}`;
+
   // Handler to switch course from catalog
   React.useEffect(() => {
     const syncStudentSlug = () => {
@@ -199,12 +203,29 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     clearStudentIdentity();
   };
 
-  // Reset selected unit if unit does not belong to current periodUnits
+  // Restore the last selected unit after the active period has loaded. If it
+  // was removed or is not part of this period, safely fall back to unit one.
   React.useEffect(() => {
-    if (periodUnits.length > 0 && !periodUnits.some(u => u.id === selectedUnitId)) {
+    if (periodUnits.length === 0) return;
+    const storedUnitId = sessionStorage.getItem(selectedUnitStorageKey);
+    const storedUnit = storedUnitId && periodUnits.some(unit => unit.id === storedUnitId)
+      ? storedUnitId
+      : '';
+    const selectedUnitIsValid = periodUnits.some(unit => unit.id === selectedUnitId);
+
+    if (storedUnit && storedUnit !== selectedUnitId) {
+      setSelectedUnitId(storedUnit);
+    } else if (!selectedUnitIsValid) {
       setSelectedUnitId(periodUnits[0].id);
     }
-  }, [periodUnits, selectedUnitId]);
+  }, [periodUnits, selectedUnitStorageKey]);
+
+  // Persist changes made through the outline, next/previous controls, or the
+  // dashboard's "Pelajari" action so the choice survives a page refresh.
+  React.useEffect(() => {
+    if (!selectedUnitId || !periodUnits.some(unit => unit.id === selectedUnitId)) return;
+    sessionStorage.setItem(selectedUnitStorageKey, selectedUnitId);
+  }, [periodUnits, selectedUnitId, selectedUnitStorageKey]);
 
   // If no unit is selected, select the first available or in-progress unit
   const currentUnit = periodUnits.find(u => u.id === selectedUnitId) || periodUnits[0];

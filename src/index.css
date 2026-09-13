@@ -202,6 +202,12 @@ html.portal-viewport-locked body {
   margin: 0.25rem 0;
 }
 
+.rich-text-editor blockquote,
+.rich-text-content blockquote {
+  margin: 0.55rem 0;
+  margin-left: 1.5rem;
+}
+
 .rich-text-editor img,
 .rich-text-content img {
   display: block;
