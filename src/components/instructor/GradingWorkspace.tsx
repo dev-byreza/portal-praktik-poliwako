@@ -27,6 +27,7 @@ import {
   Award,
   Layers,
   ArrowRight,
+  ChevronDown,
   Target,
   BookOpen,
   Compass,
@@ -47,13 +48,15 @@ const canInlinePreview = (fileName?: string): boolean =>
 const toPdfFitUrl = (url: string): string =>
   `${url}${url.includes('#') ? '&' : '#'}page=1&zoom=page-width`;
 
-type AllowedFileType = 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY';
+type AllowedFileType = 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' | 'AUTOCAD_LINK';
 type StudentQueueFilter = 'ALL' | 'READY' | 'REVISION' | 'UNPUBLISHED';
+type QualitySection = 'ENTRY' | 'SUB_CPMK' | 'ASSIGNMENT' | 'POST_TEST';
 
 const fileTypeLabel = (fileName?: string, configuredType?: AllowedFileType): string => {
   if (configuredType) {
     if (configuredType === 'ANY') return 'Semua File';
     if (configuredType === 'IMAGE') return 'Gambar';
+    if (configuredType === 'AUTOCAD_LINK') return 'AutoCAD Share';
     return configuredType;
   }
   const match = fileName?.toLowerCase().match(/\.([a-z0-9]+)(?:$|[?#])/);
@@ -91,6 +94,7 @@ export const GradingWorkspace: React.FC = () => {
 
   // Top Category Tabs Navigation & file preview visibility
   const [activeCategoryTab, setActiveCategoryTab] = useState<'QUALITY' | 'ATTITUDE' | 'CREATIVITY' | 'REPORT' | 'ALL'>('QUALITY');
+  const [openQualitySection, setOpenQualitySection] = useState<QualitySection | null>('ENTRY');
   const [isPdfOpen, setIsPdfOpen] = useState<boolean>(true);
 
   // Turunan Nilai Kualitas (70%) States
@@ -815,7 +819,14 @@ export const GradingWorkspace: React.FC = () => {
                       </div>
                     )
                   ) : activeDocType === 'ASSIGNMENT' ? (
-                    activeAssignmentSubmission?.fileUrl && canInlinePreview(activeAssignmentSubmission.fileName) ? (
+                    activeAssignmentSubmission?.fileUrl && activeTask?.allowedFileType === 'AUTOCAD_LINK' ? (
+                      <div className="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-blue-300 bg-blue-50 p-8 text-center">
+                        <ExternalLink className="mb-3 h-10 w-10 text-blue-500" />
+                        <h4 className="text-sm font-bold text-blue-950">Link AutoCAD Share mahasiswa</h4>
+                        <p className="mt-1 max-w-sm text-xs leading-relaxed text-blue-800/80">Buka link ini untuk melihat gambar AutoCAD yang dibagikan mahasiswa.</p>
+                        <a href={activeAssignmentSubmission.fileUrl} target="_blank" rel="noopener noreferrer" className="mt-3 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-500">Buka AutoCAD Share</a>
+                      </div>
+                    ) : activeAssignmentSubmission?.fileUrl && canInlinePreview(activeAssignmentSubmission.fileName) ? (
                       <iframe
                         title={activeAssignmentSubmission.fileName}
                         src={toPdfFitUrl(activeAssignmentSubmission.fileUrl)}
@@ -1124,10 +1135,13 @@ export const GradingWorkspace: React.FC = () => {
             <div className="space-y-3">
               
               {/* Header Nilai Kualitas (70%) - Format seragam seperti Sikap */}
-              <div className="flex items-center justify-between pb-1 border-b border-slate-100">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-blue-900">
+              <div className="flex flex-col gap-1 border-b border-slate-100 pb-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                <h4 className="text-sm font-bold uppercase tracking-wider text-blue-900">
                   Nilai Kualitas (Bobot 70%)
                 </h4>
+                <p className="mt-0.5 text-[10px] text-slate-400">Buka satu bagian untuk menilai dengan lebih fokus.</p>
+                </div>
                 <span className="text-xs font-black text-blue-700 font-mono">
                   Rata2: {compositeQualityScore}
                 </span>
@@ -1136,33 +1150,41 @@ export const GradingWorkspace: React.FC = () => {
               {/* ----------------------------------------------------------------- */}
               {/* TURUNAN 1: ENTRY BEHAVIOR (10%) - INPUT NILAI */}
               {/* ----------------------------------------------------------------- */}
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 transition-all hover:border-slate-300">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+              <div className={`min-h-[92px] border-l-4 bg-white rounded-2xl shadow-sm transition-all ${openQualitySection === 'ENTRY' ? 'border border-indigo-300 border-l-indigo-500 shadow-md' : 'border border-slate-200 border-l-indigo-300 hover:border-indigo-200 hover:shadow-md'}`}>
+                <button
+                  type="button"
+                  aria-expanded={openQualitySection === 'ENTRY'}
+                  onClick={() => setOpenQualitySection(current => current === 'ENTRY' ? null : 'ENTRY')}
+                  className="w-full p-4 sm:p-5 text-left flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                >
                   <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-md bg-indigo-100 text-indigo-700 font-black text-[10px] flex items-center justify-center shrink-0">
+                    <span className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-black text-xs flex items-center justify-center shrink-0">
                       1
                     </span>
                     <div>
-                      <h5 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <h5 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                         <Compass className="w-3.5 h-3.5 text-indigo-600" />
                         <span>Entry Behavior (Bobot 10%)</span>
                       </h5>
-                      <p className="text-[10px] text-slate-500">
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
                         Kesiapan awal mahasiswa, pemahaman prasyarat materi, dan kepatuhan SOP dasar bengkel.
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 self-end sm:self-auto">
-                    <span className="text-[10px] font-mono text-slate-400">Kontribusi:</span>
-                    <span className="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-200">
+                    <div className="min-w-[84px] rounded-xl border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-right">
+                      <span className="block text-[9px] font-bold uppercase tracking-wide text-indigo-500">Kontribusi</span>
+                      <span className="block text-xs font-mono font-bold text-indigo-700">
                       {(entryBehaviorScore * 0.10).toFixed(1)} Poin
-                    </span>
+                      </span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${openQualitySection === 'ENTRY' ? 'rotate-180' : ''}`} />
                   </div>
-                </div>
+                </button>
 
                 {/* Input Controls */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
+                {openQualitySection === 'ENTRY' && <div className="px-4 pb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
                   <div className="flex items-center gap-2">
                     <label className="text-[11px] font-bold text-slate-700">Skor (0-100):</label>
                     <input
@@ -1192,44 +1214,52 @@ export const GradingWorkspace: React.FC = () => {
                       </button>
                     ))}
                   </div>
-                </div>
+                </div>}
               </div>
 
               {/* ----------------------------------------------------------------- */}
               {/* TURUNAN 2: KETERCAPAIAN PRAKTIK (50%) - MERUPAKAN SUB-CPMK */}
               {/* ----------------------------------------------------------------- */}
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3.5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2.5">
+              <div className={`min-h-[92px] border-l-4 bg-white rounded-2xl shadow-sm transition-all ${openQualitySection === 'SUB_CPMK' ? 'border border-blue-300 border-l-blue-500 shadow-md' : 'border border-slate-200 border-l-blue-300 hover:border-blue-200 hover:shadow-md'}`}>
+                <button
+                  type="button"
+                  aria-expanded={openQualitySection === 'SUB_CPMK'}
+                  onClick={() => setOpenQualitySection(current => current === 'SUB_CPMK' ? null : 'SUB_CPMK')}
+                  className="w-full p-4 sm:p-5 text-left flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                >
                   <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-md bg-indigo-100 text-indigo-700 font-black text-[10px] flex items-center justify-center shrink-0">
+                    <span className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 font-black text-xs flex items-center justify-center shrink-0">
                       2
                     </span>
                     <div>
                       <div className="flex items-center gap-1.5">
                         <Target className="w-3.5 h-3.5 text-blue-600" />
-                        <h5 className="text-xs font-bold text-slate-900">
+                        <h5 className="text-sm font-bold text-slate-900">
                           Ketercapaian Praktik (Bobot 50%)
                         </h5>
                         <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-blue-100 text-blue-800">
                           Sub-CPMK
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-500">
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
                         Penilaian langsung pada mutu proses dan benda kerja berdasarkan Sub-CPMK ({qualityItems.length} Sub-CPMK Terkonfigurasi).
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 self-end sm:self-auto">
-                    <span className="text-[10px] font-mono text-slate-400">Rata2: {subCpmkPracticeScore} • Kontribusi:</span>
-                    <span className="text-xs font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200">
+                    <div className="min-w-[108px] rounded-xl border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-right">
+                      <span className="block text-[9px] font-bold uppercase tracking-wide text-blue-500">Rata2 {subCpmkPracticeScore}</span>
+                      <span className="block text-xs font-mono font-bold text-blue-700">
                       {(subCpmkPracticeScore * 0.50).toFixed(1)} Poin
-                    </span>
+                      </span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${openQualitySection === 'SUB_CPMK' ? 'rotate-180' : ''}`} />
                   </div>
-                </div>
+                </button>
 
                 {/* Sub-CPMK Items */}
-                <div className="space-y-3 pt-1">
+                {openQualitySection === 'SUB_CPMK' && <div className="px-4 pb-4 space-y-3 pt-1">
                   {qualityItems.map(item => {
                     const currentScoreObj = qualityScores.find(q => q.criterionId === item.id || q.criterionId === item.rubricId);
                     const activeScore = currentScoreObj?.score ?? 75;
@@ -1277,22 +1307,27 @@ export const GradingWorkspace: React.FC = () => {
                       </div>
                     );
                   })}
-                </div>
+                </div>}
               </div>
 
               {/* ----------------------------------------------------------------- */}
               {/* TURUNAN 3: TUGAS PRAKTIK (15%) - DIHUBUNGKAN KE MATERI TUGAS */}
               {/* ----------------------------------------------------------------- */}
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2.5">
+              <div className={`min-h-[92px] border-l-4 bg-white rounded-2xl shadow-sm transition-all ${openQualitySection === 'ASSIGNMENT' ? 'border border-teal-300 border-l-teal-500 shadow-md' : 'border border-slate-200 border-l-teal-300 hover:border-teal-200 hover:shadow-md'}`}>
+                <button
+                  type="button"
+                  aria-expanded={openQualitySection === 'ASSIGNMENT'}
+                  onClick={() => setOpenQualitySection(current => current === 'ASSIGNMENT' ? null : 'ASSIGNMENT')}
+                  className="w-full p-4 sm:p-5 text-left flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                >
                   <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-md bg-indigo-100 text-indigo-700 font-black text-[10px] flex items-center justify-center shrink-0">
+                    <span className="w-7 h-7 rounded-lg bg-teal-100 text-teal-700 font-black text-xs flex items-center justify-center shrink-0">
                       3
                     </span>
                     <div>
                       <div className="flex items-center gap-1.5">
                         <BookOpen className="w-3.5 h-3.5 text-teal-600" />
-                        <h5 className="text-xs font-bold text-slate-900">
+                        <h5 className="text-sm font-bold text-slate-900">
                           Tugas Praktik / Worksheet (Bobot 15%)
                         </h5>
                         <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-teal-100 text-teal-800">
@@ -1302,22 +1337,25 @@ export const GradingWorkspace: React.FC = () => {
                           {tasksToGrade.length === 1 ? fileTypeLabel(tasksToGrade[0].allowedFileType) : 'Format Sesuai Tugas'}
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-500 mt-0.5">
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
                         Dihubungkan langsung dari tugas materi praktik dengan format file yang ditentukan instruktur.
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 self-end sm:self-auto">
-                    <span className="text-[10px] font-mono text-slate-400">Rata2: {assignmentScore} • Kontribusi:</span>
-                    <span className="text-xs font-mono font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-lg border border-teal-200">
+                    <div className="min-w-[108px] rounded-xl border border-teal-200 bg-teal-50 px-2.5 py-1.5 text-right">
+                      <span className="block text-[9px] font-bold uppercase tracking-wide text-teal-500">Rata2 {assignmentScore}</span>
+                      <span className="block text-xs font-mono font-bold text-teal-700">
                       {(assignmentScore * 0.15).toFixed(1)} Poin
-                    </span>
+                      </span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${openQualitySection === 'ASSIGNMENT' ? 'rotate-180' : ''}`} />
                   </div>
-                </div>
+                </button>
 
                 {/* List of Tasks Connected to Materials */}
-                <div className="space-y-3.5 pt-0.5">
+                {openQualitySection === 'ASSIGNMENT' && <div className="px-4 pb-4 space-y-3.5 pt-0.5">
                   {tasksToGrade.map((task) => {
                     const studentSubmission = submissions.find(
                       s => s.assignmentId === task.id &&
@@ -1350,6 +1388,17 @@ export const GradingWorkspace: React.FC = () => {
                             <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
                               {task.description}
                             </p>
+                            {task.allowedFileType === 'AUTOCAD_LINK' && studentSubmission?.fileUrl && /^https?:\/\//i.test(studentSubmission.fileUrl) && (
+                              <a
+                                href={studentSubmission.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 hover:text-blue-900 hover:underline"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                Buka Link AutoCAD Share
+                              </a>
+                            )}
                           </div>
                           <span className="text-[9px] font-mono text-slate-400 shrink-0 self-start sm:self-auto">
                             Tenggat: {formatDeadline(task.deadline)}
@@ -1424,43 +1473,52 @@ export const GradingWorkspace: React.FC = () => {
                       </div>
                     );
                   })}
-                </div>
+                </div>}
               </div>
 
               {/* ----------------------------------------------------------------- */}
               {/* TURUNAN 4: POST-TEST (25%) - FILE & NILAI */}
               {/* ----------------------------------------------------------------- */}
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3.5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2.5">
+              <div className={`min-h-[92px] border-l-4 bg-white rounded-2xl shadow-sm transition-all ${openQualitySection === 'POST_TEST' ? 'border border-amber-300 border-l-amber-500 shadow-md' : 'border border-slate-200 border-l-amber-300 hover:border-amber-200 hover:shadow-md'}`}>
+                <button
+                  type="button"
+                  aria-expanded={openQualitySection === 'POST_TEST'}
+                  onClick={() => setOpenQualitySection(current => current === 'POST_TEST' ? null : 'POST_TEST')}
+                  className="w-full p-4 sm:p-5 text-left flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                >
                   <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-md bg-indigo-100 text-indigo-700 font-black text-[10px] flex items-center justify-center shrink-0">
+                    <span className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 font-black text-xs flex items-center justify-center shrink-0">
                       4
                     </span>
                     <div>
                       <div className="flex items-center gap-1.5">
                         <FileCheck className="w-3.5 h-3.5 text-amber-600" />
-                        <h5 className="text-xs font-bold text-slate-900">
+                        <h5 className="text-sm font-bold text-slate-900">
                           Post-Test Praktik (Bobot 25%)
                         </h5>
                         <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-800">
                           {fileTypeLabel(postTestSubmission?.fileName)}
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-500">
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
                         Evaluasi lembar tes akhir praktik / inspection report komprehensif mahasiswa dalam format file yang ditentukan instruktur.
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 self-end sm:self-auto">
-                    <span className="text-[10px] font-mono text-slate-400">Kontribusi:</span>
-                    <span className="text-xs font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
+                    <div className="min-w-[84px] rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-right">
+                      <span className="block text-[9px] font-bold uppercase tracking-wide text-amber-500">Kontribusi</span>
+                      <span className="block text-xs font-mono font-bold text-amber-700">
                       {(postTestScore * 0.25).toFixed(1)} Poin
-                    </span>
+                      </span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${openQualitySection === 'POST_TEST' ? 'rotate-180' : ''}`} />
                   </div>
-                </div>
+                </button>
 
                 {/* Uploaded File Inspector Trigger */}
+                {openQualitySection === 'POST_TEST' && <div className="px-4 pb-4 space-y-3.5">
                 <div className="p-3 bg-amber-50/60 border border-amber-200/80 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0">
@@ -1525,6 +1583,7 @@ export const GradingWorkspace: React.FC = () => {
                     ))}
                   </div>
                 </div>
+                </div>}
               </div>
 
                 {activeCategoryTab === 'QUALITY' && (

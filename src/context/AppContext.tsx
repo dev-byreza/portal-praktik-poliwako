@@ -111,7 +111,8 @@ interface AppContextType {
   clearStudentIdentity: () => void;
 
   // Student Actions
-  submitAssignment: (assignmentId: string, file: File, submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST', allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY') => Promise<{ success: boolean; message?: string }>;
+  submitAssignment: (assignmentId: string, file: File, submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST', allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' | 'AUTOCAD_LINK') => Promise<{ success: boolean; message?: string }>;
+  submitAssignmentLink: (assignmentId: string, url: string, submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST') => Promise<{ success: boolean; message?: string }>;
   reviewSubmission: (submissionId: string, status: 'REVISION_REQUIRED' | 'ACCEPTED', feedback: string) => Promise<void>;
   confirmFinalProject: (url: string) => Promise<void>;
   reviewFinalProject: (participantId: string, status: 'REVISION_REQUIRED' | 'ACCEPTED', feedback: string) => Promise<void>;
@@ -788,7 +789,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Student Assignment Submission
-  const submitAssignment = async (assignmentId: string, file: File, submissionType: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST' = 'ASSIGNMENT', allowedFileType: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' = 'PDF'): Promise<{ success: boolean; message?: string }> => {
+  const submitAssignment = async (assignmentId: string, file: File, submissionType: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST' = 'ASSIGNMENT', allowedFileType: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' | 'AUTOCAD_LINK' = 'PDF'): Promise<{ success: boolean; message?: string }> => {
+    if (allowedFileType === 'AUTOCAD_LINK') {
+      return { success: false, message: 'Tugas AutoCAD Share harus dikirim melalui link, bukan unggahan file.' };
+    }
     if (!studentSession) return { success: false, message: 'Sesi mahasiswa tidak ditemukan. Silakan login kembali.' };
     const { studentId, periodId } = studentSession;
     const period = periods.find((item) => item.id === periodId);
@@ -816,7 +820,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       studentId,
       assignmentId,
       submissionType,
-      allowedFileType,
+      allowedFileType: allowedFileType as 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY',
       replaceStoragePath: existing?.storagePath,
     });
     if (upload.error || !upload.storagePath || !upload.publicUrl) {
@@ -1728,6 +1732,46 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast('Aturan Feedback Disimpan', 'Konfigurasi rentang nilai dan template pesan feedback berhasil diperbarui.', 'success');
   };
 
+  const submitAssignmentLink = async (assignmentId: string, url: string, submissionType: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST' = 'ASSIGNMENT'): Promise<{ success: boolean; message?: string }> => {
+    if (!studentSession) return { success: false, message: 'Sesi mahasiswa tidak ditemukan. Silakan login kembali.' };
+    const shareUrl = url.trim();
+    if (!/^https?:\/\//i.test(shareUrl)) {
+      return { success: false, message: 'Link AutoCAD Share harus diawali dengan http:// atau https://.' };
+    }
+    const { studentId, periodId } = studentSession;
+    const period = periods.find((item) => item.id === periodId);
+    if (!period) return { success: false, message: 'Periode praktik tidak ditemukan.' };
+    const assignment = learningUnits.find((unit) => unit.periodId === periodId && unit.assignment?.id === assignmentId)?.assignment;
+    if (!assignment || assignment.allowedFileType !== 'AUTOCAD_LINK') {
+      return { success: false, message: 'Tugas ini tidak dikonfigurasi untuk menerima link AutoCAD Share.' };
+    }
+    const deadlineTimestamp = parseAssignmentDeadline(assignment.deadline);
+    const existing = submissions.find((item) => item.assignmentId === assignmentId && item.studentId === studentId && item.periodId === periodId);
+    const isRequestedRevision = existing?.status === 'REVISION_REQUIRED';
+    if (deadlineTimestamp !== null && Date.now() >= deadlineTimestamp && !isRequestedRevision) {
+      const message = 'Batas waktu pengumpulan sudah berakhir. Tunggu instruktur memperbarui deadline sebelum mengirim link.';
+      showToast('Tenggat Berakhir', message, 'error');
+      return { success: false, message };
+    }
+
+    const submission: Submission = {
+      id: existing?.id || crypto.randomUUID(), assignmentId, studentId, periodId,
+      fileName: 'AutoCAD Share Link', fileUrl: shareUrl, fileSize: 'Link AutoCAD Share', submissionType,
+      submittedAt: new Date().toISOString(), status: 'SUBMITTED',
+      reviewFeedback: undefined, reviewedAt: undefined, revisionNumber: (existing?.revisionNumber || 0) + 1,
+    };
+    try {
+      const savedSubmission = await ApiService.saveSubmission(submission);
+      setSubmissions((previous) => [...previous.filter((item) => !(item.assignmentId === assignmentId && item.studentId === studentId && item.periodId === periodId)), savedSubmission]);
+      showToast('Link Terkirim', 'Link AutoCAD Share berhasil disimpan dan siap diperiksa instruktur.', 'success');
+      return { success: true };
+    } catch (error: any) {
+      const message = error?.message || 'Link tugas tidak dapat disimpan ke Supabase.';
+      showToast('Pengiriman Gagal', message, 'error');
+      return { success: false, message };
+    }
+  };
+
   const reviewSubmission = async (submissionId: string, status: 'REVISION_REQUIRED' | 'ACCEPTED', feedback: string) => {
     if (!isInstructorLoggedIn) throw new Error('Masuk sebagai instruktur terlebih dahulu.');
     const current = submissions.find(item => item.id === submissionId);
@@ -1833,6 +1877,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setStudentIdentity,
         clearStudentIdentity,
         submitAssignment,
+        submitAssignmentLink,
         reviewSubmission,
         confirmFinalProject,
         reviewFinalProject,

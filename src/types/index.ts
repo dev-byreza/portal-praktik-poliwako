@@ -128,7 +128,7 @@ export interface Assignment {
   description: string;
   deadline: string;
   maxScore: number;
-  allowedFileType: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY';
+  allowedFileType: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' | 'AUTOCAD_LINK';
   submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST';
   countdownEnabled?: boolean;
   countdownMinutes?: number;

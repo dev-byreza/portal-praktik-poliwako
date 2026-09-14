@@ -90,7 +90,7 @@ export const LearningContentStudio: React.FC = () => {
   const [assignTitle, setAssignTitle] = useState('');
   const [assignDesc, setAssignDesc] = useState('');
   const [assignDeadline, setAssignDeadline] = useState('2026-09-11 23:59 WITA');
-  const [assignAllowedFileType, setAssignAllowedFileType] = useState<'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY'>('PDF');
+  const [assignAllowedFileType, setAssignAllowedFileType] = useState<'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' | 'AUTOCAD_LINK'>('PDF');
   const [assignSubmissionType, setAssignSubmissionType] = useState<'ASSIGNMENT' | 'REPORT' | 'POST_TEST'>('ASSIGNMENT');
   const [assignCountdownEnabled, setAssignCountdownEnabled] = useState(false);
   const [assignCountdownMinutes, setAssignCountdownMinutes] = useState('5');
@@ -412,7 +412,6 @@ export const LearningContentStudio: React.FC = () => {
   const handleSaveAssignment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeSelectedUnit || !activeSelectedPeriod) return;
-
     const newAssign: Assignment = {
       id: editingAssignment?.id || newStudioEntityId('assign'),
       unitId: activeSelectedUnit.id,
@@ -820,6 +819,8 @@ export const LearningContentStudio: React.FC = () => {
                           <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-200 text-amber-900 rounded">
                             {activeSelectedUnit.assignment.allowedFileType === 'ANY'
                               ? 'ALL FILES'
+                              : activeSelectedUnit.assignment.allowedFileType === 'AUTOCAD_LINK'
+                                ? 'AUTOCAD SHARE'
                               : activeSelectedUnit.assignment.allowedFileType === 'IMAGE'
                                 ? 'IMAGE'
                                 : `${activeSelectedUnit.assignment.allowedFileType} Only`}
@@ -1215,7 +1216,7 @@ export const LearningContentStudio: React.FC = () => {
                 </label>
                 <select
                   value={assignAllowedFileType}
-                  onChange={e => setAssignAllowedFileType(e.target.value as 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY')}
+                  onChange={e => setAssignAllowedFileType(e.target.value as 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' | 'AUTOCAD_LINK')}
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 >
                   <option value="PDF">PDF (.pdf)</option>
@@ -1223,8 +1224,9 @@ export const LearningContentStudio: React.FC = () => {
                   <option value="ZIP">Arsip ZIP (.zip)</option>
                   <option value="RAR">Arsip RAR (.rar)</option>
                   <option value="ANY">ALL FILES (Semua jenis file)</option>
+                  <option value="AUTOCAD_LINK">AutoCAD Share (Paste Link)</option>
                 </select>
-                <p className="mt-1 text-[10px] text-slate-500">Mahasiswa hanya dapat mengunggah format yang dipilih (maksimal 50 MB).</p>
+                <p className="mt-1 text-[10px] text-slate-500">Mahasiswa akan diminta mengunggah file sesuai format yang dipilih, atau menempelkan link AutoCAD Share.</p>
               </div>
 
               <div>

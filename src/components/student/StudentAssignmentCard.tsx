@@ -11,6 +11,7 @@ import {
   AlertCircle,
   Eye,
   Download,
+  ExternalLink,
   Trash2,
   RefreshCw
 } from 'lucide-react';
@@ -22,7 +23,7 @@ interface StudentAssignmentCardProps {
   submission?: Submission;
 }
 
-type AllowedFileType = 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY';
+type AllowedFileType = 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' | 'AUTOCAD_LINK';
 
 const parseDeadlineTimestamp = (value: string): number | null => {
   const raw = String(value || '').trim();
@@ -47,6 +48,7 @@ const formatRemainingTime = (milliseconds: number): string => {
 
 const fileRule = (type: AllowedFileType) => {
   switch (type) {
+    case 'AUTOCAD_LINK': return { label: 'Link AutoCAD Share', extensions: 'link AutoCAD Share', accept: undefined };
     case 'ANY': return { label: 'ALL FILES', extensions: 'semua format file', accept: undefined };
     case 'IMAGE': return { label: 'Gambar', extensions: '.jpg, .jpeg, .png, .webp, .gif', accept: 'image/*,.jpg,.jpeg,.png,.webp,.gif' };
     case 'ZIP': return { label: 'ZIP', extensions: '.zip', accept: '.zip,application/zip,application/x-zip-compressed' };
@@ -59,9 +61,10 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
   assignment,
   submission,
 }) => {
-  const { currentStudent, studentSession, submitAssignment, showToast } = useApp();
+  const { currentStudent, studentSession, submitAssignment, submitAssignmentLink, showToast } = useApp();
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [autocadShareUrl, setAutocadShareUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const deadlineTimestamp = useMemo(() => parseDeadlineTimestamp(assignment.deadline), [assignment.deadline]);
@@ -79,6 +82,12 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
   const isUrgent = remainingMilliseconds !== null && remainingMilliseconds > 0 && remainingMilliseconds <= 5 * 60 * 1000;
   const isRevisionRequired = submission?.status === 'REVISION_REQUIRED';
   const canUpload = !isDeadlinePassed || isRevisionRequired;
+  const isAutocadLink = assignment.allowedFileType === 'AUTOCAD_LINK';
+
+  useEffect(() => {
+    setAutocadShareUrl('');
+    setSelectedFile(null);
+  }, [assignment.id]);
 
   const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -136,6 +145,25 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
         assignment.allowedFileType || 'PDF'
       );
       if (result.success) setSelectedFile(null);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleLinkSubmit = async () => {
+    const shareUrl = autocadShareUrl.trim();
+    if (!canUpload) {
+      showToast('Tenggat Berakhir', 'Batas waktu pengumpulan sudah berakhir. Tunggu instruktur memperbarui deadline.', 'error');
+      return;
+    }
+    if (!/^https?:\/\//i.test(shareUrl)) {
+      showToast('Link Tidak Valid', 'Tempel link AutoCAD Share yang diawali dengan http:// atau https://.', 'error');
+      return;
+    }
+    setIsUploading(true);
+    try {
+      const result = await submitAssignmentLink(assignment.id, shareUrl, assignment.submissionType || 'ASSIGNMENT');
+      if (result.success) setAutocadShareUrl('');
     } finally {
       setIsUploading(false);
     }
@@ -259,14 +287,26 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
               </div>
 
               <div className="flex flex-wrap items-center gap-2 self-start xl:self-auto">
-                <button
-                  type="button"
-                  onClick={() => setIsPreviewOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>Lihat / Unduh File</span>
-                </button>
+                {isAutocadLink ? (
+                  <a
+                    href={/^https?:\/\//i.test(submission.fileUrl) ? submission.fileUrl : undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 rounded-lg bg-blue-100 px-3 py-1.5 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-200"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    <span>Buka AutoCAD Share</span>
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsPreviewOpen(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Lihat / Unduh File</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handleDownloadReceipt}
@@ -281,20 +321,40 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
             {/* An instructor-requested revision remains replaceable after the regular deadline. */}
             {canUpload && (
               <div className="mt-4 pt-3 border-t border-slate-200 flex flex-col gap-3 text-xs text-slate-500">
-                <div className="flex flex-col justify-between gap-2 xl:flex-row xl:items-center">
-                  <span>{isRevisionRequired ? 'Unggah berkas yang sudah diperbaiki.' : 'Ingin memperbarui file tugas?'}</span>
-                  <label className="text-blue-600 hover:text-blue-700 font-semibold cursor-pointer underline">
-                    {isRevisionRequired ? 'Pilih File Revisi' : 'Ganti File'}
+                {isAutocadLink ? (
+                  <div className="flex flex-col gap-2 rounded-xl border border-blue-200 bg-blue-50/70 p-3 sm:flex-row sm:items-center">
                     <input
-                      type="file"
-                      accept={fileRule((assignment.allowedFileType || 'PDF') as AllowedFileType).accept}
-                      onChange={handleFileInputChange}
-                      className="hidden"
+                      type="url"
+                      value={autocadShareUrl}
+                      onChange={e => setAutocadShareUrl(e.target.value)}
+                      placeholder="Tempel link AutoCAD Share versi terbaru"
+                      className="min-w-0 flex-1 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20"
                     />
-                  </label>
-                </div>
+                    <button
+                      type="button"
+                      onClick={handleLinkSubmit}
+                      disabled={isUploading}
+                      className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isUploading ? 'Menyimpan...' : 'Simpan Link Revisi'}
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                  <div className="flex flex-col justify-between gap-2 xl:flex-row xl:items-center">
+                    <span>{isRevisionRequired ? 'Unggah berkas yang sudah diperbaiki.' : 'Ingin memperbarui file tugas?'}</span>
+                    <label className="text-blue-600 hover:text-blue-700 font-semibold cursor-pointer underline">
+                      {isRevisionRequired ? 'Pilih File Revisi' : 'Ganti File'}
+                      <input
+                        type="file"
+                        accept={fileRule((assignment.allowedFileType || 'PDF') as AllowedFileType).accept}
+                        onChange={handleFileInputChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
 
-                {selectedFile && (
+                  {selectedFile && (
                   <div className="flex flex-col justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/80 p-3 xl:flex-row xl:items-center">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <RefreshCw className="w-5 h-5 text-blue-600 shrink-0" />
@@ -323,6 +383,8 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                       </button>
                     </div>
                   </div>
+                  )}
+                  </>
                 )}
               </div>
             )}
@@ -331,6 +393,32 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
           /* File Upload Dropzone */
           <div>
             {!isDeadlinePassed ? (
+              isAutocadLink ? (
+                <div className="rounded-xl border-2 border-dashed border-blue-300 bg-blue-50/60 p-5 text-center">
+                  <ExternalLink className="mx-auto mb-2 h-10 w-10 text-blue-500" />
+                  <p className="text-xs font-bold text-slate-700">Tempel link AutoCAD Share tugas Anda</p>
+                  <p className="mx-auto mt-1 max-w-md text-[11px] leading-relaxed text-slate-500">
+                    Gunakan fitur Share di AutoCAD, salin linknya, lalu tempel di kolom berikut.
+                  </p>
+                  <div className="mx-auto mt-4 flex max-w-xl flex-col gap-2 sm:flex-row">
+                    <input
+                      type="url"
+                      value={autocadShareUrl}
+                      onChange={e => setAutocadShareUrl(e.target.value)}
+                      placeholder="https://autode.sk/... atau link Autodesk Share"
+                      className="min-w-0 flex-1 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleLinkSubmit}
+                      disabled={isUploading}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isUploading ? 'Menyimpan...' : 'Kirim Link'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
               <div>
                 <div
                   onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
@@ -387,6 +475,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                   </div>
                 )}
               </div>
+              )
             ) : (
               <div className="p-4 bg-amber-50 text-amber-800 rounded-xl border border-amber-200 flex items-start gap-3 text-sm leading-relaxed">
                 <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
