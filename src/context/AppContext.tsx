@@ -28,6 +28,7 @@ import { ApiService } from '../services/apiService';
 import { computeAttendanceStats, calculateWeightedFinalScore, getFeedbackForScore } from '../utils/gradeCalculators';
 import { computePeriodEndDate, computePeriodStatus, getWitaDateString } from '../utils/dateUtils';
 import { getRealtimeWitaDateString, fetchInternetNetworkTime } from '../services/networkTimeService';
+import { getUnitAssignments } from '../utils/learningAssignments';
 
 const parseAssignmentDeadline = (value: string): number | null => {
   const raw = String(value || '').trim();
@@ -802,9 +803,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // before uploading. This prevents late submissions even when a student
     // leaves a file selected while the countdown expires. If the instructor
     // edits the deadline in Supabase, the updated assignment in state is used.
-    const assignment = learningUnits.find(
-      (unit) => unit.periodId === periodId && unit.assignment?.id === assignmentId
-    )?.assignment;
+    const assignment = learningUnits
+      .filter(unit => unit.periodId === periodId)
+      .flatMap(getUnitAssignments)
+      .find(item => item.id === assignmentId);
     const deadlineTimestamp = assignment ? parseAssignmentDeadline(assignment.deadline) : null;
     const existing = submissions.find((item) => item.assignmentId === assignmentId && item.studentId === studentId && item.periodId === periodId);
     const isRequestedRevision = existing?.status === 'REVISION_REQUIRED';
@@ -1023,7 +1025,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         id: `unit-${Date.now()}-${Math.random()}`,
         periodId: newPeriod.id,
         materials: u.materials.map(m => ({ ...m, id: newEntityId('mat') })),
-        assignment: u.assignment ? { ...u.assignment, id: newEntityId('assign'), periodId: newPeriod.id } : undefined
+        assignments: getUnitAssignments(u).map(assignment => ({ ...assignment, id: newEntityId('assign'), periodId: newPeriod.id })),
       }));
       setLearningUnits(prev => [...prev, ...copiedUnits]);
     }
@@ -1056,7 +1058,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       id: `unit-${Date.now()}-${Math.random()}`,
       periodId: newPeriod.id,
       materials: u.materials.map(m => ({ ...m, id: newEntityId('mat') })),
-      assignment: u.assignment ? { ...u.assignment, id: newEntityId('assign'), periodId: newPeriod.id } : undefined
+      assignments: getUnitAssignments(u).map(assignment => ({ ...assignment, id: newEntityId('assign'), periodId: newPeriod.id })),
     }));
 
     setPeriods(prev => {
@@ -1311,7 +1313,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       title: unitData.title || `Unit ${unitNumber}: Judul Materi Praktik`,
       description: unitData.description || '',
       materials: unitData.materials || [],
-      assignment: unitData.assignment,
+      assignments: unitData.assignments || (unitData.assignment ? [unitData.assignment] : undefined),
+      assignment: unitData.assignments?.[0] || unitData.assignment,
       countdownEnabled: unitData.countdownEnabled,
       countdownMinutes: unitData.countdownMinutes,
       countdownStartedAt: unitData.countdownStartedAt
@@ -1385,14 +1388,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           unitId: newUnitId
         }));
 
-        const clonedAssignment: Assignment | undefined = srcUnit.assignment
-          ? {
-              ...srcUnit.assignment,
-              id: newEntityId('assign'),
-              unitId: newUnitId,
-              periodId: targetPeriodId
-            }
-          : undefined;
+        const clonedAssignments = getUnitAssignments(srcUnit).map(assignment => ({
+          ...assignment,
+          id: newEntityId('assign'),
+          unitId: newUnitId,
+          periodId: targetPeriodId
+        }));
 
         newUnitsToInsert.push({
           id: newUnitId,
@@ -1401,7 +1402,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           title: srcUnit.title,
           description: srcUnit.description,
           materials: clonedMaterials,
-          assignment: clonedAssignment,
+          assignments: clonedAssignments,
+          assignment: clonedAssignments[0],
           countdownEnabled: srcUnit.countdownEnabled,
           countdownMinutes: srcUnit.countdownMinutes,
           countdownStartedAt: srcUnit.countdownStartedAt
@@ -1741,7 +1743,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { studentId, periodId } = studentSession;
     const period = periods.find((item) => item.id === periodId);
     if (!period) return { success: false, message: 'Periode praktik tidak ditemukan.' };
-    const assignment = learningUnits.find((unit) => unit.periodId === periodId && unit.assignment?.id === assignmentId)?.assignment;
+    const assignment = learningUnits
+      .filter(unit => unit.periodId === periodId)
+      .flatMap(getUnitAssignments)
+      .find(item => item.id === assignmentId);
     if (!assignment || assignment.allowedFileType !== 'AUTOCAD_LINK') {
       return { success: false, message: 'Tugas ini tidak dikonfigurasi untuk menerima link AutoCAD Share.' };
     }

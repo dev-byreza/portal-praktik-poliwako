@@ -142,6 +142,9 @@ export interface LearningUnit {
   title: string;
   description: string;
   materials: LearningMaterial[];
+  /** All assignments configured for this unit. */
+  assignments?: Assignment[];
+  /** @deprecated Kept for backwards compatibility with older cached data. */
   assignment?: Assignment;
   /** Optional unit-wide access countdown. When enabled, all unit content is gated together. */
   countdownEnabled?: boolean;

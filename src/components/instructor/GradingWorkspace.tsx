@@ -39,6 +39,7 @@ import {
 import { formatDeadline, formatWitaDateTime } from '../../utils/dateUtils';
 import { getCourseRubrics, reconcileRubricScores } from '../../utils/courseRubrics';
 import { Badge } from '../common/Badge';
+import { getUnitAssignments } from '../../utils/learningAssignments';
 
 const canInlinePreview = (fileName?: string): boolean =>
   !!fileName && /\.(pdf|jpe?g|png|webp|gif)$/i.test(fileName);
@@ -180,23 +181,23 @@ export const GradingWorkspace: React.FC = () => {
   const periodUnitsWithAssignments = useMemo(() => {
     if (!activeSelectedPeriod) return [];
     return learningUnits.filter(
-      u => u.periodId === activeSelectedPeriod.id && !!u.assignment
+      u => u.periodId === activeSelectedPeriod.id && getUnitAssignments(u).length > 0
     );
   }, [learningUnits, activeSelectedPeriod]);
 
   const tasksToGrade = useMemo(() => {
     if (periodUnitsWithAssignments.length > 0) {
-      return periodUnitsWithAssignments.map(u => ({
-        id: u.assignment!.id,
+      return periodUnitsWithAssignments.flatMap(u => getUnitAssignments(u).map(assignment => ({
+        id: assignment.id,
         unitId: u.id,
         unitNumber: u.unitNumber,
         unitTitle: u.title,
-        assignmentTitle: u.assignment!.title,
-        description: u.assignment!.description,
-        deadline: u.assignment!.deadline,
-        maxScore: u.assignment!.maxScore,
-        allowedFileType: u.assignment!.allowedFileType
-      }));
+        assignmentTitle: assignment.title,
+        description: assignment.description,
+        deadline: assignment.deadline,
+        maxScore: assignment.maxScore,
+        allowedFileType: assignment.allowedFileType
+      })));
     }
     // Fallback if no specific assignment exists yet on the units
     return [
@@ -235,8 +236,9 @@ export const GradingWorkspace: React.FC = () => {
     if (explicitReport) return explicitReport;
     const reportTaskIds = new Set(
       periodUnitsWithAssignments
-        .filter(unit => /laporan|report/i.test(unit.assignment?.title || ''))
-        .map(unit => unit.assignment!.id)
+        .flatMap(unit => getUnitAssignments(unit))
+        .filter(assignment => /laporan|report/i.test(assignment.title || ''))
+        .map(assignment => assignment.id)
     );
     const labelledReport = studentSubmissions.find(submission =>
       reportTaskIds.has(submission.assignmentId) || /laporan|report/i.test(submission.fileName)
@@ -245,7 +247,7 @@ export const GradingWorkspace: React.FC = () => {
 
     // When a course does not label its final assignment as a report, use the
     // highest-numbered unit submission as the report document.
-    const finalAssignmentId = periodUnitsWithAssignments[periodUnitsWithAssignments.length - 1]?.assignment?.id;
+    const finalAssignmentId = tasksToGrade[tasksToGrade.length - 1]?.id;
     return studentSubmissions.find(submission => submission.assignmentId === finalAssignmentId);
   }, [currentParticipant, activeSelectedPeriod, periodUnitsWithAssignments, studentSubmissions]);
 

@@ -23,6 +23,7 @@ import { Badge } from '../common/Badge';
 import { formatPeriodRange } from '../../utils/dateUtils';
 import { getGradePredicate } from '../../utils/gradeCalculators';
 import { isSubmissionClosed } from '../../utils/submissionDeadline';
+import { getUnitAssignments } from '../../utils/learningAssignments';
 import { AnnouncementManager } from './AnnouncementManager';
 
 interface DashboardOverviewProps {
@@ -137,8 +138,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     let overdueSubmissions = 0;
     filteredParticipants.forEach(participant => {
       const periodAssignments = learningUnits
-        .filter(unit => unit.periodId === participant.periodId && unit.assignment && isSubmissionClosed(unit.assignment.deadline))
-        .map(unit => unit.assignment!);
+        .filter(unit => unit.periodId === participant.periodId)
+        .flatMap(getUnitAssignments)
+        .filter(assignment => isSubmissionClosed(assignment.deadline));
       periodAssignments.forEach(assignment => {
         const hasSubmission = relevantSubmissions.some(submission => (
           submission.assignmentId === assignment.id

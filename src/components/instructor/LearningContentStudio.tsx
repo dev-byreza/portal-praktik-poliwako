@@ -34,6 +34,7 @@ import { RichTextEditor } from '../common/RichTextEditor';
 import { formatDeadline, toDateTimeLocalWita, fromDateTimeLocalWita } from '../../utils/dateUtils';
 import { getYouTubeVideoId, toYouTubeEmbedUrl } from '../../utils/youtubeUtils';
 import { richTextToPlainText } from '../../utils/richText';
+import { getUnitAssignments, withUnitAssignments } from '../../utils/learningAssignments';
 
 const newStudioEntityId = (prefix: string): string => (
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -428,10 +429,11 @@ export const LearningContentStudio: React.FC = () => {
       countdownStartedAt: undefined
     };
 
-    updateLearningUnit({
-      ...activeSelectedUnit,
-      assignment: newAssign
-    });
+    const currentAssignments = getUnitAssignments(activeSelectedUnit);
+    const nextAssignments = editingAssignment
+      ? currentAssignments.map(assignment => assignment.id === editingAssignment.id ? newAssign : assignment)
+      : [...currentAssignments, newAssign];
+    updateLearningUnit(withUnitAssignments(activeSelectedUnit, nextAssignments));
 
     setIsAssignmentModalOpen(false);
     setEditingAssignment(null);
@@ -462,12 +464,12 @@ export const LearningContentStudio: React.FC = () => {
     setIsAssignmentModalOpen(true);
   };
 
-  const handleDeleteAssignment = () => {
+  const handleDeleteAssignment = (assignmentId: string) => {
     if (!activeSelectedUnit) return;
-    updateLearningUnit({
-      ...activeSelectedUnit,
-      assignment: undefined
-    });
+    updateLearningUnit(withUnitAssignments(
+      activeSelectedUnit,
+      getUnitAssignments(activeSelectedUnit).filter(assignment => assignment.id !== assignmentId)
+    ));
     showToast('Tugas Dihapus', 'Tugas praktik pada unit ini telah dinonaktifkan.', 'info');
   };
 
@@ -636,9 +638,9 @@ export const LearningContentStudio: React.FC = () => {
                 <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
                   <span>{unit.materials.length} Lampiran Materi</span>
                   <div className="flex items-center gap-1.5">
-                    {unit.assignment ? (
+                    {getUnitAssignments(unit).length > 0 ? (
                       <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-[10px]">
-                        Tugas PDF Aktif
+                        {getUnitAssignments(unit).length} Tugas Aktif
                       </span>
                     ) : (
                       <span className="text-slate-400 text-[10px]">Materi Saja</span>
@@ -810,43 +812,44 @@ export const LearningContentStudio: React.FC = () => {
                   </h4>
                 </div>
 
-                {activeSelectedUnit.assignment ? (
-                  <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-5">
+                {getUnitAssignments(activeSelectedUnit).map((assignment, index) => (
+                  <div key={assignment.id} className="mb-3 bg-amber-50/70 border border-amber-200 rounded-2xl p-5">
                     <div className="flex flex-col items-start justify-between gap-4 xl:flex-row">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h5 className="break-words text-xs font-bold text-amber-950 [overflow-wrap:anywhere]">{activeSelectedUnit.assignment.title}</h5>
+                          <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-200 text-amber-900 rounded">Tugas {index + 1}</span>
+                          <h5 className="break-words text-xs font-bold text-amber-950 [overflow-wrap:anywhere]">{assignment.title}</h5>
                           <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-200 text-amber-900 rounded">
-                            {activeSelectedUnit.assignment.allowedFileType === 'ANY'
+                            {assignment.allowedFileType === 'ANY'
                               ? 'ALL FILES'
-                              : activeSelectedUnit.assignment.allowedFileType === 'AUTOCAD_LINK'
+                              : assignment.allowedFileType === 'AUTOCAD_LINK'
                                 ? 'AUTOCAD SHARE'
-                              : activeSelectedUnit.assignment.allowedFileType === 'IMAGE'
+                              : assignment.allowedFileType === 'IMAGE'
                                 ? 'IMAGE'
-                                : `${activeSelectedUnit.assignment.allowedFileType} Only`}
+                                : `${assignment.allowedFileType} Only`}
                           </span>
-                          {activeSelectedUnit.assignment.countdownEnabled && (
+                          {assignment.countdownEnabled && (
                             <span className="px-2 py-0.5 text-[10px] font-bold bg-indigo-100 text-indigo-800 rounded">
-                              Countdown {activeSelectedUnit.assignment.countdownMinutes || 5} mnt
+                              Countdown {assignment.countdownMinutes || 5} mnt
                             </span>
                           )}
                         </div>
-                        <p className="mt-1 break-words text-xs leading-relaxed text-amber-800 [overflow-wrap:anywhere]">{activeSelectedUnit.assignment.description}</p>
+                        <p className="mt-1 break-words text-xs leading-relaxed text-amber-800 [overflow-wrap:anywhere]">{assignment.description}</p>
                         <p className="text-[11px] text-amber-700 font-mono mt-2">
-                          Tenggat: {formatDeadline(activeSelectedUnit.assignment.deadline)} • Bobot: {activeSelectedUnit.assignment.maxScore} Poin
+                          Tenggat: {formatDeadline(assignment.deadline)} • Bobot: {assignment.maxScore} Poin
                         </p>
                       </div>
 
                       <div className="flex shrink-0 items-center gap-1 self-end xl:self-start">
                         <button
-                          onClick={() => handleOpenEditAssignment(activeSelectedUnit.assignment!)}
+                          onClick={() => handleOpenEditAssignment(assignment)}
                           className="p-1.5 text-amber-600 hover:text-blue-600 rounded transition-colors"
                           title="Edit Tugas"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={handleDeleteAssignment}
+                          onClick={() => handleDeleteAssignment(assignment.id)}
                           className="p-1.5 text-amber-600 hover:text-rose-600 rounded transition-colors"
                           title="Hapus Tugas"
                         >
@@ -855,22 +858,18 @@ export const LearningContentStudio: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                ) : null}
+                ))}
 
                 <button
                   type="button"
-                  onClick={() => activeSelectedUnit.assignment
-                    ? handleOpenEditAssignment(activeSelectedUnit.assignment)
-                    : handleOpenCreateAssignment()}
+                  onClick={handleOpenCreateAssignment}
                   className="mt-3 w-full rounded-xl border border-dashed border-amber-300 bg-amber-50/50 p-5 text-center transition-colors hover:border-amber-500 hover:bg-amber-50"
                 >
                   <span className="block text-xs font-bold text-amber-800">
-                    {activeSelectedUnit.assignment ? 'Klik di sini untuk mengubah tugas praktik' : 'Klik di sini untuk menambahkan tugas praktik'}
+                    {getUnitAssignments(activeSelectedUnit).length > 0 ? 'Klik di sini untuk menambahkan tugas berikutnya' : 'Klik di sini untuk menambahkan tugas praktik'}
                   </span>
                   <span className="mt-1 block text-[11px] text-amber-700/80">
-                    {activeSelectedUnit.assignment
-                      ? 'Atur kembali judul, instruksi, tenggat, dan format berkas pengumpulan.'
-                      : 'Tambahkan instruksi, tenggat, dan format berkas yang harus dikumpulkan mahasiswa.'}
+                    Tambahkan instruksi, tenggat, dan format berkas yang harus dikumpulkan mahasiswa.
                   </span>
                 </button>
               </div>
@@ -1380,9 +1379,9 @@ export const LearningContentStudio: React.FC = () => {
                             <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
                               {u.materials.length} Materi
                             </span>
-                            {u.assignment && (
+                            {getUnitAssignments(u).length > 0 && (
                               <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">
-                                Tugas PDF
+                                {getUnitAssignments(u).length} Tugas
                               </span>
                             )}
                           </div>

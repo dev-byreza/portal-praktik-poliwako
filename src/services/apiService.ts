@@ -17,6 +17,7 @@ import {
   PracticePeriod,
   PracticeParticipant,
   LearningUnit,
+  Assignment,
   UnitProgress,
   Submission,
   AttendanceRecord,
@@ -27,6 +28,7 @@ import {
   PublicInstructorProfile,
   Announcement,
 } from '../types';
+import { getUnitAssignments } from '../utils/learningAssignments';
 
 const isUuid = (value: string): boolean => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 const databaseId = async (id: string, kind: string): Promise<string> => {
@@ -47,6 +49,23 @@ const normalizeDeadline = (value: string): string => {
   const parsed = new Date(normalized);
   return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
 };
+
+const mapAssignmentRow = (row: any): Assignment => ({
+  id: row.id,
+  unitId: row.unit_id,
+  periodId: row.period_id,
+  title: row.title,
+  description: row.description || '',
+  deadline: row.deadline,
+  maxScore: row.max_score,
+  allowedFileType: row.allowed_file_type,
+  countdownEnabled: Boolean(row.countdown_enabled),
+  countdownMinutes: Number(row.countdown_minutes) || undefined,
+  countdownStartedAt: row.countdown_started_at || undefined,
+  submissionType: (row.submission_type && row.submission_type !== 'ASSIGNMENT')
+    ? row.submission_type
+    : (/laporan|report/i.test(row.title || '') ? 'REPORT' : 'ASSIGNMENT'),
+});
 
 export class ApiService {
   static isLiveBackend(): boolean {
@@ -715,24 +734,15 @@ export class ApiService {
           countdownMinutes: Number(m.countdown_minutes) || undefined,
           countdownStartedAt: m.countdown_started_at || undefined,
           })),
-        assignment: assignmentsByUnit.get(u.id)?.[0]
-          ? {
-              id: assignmentsByUnit.get(u.id)![0].id,
-              unitId: assignmentsByUnit.get(u.id)![0].unit_id,
-              periodId: assignmentsByUnit.get(u.id)![0].period_id,
-              title: assignmentsByUnit.get(u.id)![0].title,
-              description: assignmentsByUnit.get(u.id)![0].description,
-              deadline: assignmentsByUnit.get(u.id)![0].deadline,
-              maxScore: assignmentsByUnit.get(u.id)![0].max_score,
-              allowedFileType: assignmentsByUnit.get(u.id)![0].allowed_file_type,
-              countdownEnabled: Boolean(assignmentsByUnit.get(u.id)![0].countdown_enabled),
-              countdownMinutes: Number(assignmentsByUnit.get(u.id)![0].countdown_minutes) || undefined,
-              countdownStartedAt: assignmentsByUnit.get(u.id)![0].countdown_started_at || undefined,
-              submissionType: (assignmentsByUnit.get(u.id)![0].submission_type && assignmentsByUnit.get(u.id)![0].submission_type !== 'ASSIGNMENT')
-                ? assignmentsByUnit.get(u.id)![0].submission_type
-                : (/laporan|report/i.test(assignmentsByUnit.get(u.id)![0].title || '') ? 'REPORT' : 'ASSIGNMENT'),
-            }
-          : undefined,
+        assignments: (assignmentsByUnit.get(u.id) || [])
+          .sort((a: any, b: any) => {
+            const aTime = Date.parse(a.created_at || '') || 0;
+            const bTime = Date.parse(b.created_at || '') || 0;
+            return aTime - bTime;
+          })
+          .map(mapAssignmentRow),
+        // Keep the first assignment available to older UI/cache consumers.
+        assignment: assignmentsByUnit.get(u.id)?.[0] ? mapAssignmentRow(assignmentsByUnit.get(u.id)![0]) : undefined,
       }));
     } catch (error) {
       console.error('Unable to load learning units and assignments from Supabase:', error);
@@ -756,11 +766,11 @@ export class ApiService {
         // The list is rewritten in its current order whenever the unit is saved.
         createdAt: new Date(Date.now() + index).toISOString(),
       })));
-      const savedAssignment = unit.assignment ? {
-        ...unit.assignment,
-        id: await databaseId(unit.assignment.id, `assignment:${unit.id}`),
+      const savedAssignments = await Promise.all(getUnitAssignments(unit).map(async assignment => ({
+        ...assignment,
+        id: await databaseId(assignment.id, `assignment:${unit.id}`),
         unitId,
-      } : undefined;
+      })));
       const usesUnitCountdown = unit.countdownEnabled !== undefined
         || unit.countdownMinutes !== undefined
         || unit.countdownStartedAt !== undefined;
@@ -856,8 +866,7 @@ export class ApiService {
 
       }
 
-      if (savedAssignment) {
-        const assignmentPayload = {
+      const assignmentRows = savedAssignments.map(savedAssignment => ({
           id: savedAssignment.id,
           unit_id: unitId,
           // A task always belongs to the same period as its unit. Using the
@@ -873,30 +882,35 @@ export class ApiService {
           countdown_enabled: Boolean(savedAssignment.countdownEnabled),
           countdown_minutes: savedAssignment.countdownEnabled ? Math.max(1, Number(savedAssignment.countdownMinutes) || 1) : 0,
           countdown_started_at: savedAssignment.countdownEnabled ? (savedAssignment.countdownStartedAt || new Date().toISOString()) : null,
-        };
-        let { error } = await supabase.from('assignments').upsert(assignmentPayload);
+        }));
+      const { data: existingAssignments, error: assignmentReadError } = await supabase
+        .from('assignments').select('id').eq('unit_id', unitId);
+      if (assignmentReadError) throw assignmentReadError;
+      const retainedAssignmentIds = new Set(assignmentRows.map(assignment => assignment.id));
+      const removedAssignmentIds = (existingAssignments || []).map((assignment: any) => assignment.id)
+        .filter((id: string) => !retainedAssignmentIds.has(id));
+      if (removedAssignmentIds.length) {
+        const { error } = await supabase.from('assignments').delete().in('id', removedAssignmentIds);
+        if (error) throw error;
+      }
+      if (assignmentRows.length) {
+        let { error } = await supabase.from('assignments').upsert(assignmentRows);
         // Keep existing deployments usable until the countdown/submission migrations are applied.
         if (error && /countdown_|submission_type|column .* does not exist/i.test(error.message || '')) {
-          const legacyPayload = { ...assignmentPayload };
-          delete (legacyPayload as any).submission_type;
-          delete (legacyPayload as any).countdown_enabled;
-          delete (legacyPayload as any).countdown_minutes;
-          delete (legacyPayload as any).countdown_started_at;
-          ({ error } = await supabase.from('assignments').upsert(legacyPayload));
+          const legacyRows = assignmentRows.map(({ submission_type, countdown_enabled, countdown_minutes, countdown_started_at, ...row }) => row);
+          ({ error } = await supabase.from('assignments').upsert(legacyRows));
         }
         if (error) throw error;
 
-        const persistedAssignmentId = savedAssignment.id;
         const { data: persistedAssignment, error: verifyAssignmentError } = await supabase
           .from('assignments')
-          .select('id, unit_id, period_id, title, deadline, max_score, allowed_file_type')
-          .eq('id', persistedAssignmentId)
-          .maybeSingle();
+          .select('id, unit_id, period_id')
+          .in('id', assignmentRows.map(assignment => assignment.id));
         if (verifyAssignmentError) throw verifyAssignmentError;
-        if (!persistedAssignment) {
-          throw new Error('Tugas berhasil dikirim tetapi tidak ditemukan saat verifikasi ulang Supabase.');
+        if ((persistedAssignment || []).length !== assignmentRows.length) {
+          throw new Error('Tugas berhasil dikirim tetapi tidak seluruhnya ditemukan saat verifikasi ulang Supabase.');
         }
-        if (persistedAssignment.unit_id !== unitId || persistedAssignment.period_id !== unit.periodId) {
+        if ((persistedAssignment || []).some((assignment: any) => assignment.unit_id !== unitId || assignment.period_id !== unit.periodId)) {
           throw new Error('Tugas tersimpan pada unit/periode yang berbeda dan dibatalkan.');
         }
       } else {
@@ -908,7 +922,7 @@ export class ApiService {
           .eq('unit_id', unitId);
         if (assignmentDeleteError) throw assignmentDeleteError;
       }
-      const savedUnit = { ...unit, id: unitId, materials: savedMaterials, assignment: savedAssignment };
+      const savedUnit = { ...unit, id: unitId, materials: savedMaterials, assignments: savedAssignments, assignment: savedAssignments[0] };
       const units = StorageService.getLearningUnits().filter(existing => existing.id !== unit.id && existing.id !== unitId);
       StorageService.saveLearningUnits([...units, savedUnit]);
       return savedUnit;

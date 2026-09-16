@@ -38,6 +38,7 @@ import { toYouTubeEmbedUrl } from '../../utils/youtubeUtils';
 import { hasSuccessfulSubmission } from '../../utils/studentProgress';
 import { sanitizeRichTextHtml } from '../../utils/richText';
 import { CountdownLockedPanel, CountdownModal, getCountdownEndAt, isCountdownLocked } from './StudentCountdownGate';
+import { getUnitAssignments } from '../../utils/learningAssignments';
 
 interface StudentPortalProps {
   courseSlug?: string;
@@ -254,7 +255,8 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     periodUnits.forEach(unit => {
       map.set(
         unit.id,
-        hasSuccessfulSubmission(currentSubmissions, unit.assignment?.id) ? 'COMPLETED' : 'AVAILABLE'
+        getUnitAssignments(unit).length > 0 && getUnitAssignments(unit).every(assignment => hasSuccessfulSubmission(currentSubmissions, assignment.id))
+          ? 'COMPLETED' : 'AVAILABLE'
       );
     });
     return map;
@@ -262,27 +264,19 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
   // Progress is driven by successfully saved uploads, never by navigation.
   const progressStats = useMemo(() => {
-    const progressUnits = periodUnits.filter(unit => Boolean(unit.assignment));
+    const progressAssignments = periodUnits.flatMap(getUnitAssignments);
     const currentSubmissions = studentSession
       ? submissions.filter(s => s.studentId === studentSession.studentId && s.periodId === studentSession.periodId)
       : [];
-    const total = progressUnits.length || periodUnits.length;
-    const completed = progressUnits.filter(unit => hasSuccessfulSubmission(currentSubmissions, unit.assignment?.id)).length;
+    const total = progressAssignments.length || periodUnits.length;
+    const completed = progressAssignments.filter(assignment => hasSuccessfulSubmission(currentSubmissions, assignment.id)).length;
     const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
     return { completed, total, percentage };
   }, [periodUnits, submissions, studentSession]);
 
   const isFinalProjectActive = activePeriod?.finalProjectEnabled === true;
 
-  // Check assignment submission for current unit
-  const currentAssignmentSubmission = useMemo(() => {
-    if (!currentUnit?.assignment || !studentSession) return undefined;
-    return submissions.find(
-      submission => submission.assignmentId === currentUnit.assignment?.id &&
-        submission.studentId === studentSession.studentId &&
-        submission.periodId === studentSession.periodId
-    );
-  }, [submissions, currentUnit, studentSession]);
+  const currentUnitAssignments = useMemo(() => getUnitAssignments(currentUnit), [currentUnit]);
 
   const currentUnitIndex = periodUnits.findIndex(u => u.id === currentUnit?.id);
 
@@ -637,9 +631,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                             Unit {unit.unitNumber}
                           </span>
-                          {unit.assignment && (
+                          {getUnitAssignments(unit).length > 0 && (
                             <span className="px-1.5 py-0.5 text-[8.5px] font-bold bg-amber-100 text-amber-800 rounded">
-                              Tugas PDF
+                              {getUnitAssignments(unit).length === 1 ? 'Tugas' : `${getUnitAssignments(unit).length} Tugas`}
                             </span>
                           )}
                           {unit.countdownEnabled && (
@@ -983,12 +977,17 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                 </div>
 
                 {/* Assignment Component if assigned to this unit */}
-                {!currentUnitCountdownLocked && currentUnit.assignment && (
+                {!currentUnitCountdownLocked && currentUnitAssignments.map(assignment => (
                   <StudentAssignmentCard
-                    assignment={currentUnit.assignment}
-                    submission={currentAssignmentSubmission}
+                    key={assignment.id}
+                    assignment={assignment}
+                    submission={studentSession
+                      ? submissions.find(submission => submission.assignmentId === assignment.id
+                        && submission.studentId === studentSession.studentId
+                        && submission.periodId === studentSession.periodId)
+                      : undefined}
                   />
-                )}
+                ))}
 
               </div>
             )}

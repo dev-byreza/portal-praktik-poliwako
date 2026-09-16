@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { formatPeriodRange } from '../../utils/dateUtils';
 import { hasSuccessfulSubmission } from '../../utils/studentProgress';
+import { getUnitAssignments } from '../../utils/learningAssignments';
 import { FooterBranding } from '../common/FooterBranding';
 
 interface StudentCourseCatalogProps {
@@ -188,12 +189,12 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
               : [];
 
             // Progress increases only after an uploaded file is saved.
-            const progressUnits = units.filter(unit => Boolean(unit.assignment));
+            const progressAssignments = units.flatMap(getUnitAssignments);
             const currentSubmissions = currentStudent && activePeriod
               ? submissions.filter(submission => submission.studentId === currentStudent.id && submission.periodId === activePeriod.id)
               : [];
-            const completedCount = progressUnits.filter(unit => hasSuccessfulSubmission(currentSubmissions, unit.assignment?.id)).length;
-            const totalUnits = progressUnits.length || units.length;
+            const completedCount = progressAssignments.filter(assignment => hasSuccessfulSubmission(currentSubmissions, assignment.id)).length;
+            const totalUnits = progressAssignments.length || units.length;
             const progressPercent = totalUnits > 0 ? Math.round((completedCount / totalUnits) * 100) : 0;
             const isCompletedAll = totalUnits > 0 && completedCount === totalUnits;
 

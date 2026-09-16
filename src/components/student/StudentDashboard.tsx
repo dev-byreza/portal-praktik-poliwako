@@ -21,6 +21,7 @@ import {
   submissionDeadline,
 } from '../../utils/submissionDeadline';
 import { hasSuccessfulSubmission } from '../../utils/studentProgress';
+import { getUnitAssignments } from '../../utils/learningAssignments';
 
 const getVisibleAttendanceDays = (startDate?: string): number => {
   const startParts = String(startDate || '').split('-').map(Number);
@@ -109,22 +110,22 @@ export const StudentDashboard: React.FC<Props> = ({ course, period, units, onLea
     item.studentId === studentSession?.studentId && item.periodId === period?.id
   );
   const mySubmissions = submissions.filter(mine);
-  const progressUnits = units.filter(unit => Boolean(unit.assignment));
+  const progressAssignments = units.flatMap(unit => getUnitAssignments(unit).map(assignment => ({ unit, assignment })));
   const completed = new Set(
-    progressUnits
-      .filter(unit => hasSuccessfulSubmission(mySubmissions, unit.assignment?.id))
-      .map(unit => unit.id)
+    progressAssignments
+      .filter(item => hasSuccessfulSubmission(mySubmissions, item.assignment.id))
+      .map(item => item.assignment.id)
   );
-  const done = progressUnits.filter(unit => completed.has(unit.id)).length;
-  const totalProgressUnits = progressUnits.length || units.length;
-  const nextAssignment = progressUnits.find(unit => !completed.has(unit.id));
-  const nextUnit = nextAssignment || units[0];
+  const done = progressAssignments.filter(item => completed.has(item.assignment.id)).length;
+  const totalProgressUnits = progressAssignments.length || units.length;
+  const nextAssignment = progressAssignments.find(item => !completed.has(item.assignment.id));
+  const nextUnit = nextAssignment?.unit || units[0];
   const revisionSubmissions = mySubmissions.filter(submission => submission.status === 'REVISION_REQUIRED');
-  const pending = progressUnits
-    .filter(unit => !hasSuccessfulSubmission(mySubmissions, unit.assignment?.id))
-    .filter(unit => !revisionSubmissions.some(submission => submission.assignmentId === unit.assignment?.id))
-    .sort((a, b) => (submissionDeadline(a.assignment?.deadline || '') || Number.MAX_SAFE_INTEGER)
-      - (submissionDeadline(b.assignment?.deadline || '') || Number.MAX_SAFE_INTEGER));
+  const pending = progressAssignments
+    .filter(item => !hasSuccessfulSubmission(mySubmissions, item.assignment.id))
+    .filter(item => !revisionSubmissions.some(submission => submission.assignmentId === item.assignment.id))
+    .sort((a, b) => (submissionDeadline(a.assignment.deadline || '') || Number.MAX_SAFE_INTEGER)
+      - (submissionDeadline(b.assignment.deadline || '') || Number.MAX_SAFE_INTEGER));
   const extra = remedials.filter(r => mine(r) && ['PENDING_SUBMISSION', 'BELUM_LULUS'].includes(r.status));
   const record = attendance.find(mine);
   const visibleAttendanceDays = getVisibleAttendanceDays(period?.startDate);
@@ -156,17 +157,17 @@ export const StudentDashboard: React.FC<Props> = ({ course, period, units, onLea
     }
 
     revisionSubmissions.forEach(submission => {
-      const unit = progressUnits.find(item => item.assignment?.id === submission.assignmentId);
-      if (!unit?.assignment) return;
+      const item = progressAssignments.find(item => item.assignment.id === submission.assignmentId);
+      if (!item) return;
       items.push({
         id: `assignment-revision-${submission.id}`,
         priority: 1,
-        title: `${unit.assignment.title} perlu direvisi`,
+        title: `${item.assignment.title} perlu direvisi`,
         description: submission.reviewFeedback || 'Buka tugas dan unggah berkas perbaikan sesuai arahan instruktur.',
         badge: `Revisi ${submission.revisionNumber || 1}`,
         tone: 'rose',
         icon: RotateCcw,
-        action: () => onLearn(unit.id),
+        action: () => onLearn(item.unit.id),
       });
     });
 
@@ -186,9 +187,7 @@ export const StudentDashboard: React.FC<Props> = ({ course, period, units, onLea
       });
     });
 
-    pending.forEach(unit => {
-      const assignment = unit.assignment;
-      if (!assignment) return;
+    pending.forEach(({ unit, assignment }) => {
       const urgency = getDeadlineUrgency(assignment.deadline, now);
       const badge = urgency === 'OVERDUE'
         ? 'Tenggat lewat'
@@ -209,7 +208,7 @@ export const StudentDashboard: React.FC<Props> = ({ course, period, units, onLea
       });
     });
 
-    const learningComplete = progressUnits.length > 0 && done === progressUnits.length;
+    const learningComplete = progressAssignments.length > 0 && done === progressAssignments.length;
     if (period?.finalProjectEnabled && learningComplete && !project?.finalProjectConfirmed) {
       items.push({
         id: 'final-project-submit',
@@ -237,7 +236,7 @@ export const StudentDashboard: React.FC<Props> = ({ course, period, units, onLea
     }
 
     return items.sort((a, b) => a.priority - b.priority);
-  }, [assessment?.isPublished, done, extra, now, onGrade, onLearn, onProject, pending, period?.finalProjectEnabled, progressUnits, project, revisionSubmissions]);
+  }, [assessment?.isPublished, done, extra, now, onGrade, onLearn, onProject, pending, period?.finalProjectEnabled, progressAssignments, project, revisionSubmissions]);
 
   const primaryAction = actions[0];
   const requiredActionCount = actions.filter(item => item.priority < 80).length;
