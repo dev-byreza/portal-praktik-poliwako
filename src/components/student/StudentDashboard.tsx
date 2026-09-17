@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Course, LearningUnit, PracticePeriod } from '../../types';
-import { getWitaDateString } from '../../utils/dateUtils';
+import { formatIndonesianDate, getWitaDateString } from '../../utils/dateUtils';
 import {
   DeadlineUrgency,
   formatDeadlineDistance,
@@ -117,9 +117,11 @@ export const StudentDashboard: React.FC<Props> = ({ course, period, units, onLea
       .map(item => item.assignment.id)
   );
   const done = progressAssignments.filter(item => completed.has(item.assignment.id)).length;
-  const totalProgressUnits = progressAssignments.length || units.length;
-  const nextAssignment = progressAssignments.find(item => !completed.has(item.assignment.id));
-  const nextUnit = nextAssignment?.unit || units[0];
+  // Upload progress is assignment-based. Keep the unit count separate so the
+  // dashboard does not suggest that five assignments are five learning units.
+  const totalProgressTasks = progressAssignments.length;
+  const progressPercent = totalProgressTasks > 0 ? Math.round((done / totalProgressTasks) * 100) : 0;
+  const nextUnit = progressAssignments.find(item => !completed.has(item.assignment.id))?.unit || units[0];
   const revisionSubmissions = mySubmissions.filter(submission => submission.status === 'REVISION_REQUIRED');
   const pending = progressAssignments
     .filter(item => !hasSuccessfulSubmission(mySubmissions, item.assignment.id))
@@ -240,6 +242,39 @@ export const StudentDashboard: React.FC<Props> = ({ course, period, units, onLea
 
   const primaryAction = actions[0];
   const requiredActionCount = actions.filter(item => item.priority < 80).length;
+  const visibleActions = actions.slice(0, 6);
+  const attentionActions = visibleActions.filter(item => item.tone === 'rose');
+  const plannedActions = visibleActions.filter(item => item.tone !== 'rose');
+  const renderActionList = (items: StudentAction[]) => (
+    <ul className="mt-3 space-y-2.5">
+      {items.map(item => {
+        const styles = actionStyles[item.tone];
+        return (
+          <li key={item.id}>
+            <button
+              type="button"
+              onClick={item.action}
+              className={`w-full rounded-xl border p-3.5 text-left transition-colors ${styles.container}`}
+            >
+              <span className="flex items-center gap-3">
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${styles.icon}`}>
+                  <item.icon className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-bold text-slate-900 break-words">{item.title}</span>
+                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${styles.badge}`}>{item.badge}</span>
+                  </span>
+                  <span className="mt-1 block break-words text-xs leading-relaxed text-slate-600 [overflow-wrap:anywhere]">{item.description}</span>
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-slate-400" />
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
 
   return (
     <div className="min-w-0 space-y-5">
@@ -270,6 +305,18 @@ export const StudentDashboard: React.FC<Props> = ({ course, period, units, onLea
           Mode lokal: aktivitas dan berkas pada perangkat ini belum tersinkron ke instruktur.
         </p>
       )}
+
+      <nav aria-label="Akses cepat mahasiswa" className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {[
+          { label: 'Materi & tugas', icon: BookOpen, action: () => onLearn(nextUnit?.id) },
+          { label: 'Final project', icon: ClipboardList, action: onProject },
+          { label: 'Nilai & remedial', icon: Award, action: onGrade },
+        ].map(item => (
+          <button key={item.label} onClick={item.action} className="min-h-12 p-3 border rounded-xl flex items-center gap-3 text-sm font-semibold text-blue-800 hover:bg-blue-50">
+            <item.icon size={19} />{item.label}<ArrowRight size={16} className="ml-auto" />
+          </button>
+        ))}
+      </nav>
 
       {visibleAnnouncements.length > 0 && (
         <section className="rounded-2xl border border-cyan-200 bg-cyan-50/50 p-4 sm:p-5" aria-labelledby="student-announcements-title">
@@ -307,17 +354,29 @@ export const StudentDashboard: React.FC<Props> = ({ course, period, units, onLea
         </section>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <section className="rounded-xl border p-4 sm:col-span-2">
           <p className="text-sm text-slate-500">Progres upload tugas</p>
-          <p className="text-2xl font-bold mt-2">{done}<span className="text-sm font-normal text-slate-500"> / {totalProgressUnits} unit</span></p>
-          <progress aria-label="Progres upload tugas" value={done} max={totalProgressUnits || 1} className="w-full h-2 mt-3 accent-blue-600" />
-          <p className="text-xs text-slate-500 mt-2">Berdasarkan upload yang berhasil tersimpan.</p>
+          <p className="text-2xl font-bold mt-2">{done}<span className="text-sm font-normal text-slate-500"> / {totalProgressTasks} tugas</span></p>
+          <progress aria-label="Progres upload tugas" value={done} max={totalProgressTasks || 1} className="w-full h-2 mt-3 accent-blue-600" />
+          <p className="text-xs text-slate-500 mt-2">{progressPercent}% tersimpan • tersebar di {units.length} unit pembelajaran.</p>
         </section>
         <section className="rounded-xl border p-4">
           <p className="text-sm text-slate-500">Perlu tindakan</p>
           <p className="text-2xl font-bold mt-2">{requiredActionCount}</p>
           <p className="text-xs text-slate-500 mt-3">{extra.length} remedial • {pending.length} tugas</p>
+        </section>
+        <section className="rounded-xl border p-4">
+          <p className="text-sm text-slate-500">Kehadiran</p>
+          <p className="text-2xl font-bold mt-2">{record ? `${record.percentage}%` : '—'}</p>
+          <p className={`text-xs mt-3 font-semibold ${record?.isEligible ? 'text-emerald-700' : record ? 'text-rose-700' : 'text-slate-500'}`}>
+            {record ? `${record.isEligible ? 'Status aman' : 'Perlu perhatian'} • ${visibleAttendanceDays} hari berjalan` : 'Belum ada catatan'}
+          </p>
+        </section>
+        <section className="col-span-full rounded-xl border p-4">
+          <p className="text-sm text-slate-500">Nilai akhir</p>
+          <p className="text-2xl font-bold mt-2">{assessment?.isPublished ? assessment.finalScore : '—'}</p>
+          <p className="text-xs text-slate-500 mt-3">{assessment?.isPublished ? 'Feedback tersedia' : 'Belum diterbitkan'}</p>
         </section>
       </div>
 
@@ -335,34 +394,26 @@ export const StudentDashboard: React.FC<Props> = ({ course, period, units, onLea
         </div>
 
         {actions.length > 0 ? (
-          <ul className="mt-4 space-y-2.5">
-            {actions.slice(0, 6).map(item => {
-              const styles = actionStyles[item.tone];
-              return (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    onClick={item.action}
-                    className={`w-full rounded-xl border p-3.5 text-left transition-colors ${styles.container}`}
-                  >
-                    <span className="flex items-center gap-3">
-                      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${styles.icon}`}>
-                        <item.icon className="h-5 w-5" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-bold text-slate-900 break-words">{item.title}</span>
-                          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${styles.badge}`}>{item.badge}</span>
-                        </span>
-                        <span className="mt-1 block break-words text-xs leading-relaxed text-slate-600 [overflow-wrap:anywhere]">{item.description}</span>
-                      </span>
-                      <ArrowRight className="h-4 w-4 shrink-0 text-slate-400" />
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          <div className="mt-4 space-y-5">
+            {attentionActions.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-rose-700">Terlambat / perlu perbaikan</h3>
+                  <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">{attentionActions.length}</span>
+                </div>
+                {renderActionList(attentionActions)}
+              </div>
+            )}
+            {plannedActions.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-amber-700">Segera dikerjakan</h3>
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">{plannedActions.length}</span>
+                </div>
+                {renderActionList(plannedActions)}
+              </div>
+            )}
+          </div>
         ) : (
           <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
             <div className="flex items-center gap-2 font-semibold"><CheckCircle2 className="h-5 w-5" />Semua pekerjaan utama selesai</div>
@@ -371,22 +422,24 @@ export const StudentDashboard: React.FC<Props> = ({ course, period, units, onLea
         )}
       </section>
 
-      <nav aria-label="Akses cepat mahasiswa" className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {[
-          { label: 'Materi & tugas', icon: BookOpen, action: () => onLearn(nextUnit?.id) },
-          { label: 'Final project', icon: ClipboardList, action: onProject },
-          { label: 'Nilai & remedial', icon: Award, action: onGrade },
-        ].map(item => (
-          <button key={item.label} onClick={item.action} className="min-h-12 p-3 border rounded-xl flex items-center gap-3 text-sm font-semibold text-blue-800 hover:bg-blue-50">
-            <item.icon size={19} />{item.label}<ArrowRight size={16} className="ml-auto" />
-          </button>
-        ))}
-      </nav>
-
       <section className="border rounded-2xl p-4 sm:p-5">
         <h2 className="font-bold">Periode praktik</h2>
         <p className="text-sm mt-2">{period?.name || 'Belum ada periode'}</p>
-        {period && <p className="text-sm text-slate-600 mt-1">{period.startDate} – {period.endDate} • WITA</p>}
+        {period && (
+          <>
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Mulai praktik</p>
+                <p className="mt-1 text-sm font-semibold text-slate-800">{formatIndonesianDate(period.startDate)}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Selesai praktik</p>
+                <p className="mt-1 text-sm font-semibold text-slate-800">{formatIndonesianDate(period.endDate)}</p>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-slate-500">Seluruh jadwal praktik mengikuti zona waktu WITA.</p>
+          </>
+        )}
         <p className="text-xs text-slate-500 mt-2">
           {period?.status === 'ACTIVE' ? 'Periode sedang berlangsung' : period?.status === 'COMPLETED' ? 'Periode telah berakhir' : 'Periksa jadwal periode sebelum memulai praktik.'}
         </p>

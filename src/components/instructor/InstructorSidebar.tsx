@@ -71,12 +71,12 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
 
   return (
     <aside
-      className={`fixed top-0 left-0 h-screen z-40 bg-slate-900 border-r border-slate-800 text-white flex flex-col transition-all duration-300 ease-in-out ${
+      className={`fixed top-0 left-0 h-screen z-40 glass-sidebar border-r text-white flex flex-col transition-all duration-300 ease-in-out ${
         isCollapsed ? 'w-20' : 'w-64'
       } ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
     >
       {/* Brand Header */}
-      <div className={`relative h-16 flex items-center border-b border-slate-800 shrink-0 ${isCollapsed ? 'justify-center px-1' : 'justify-between px-4'}`}>
+      <div className={`relative h-16 flex items-center border-b border-white/10 shrink-0 ${isCollapsed ? 'justify-center px-1' : 'justify-between px-4'}`}>
         <div className={`flex items-center ${isCollapsed ? 'shrink-0' : 'gap-3 overflow-hidden'}`}>
           <div className="w-10 h-10 rounded-xl bg-white/10 p-1 flex items-center justify-center text-white shrink-0 shadow-lg shadow-cyan-900/20 ring-1 ring-white/20">
             <img src="/logo-poliwako.webp" alt="Logo Politeknik Sorowako" className="w-full h-full object-contain" />
@@ -96,7 +96,7 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
           className={`hidden md:block text-slate-400 hover:text-white transition-colors shrink-0 ${
             isCollapsed
               ? 'absolute -right-3 top-1/2 z-10 -translate-y-1/2 rounded-full border border-slate-700 bg-slate-800 p-2 shadow-lg shadow-slate-950/30 hover:bg-slate-700'
-              : 'rounded-lg p-1.5 hover:bg-slate-800'
+              : 'rounded-lg p-1.5 hover:bg-white/10'
           }`}
           title={isCollapsed ? 'Perluas Sidebar' : 'Ciutkan Sidebar'}
         >
@@ -108,7 +108,7 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       </div>
 
       {/* Course Switcher Section (PRD Section 11 & 12) */}
-      <div className="p-3 border-b border-slate-800 shrink-0">
+      <div className="p-3 border-b border-white/10 shrink-0">
         {!isCollapsed ? (
           <div className="relative">
             <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5 px-1">
@@ -116,7 +116,7 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
             </label>
             <button
               onClick={() => setIsCourseDropdownOpen(!isCourseDropdownOpen)}
-              className="w-full flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 border border-slate-700 text-left transition-all group"
+              className="glass-dark-panel w-full flex items-center justify-between gap-2 p-2.5 rounded-xl hover:bg-white/10 text-left transition-all group"
             >
               <div className="flex items-center gap-2 min-w-0">
                 <div className="w-6 h-6 rounded-lg bg-blue-500/20 text-cyan-400 flex items-center justify-center shrink-0 border border-blue-500/30">
@@ -138,8 +138,8 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
             {isCourseDropdownOpen && (
               <>
                 <div className="fixed inset-0 z-50" onClick={() => setIsCourseDropdownOpen(false)}></div>
-                <div className="absolute left-0 top-full mt-1.5 w-60 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl py-1.5 z-50 animate-fadeIn">
-                  <div className="px-3 py-1 text-[10px] font-bold uppercase text-slate-400 border-b border-slate-800">
+                <div className="absolute left-0 top-full mt-1.5 w-60 bg-slate-950/90 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl py-1.5 z-50 animate-fadeIn">
+                  <div className="px-3 py-1 text-[10px] font-bold uppercase text-slate-400 border-b border-white/10">
                     Daftar Mata Kuliah Saya
                   </div>
                   <div className="max-h-48 overflow-y-auto py-1">
@@ -151,7 +151,7 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
                           setIsCourseDropdownOpen(false);
                           showToast('Mata Kuliah Aktif', c.name, 'info');
                         }}
-                        className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-800 transition-colors ${
+                        className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-white/10 transition-colors ${
                           c.id === activeCourseId ? 'text-cyan-400 font-bold bg-cyan-950/30' : 'text-slate-300'
                         }`}
                       >
@@ -163,7 +163,7 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
                       </button>
                     ))}
                   </div>
-                  <div className="border-t border-slate-800 pt-1 mt-1 px-2">
+                  <div className="border-t border-white/10 pt-1 mt-1 px-2">
                     <button
                       onClick={() => {
                         setIsCourseDropdownOpen(false);
@@ -183,7 +183,7 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
           <div className="flex justify-center">
             <button
               onClick={() => setIsCollapsed(false)}
-              className="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-400 flex items-center justify-center transition-colors"
+              className="glass-dark-panel w-10 h-10 rounded-xl hover:bg-white/10 text-cyan-400 flex items-center justify-center transition-colors"
               title={`Mata Kuliah: ${activeCourse?.name}`}
             >
               <Layers className="w-5 h-5" />
@@ -208,8 +208,8 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
               onClick={() => { setActiveTab(item.id); onCloseMobile?.(); }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all group relative ${
                 isActive
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 font-extrabold'
-                  : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'
+                  ? 'bg-gradient-to-r from-blue-600/95 via-blue-600/90 to-cyan-500/85 text-white shadow-lg shadow-blue-900/35 ring-1 ring-white/10 font-extrabold'
+                  : 'text-slate-400 hover:text-slate-100 hover:bg-white/10'
               } ${isCollapsed ? 'justify-center' : 'justify-between'}`}
               title={isCollapsed ? item.label : undefined}
             >
@@ -225,7 +225,7 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
                   className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
                     isActive
                       ? 'bg-white/20 text-white'
-                      : 'bg-slate-800 text-slate-400 border border-slate-700'
+                      : 'bg-white/10 text-slate-300 border border-white/10'
                   }`}
                 >
                   {item.badge}
@@ -234,7 +234,7 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
 
               {/* Floating Tooltip when collapsed */}
               {isCollapsed && (
-                <div className="absolute left-full ml-3 px-2.5 py-1 bg-slate-800 border border-slate-700 text-white text-xs font-medium rounded-md shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
+                <div className="absolute left-full ml-3 px-2.5 py-1 bg-slate-900/90 backdrop-blur-xl border border-white/10 text-white text-xs font-medium rounded-md shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
                   {item.label}
                 </div>
               )}
@@ -244,9 +244,9 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       </div>
 
       {/* Instructor Profile Footer */}
-      <div className="p-3 border-t border-slate-800 shrink-0">
+      <div className="p-3 border-t border-white/10 shrink-0">
         {!isCollapsed ? (
-          <div className="p-2.5 rounded-2xl bg-slate-800/80 border border-slate-700 flex items-center justify-between">
+          <div className="glass-dark-panel p-2.5 rounded-2xl flex items-center justify-between">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-xs text-white shrink-0">
                 {instructor.name.charAt(0)}
@@ -272,7 +272,7 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
           <div className="flex justify-center">
             <button
               onClick={logoutInstructor}
-              className="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-colors"
+              className="glass-dark-panel w-10 h-10 rounded-xl hover:bg-white/10 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-colors"
               title={`Logout (${instructor.name})`}
             >
               <LogOut className="w-4 h-4" />

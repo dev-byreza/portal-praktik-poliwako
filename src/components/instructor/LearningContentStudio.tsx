@@ -823,7 +823,7 @@ export const LearningContentStudio: React.FC = () => {
                             {assignment.allowedFileType === 'ANY'
                               ? 'ALL FILES'
                               : assignment.allowedFileType === 'AUTOCAD_LINK'
-                                ? 'AUTOCAD SHARE'
+                                ? 'AUTODESK SHARE'
                               : assignment.allowedFileType === 'IMAGE'
                                 ? 'IMAGE'
                                 : `${assignment.allowedFileType} Only`}
@@ -1223,9 +1223,9 @@ export const LearningContentStudio: React.FC = () => {
                   <option value="ZIP">Arsip ZIP (.zip)</option>
                   <option value="RAR">Arsip RAR (.rar)</option>
                   <option value="ANY">ALL FILES (Semua jenis file)</option>
-                  <option value="AUTOCAD_LINK">AutoCAD Share (Paste Link)</option>
+                  <option value="AUTOCAD_LINK">Autodesk Share (Paste Link)</option>
                 </select>
-                <p className="mt-1 text-[10px] text-slate-500">Mahasiswa akan diminta mengunggah file sesuai format yang dipilih, atau menempelkan link AutoCAD Share.</p>
+                <p className="mt-1 text-[10px] text-slate-500">Mahasiswa akan diminta mengunggah file sesuai format yang dipilih, atau menempelkan link Autodesk Share.</p>
               </div>
 
               <div>

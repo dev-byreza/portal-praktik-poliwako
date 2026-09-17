@@ -218,6 +218,52 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     ].filter(item => item.count > 0);
   }, [assessments, filteredParticipants, kpiStats.ineligibleCount, learningUnits, remedials, submissions]);
 
+  // Dashboard insight data: derived from the active filters and real unit
+  // progress records, so the visual summary stays in sync with the KPIs.
+  const insightStats = useMemo(() => {
+    const total = kpiStats.totalParticipants;
+    const progressByUnit = [1, 2, 3, 4, 5].map(unitNumber => {
+      let enrolled = 0;
+      let completed = 0;
+
+      filteredParticipants.forEach(participant => {
+        const unit = learningUnits.find(item => (
+          item.periodId === participant.periodId && item.unitNumber === unitNumber
+        ));
+        if (!unit) return;
+
+        enrolled += 1;
+        if (unitProgress.some(progress => (
+          progress.unitId === unit.id
+          && progress.studentId === participant.studentId
+          && progress.periodId === participant.periodId
+          && progress.isCompleted
+        ))) {
+          completed += 1;
+        }
+      });
+
+      return {
+        label: `Unit ${unitNumber}`,
+        value: enrolled > 0 ? Math.round((completed / enrolled) * 100) : 0,
+        enrolled
+      };
+    });
+
+    return {
+      completionRate: total > 0 ? Math.round((kpiStats.projectSubmittedCount / total) * 100) : 0,
+      gradingRate: total > 0 ? Math.round((kpiStats.gradedCount / total) * 100) : 0,
+      attentionRate: total > 0 ? Math.round((kpiStats.ineligibleCount / total) * 100) : 0,
+      progressByUnit,
+      statusBars: [
+        { label: 'Project masuk', value: kpiStats.projectSubmittedCount, color: 'bg-indigo-500', text: 'text-indigo-700' },
+        { label: 'Belum selesai', value: kpiStats.unfinishedCount, color: 'bg-amber-500', text: 'text-amber-700' },
+        { label: 'Sudah dinilai', value: kpiStats.gradedCount, color: 'bg-emerald-500', text: 'text-emerald-700' },
+        { label: 'Belum dinilai', value: kpiStats.ungradedCount, color: 'bg-orange-500', text: 'text-orange-700' },
+      ]
+    };
+  }, [filteredParticipants, kpiStats, learningUnits, unitProgress]);
+
   // Top 3 Rankings (PRD Section 15)
   const topRankings = useMemo(() => {
     // 1. Top 3 for Active Period
@@ -405,6 +451,17 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       categoryItems
     };
   }, [filteredParticipants, assessments, submissions, learningUnits, activePeriod, selectedPeriodFilter]);
+
+  const insightChartPoints = insightStats.progressByUnit.map((item, index) => ({
+    x: 40 + (index * 130),
+    y: 184 - ((item.value / 100) * 140)
+  }));
+  const insightLinePath = insightChartPoints
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+    .join(' ');
+  const insightAreaPath = insightLinePath
+    ? `${insightLinePath} L ${insightChartPoints[insightChartPoints.length - 1].x} 184 L ${insightChartPoints[0].x} 184 Z`
+    : '';
 
   return (
     <div className="space-y-8">
@@ -594,6 +651,111 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         </div>
 
       </div>
+
+      {/* Academic Insight: compact trend and operational distribution */}
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+        <div className="glass-light-panel relative overflow-hidden rounded-3xl p-5 sm:p-6 xl:col-span-7">
+          <div className="pointer-events-none absolute -right-16 -top-20 h-44 w-44 rounded-full bg-cyan-400/10 blur-3xl" />
+          <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600 ring-1 ring-cyan-100">
+                  <TrendingUp className="h-4 w-4" />
+                </span>
+                <div>
+                  <h2 className="text-sm font-black text-slate-900">Insight Pembelajaran</h2>
+                  <p className="text-[11px] text-slate-500">Rata-rata progres mahasiswa per unit</p>
+                </div>
+              </div>
+            </div>
+            <span className="w-fit rounded-full border border-cyan-200 bg-cyan-50/80 px-3 py-1 text-[11px] font-bold text-cyan-700">
+              {insightStats.completionRate}% project selesai
+            </span>
+          </div>
+
+          <div className="relative mt-5 h-56 overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50/70 p-2 sm:p-4">
+            <div className="pointer-events-none absolute inset-x-4 top-7 border-t border-dashed border-slate-200" />
+            <div className="pointer-events-none absolute inset-x-4 top-1/2 border-t border-dashed border-slate-200" />
+            <div className="pointer-events-none absolute inset-x-4 bottom-8 border-t border-dashed border-slate-200" />
+            <svg viewBox="0 0 600 220" className="relative h-full w-full" role="img" aria-label="Grafik progres per unit">
+              <defs>
+                <linearGradient id="insight-area-gradient" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.28" />
+                  <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.02" />
+                </linearGradient>
+              </defs>
+              {insightAreaPath && <path d={insightAreaPath} fill="url(#insight-area-gradient)" />}
+              {insightLinePath && (
+                <path d={insightLinePath} fill="none" stroke="#0891b2" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />
+              )}
+              {insightChartPoints.map((point, index) => (
+                <g key={insightStats.progressByUnit[index].label}>
+                  <circle cx={point.x} cy={point.y} r="6" fill="#fff" stroke="#0891b2" strokeWidth="3" />
+                  <text x={point.x} y="210" textAnchor="middle" className="fill-slate-500 text-[11px] font-semibold">
+                    {insightStats.progressByUnit[index].label}
+                  </text>
+                  <text x={point.x} y={point.y - 12} textAnchor="middle" className="fill-cyan-700 text-[11px] font-bold">
+                    {insightStats.progressByUnit[index].value}%
+                  </text>
+                </g>
+              ))}
+            </svg>
+          </div>
+          <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500">
+            <span>Filter mengikuti periode dan kelas aktif</span>
+            <button type="button" onClick={() => onNavigateTab('STUDIO')} className="inline-flex items-center gap-1 font-bold text-cyan-700 hover:text-cyan-800">
+              Kelola unit <ArrowUpRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="glass-light-panel rounded-3xl p-5 sm:p-6 xl:col-span-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100">
+                  <BarChart3 className="h-4 w-4" />
+                </span>
+                <div>
+                  <h2 className="text-sm font-black text-slate-900">Status Operasional</h2>
+                  <p className="text-[11px] text-slate-500">Distribusi mahasiswa pada filter aktif</p>
+                </div>
+              </div>
+            </div>
+            <span className="rounded-full border border-indigo-200 bg-indigo-50/80 px-2.5 py-1 text-[11px] font-bold text-indigo-700">
+              {insightStats.gradingRate}% dinilai
+            </span>
+          </div>
+
+          <div className="mt-6 space-y-4">
+            {insightStats.statusBars.map(item => (
+              <div key={item.label}>
+                <div className="mb-1.5 flex items-center justify-between gap-3 text-xs">
+                  <span className="font-semibold text-slate-700">{item.label}</span>
+                  <span className={`font-mono font-bold ${item.text}`}>{item.value}</span>
+                </div>
+                <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className={`h-full rounded-full ${item.color} transition-all duration-700`}
+                    style={{ width: `${Math.min(100, Math.round((item.value / Math.max(kpiStats.totalParticipants, 1)) * 100))}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 grid grid-cols-2 gap-3 border-t border-slate-200/80 pt-4">
+            <div className="rounded-2xl bg-emerald-50/70 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Coverage nilai</p>
+              <p className="mt-1 text-xl font-black text-emerald-700">{insightStats.gradingRate}%</p>
+            </div>
+            <div className="rounded-2xl bg-rose-50/70 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-rose-700">Perlu perhatian</p>
+              <p className="mt-1 text-xl font-black text-rose-700">{insightStats.attentionRate}%</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Prioritized operational queue */}
       <section className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">

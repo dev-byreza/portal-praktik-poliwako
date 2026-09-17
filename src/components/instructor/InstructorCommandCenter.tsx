@@ -65,7 +65,7 @@ export const InstructorCommandCenter: React.FC<InstructorCommandCenterProps> = (
 
 
   return (
-    <div className="min-h-screen bg-slate-100 flex">
+    <div className="instructor-shell min-h-screen flex">
       
       {/* Left Collapsible Vertical Sidebar */}
       <InstructorSidebar
@@ -83,7 +83,7 @@ export const InstructorCommandCenter: React.FC<InstructorCommandCenterProps> = (
           type="button"
           aria-label="Tutup menu"
           onClick={() => setIsMobileSidebarOpen(false)}
-          className="fixed inset-0 z-30 bg-slate-950/60 md:hidden"
+          className="fixed inset-0 z-30 bg-slate-950/60 backdrop-blur-sm md:hidden"
         />
       )}
 

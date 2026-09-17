@@ -57,7 +57,7 @@ const fileTypeLabel = (fileName?: string, configuredType?: AllowedFileType): str
   if (configuredType) {
     if (configuredType === 'ANY') return 'Semua File';
     if (configuredType === 'IMAGE') return 'Gambar';
-    if (configuredType === 'AUTOCAD_LINK') return 'AutoCAD Share';
+    if (configuredType === 'AUTOCAD_LINK') return 'Autodesk Share';
     return configuredType;
   }
   const match = fileName?.toLowerCase().match(/\.([a-z0-9]+)(?:$|[?#])/);
@@ -824,9 +824,9 @@ export const GradingWorkspace: React.FC = () => {
                     activeAssignmentSubmission?.fileUrl && activeTask?.allowedFileType === 'AUTOCAD_LINK' ? (
                       <div className="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-blue-300 bg-blue-50 p-8 text-center">
                         <ExternalLink className="mb-3 h-10 w-10 text-blue-500" />
-                        <h4 className="text-sm font-bold text-blue-950">Link AutoCAD Share mahasiswa</h4>
+                        <h4 className="text-sm font-bold text-blue-950">Link Autodesk Share mahasiswa</h4>
                         <p className="mt-1 max-w-sm text-xs leading-relaxed text-blue-800/80">Buka link ini untuk melihat gambar AutoCAD yang dibagikan mahasiswa.</p>
-                        <a href={activeAssignmentSubmission.fileUrl} target="_blank" rel="noopener noreferrer" className="mt-3 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-500">Buka AutoCAD Share</a>
+                        <a href={activeAssignmentSubmission.fileUrl} target="_blank" rel="noopener noreferrer" className="mt-3 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-500">Buka Autodesk Share</a>
                       </div>
                     ) : activeAssignmentSubmission?.fileUrl && canInlinePreview(activeAssignmentSubmission.fileName) ? (
                       <iframe
@@ -1398,7 +1398,7 @@ export const GradingWorkspace: React.FC = () => {
                                 className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 hover:text-blue-900 hover:underline"
                               >
                                 <ExternalLink className="h-3 w-3" />
-                                Buka Link AutoCAD Share
+                                Buka Link Autodesk Share
                               </a>
                             )}
                           </div>

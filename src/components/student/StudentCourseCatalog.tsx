@@ -194,9 +194,9 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
               ? submissions.filter(submission => submission.studentId === currentStudent.id && submission.periodId === activePeriod.id)
               : [];
             const completedCount = progressAssignments.filter(assignment => hasSuccessfulSubmission(currentSubmissions, assignment.id)).length;
-            const totalUnits = progressAssignments.length || units.length;
-            const progressPercent = totalUnits > 0 ? Math.round((completedCount / totalUnits) * 100) : 0;
-            const isCompletedAll = totalUnits > 0 && completedCount === totalUnits;
+            const totalTasks = progressAssignments.length;
+            const progressPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
+            const isCompletedAll = totalTasks > 0 && completedCount === totalTasks;
 
             return (
               <div
@@ -284,7 +284,7 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
                       Progres Pembelajaran
                     </span>
                     <span className="font-bold text-slate-200">
-                      {completedCount} dari {totalUnits} Unit ({progressPercent}%)
+                      {completedCount} dari {totalTasks} Tugas ({progressPercent}%)
                     </span>
                   </div>
 

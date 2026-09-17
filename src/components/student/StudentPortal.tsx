@@ -268,7 +268,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     const currentSubmissions = studentSession
       ? submissions.filter(s => s.studentId === studentSession.studentId && s.periodId === studentSession.periodId)
       : [];
-    const total = progressAssignments.length || periodUnits.length;
+    const total = progressAssignments.length;
     const completed = progressAssignments.filter(assignment => hasSuccessfulSubmission(currentSubmissions, assignment.id)).length;
     const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
     return { completed, total, percentage };
@@ -562,7 +562,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
             <div className="mt-2 pt-1.5 border-t border-slate-800/70 flex flex-col items-stretch gap-2 text-[11px] sm:flex-row sm:items-center sm:justify-between sm:gap-3">
               <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
                 <span className="text-slate-400">Progres Upload Tugas:</span>
-                <span className="font-bold text-cyan-300">{progressStats.completed} dari {progressStats.total} Unit Tersimpan ({progressStats.percentage}%)</span>
+                <span className="font-bold text-cyan-300">{progressStats.completed} dari {progressStats.total} Tugas Tersimpan ({progressStats.percentage}%)</span>
               </div>
 
               <div className="w-full sm:w-48 lg:w-64 bg-slate-800 rounded-full h-1.5 overflow-hidden border border-slate-700/80 shrink-0">
@@ -741,6 +741,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
               ))}
             </nav>
             {/* Flexible / Sticky Top Header Bar (Course Outline Toggle + Previous/Next) */}
+            {(activeTab !== 'DASHBOARD' || !isOutlineOpen) && (
             <div className="bg-white border-b border-slate-200/90 px-3 sm:px-6 py-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 shrink-0 z-20">
               {!isOutlineOpen && (
               <button
@@ -759,6 +760,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
               </button>
               )}
 
+              {activeTab !== 'DASHBOARD' && (
               <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 text-xs sm:text-sm font-medium text-slate-600">
                 <button
                   type="button"
@@ -784,7 +786,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
+              )}
             </div>
+            )}
 
             {/* Scrollable Material Content Area */}
             <div className="flex-1 min-h-0 min-w-0 overflow-y-auto no-scrollbar p-4 sm:p-7 lg:p-5 xl:p-6">
