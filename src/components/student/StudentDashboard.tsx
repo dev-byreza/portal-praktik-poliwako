@@ -373,11 +373,6 @@ export const StudentDashboard: React.FC<Props> = ({ course, period, units, onLea
             {record ? `${record.isEligible ? 'Status aman' : 'Perlu perhatian'} • ${visibleAttendanceDays} hari berjalan` : 'Belum ada catatan'}
           </p>
         </section>
-        <section className="col-span-full rounded-xl border p-4">
-          <p className="text-sm text-slate-500">Nilai akhir</p>
-          <p className="text-2xl font-bold mt-2">{assessment?.isPublished ? assessment.finalScore : '—'}</p>
-          <p className="text-xs text-slate-500 mt-3">{assessment?.isPublished ? 'Feedback tersedia' : 'Belum diterbitkan'}</p>
-        </section>
       </div>
 
       <section className="border rounded-2xl p-4 sm:p-5">
