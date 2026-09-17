@@ -75,21 +75,21 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
   const kpiStats = useMemo(() => {
     const totalParticipants = filteredParticipants.length;
     
-    // Learning progress average
+    // Learning progress average. Count each successfully submitted assignment
+    // so a student with partial uploads is no longer shown as 0% until an
+    // entire unit is finished.
     let totalProgressSum = 0;
     filteredParticipants.forEach(p => {
       const pUnits = learningUnits.filter(u => u.periodId === p.periodId);
-      if (pUnits.length === 0) return;
       const participantSubmissions = submissions.filter(submission => (
         submission.studentId === p.studentId && submission.periodId === p.periodId
       ));
-      const completed = pUnits.filter(unit => {
-        const assignments = getUnitAssignments(unit);
-        return assignments.length > 0 && assignments.every(assignment => (
-          hasSuccessfulSubmission(participantSubmissions, assignment.id)
-        ));
-      }).length;
-      totalProgressSum += (completed / pUnits.length);
+      const assignments = pUnits.flatMap(unit => getUnitAssignments(unit));
+      if (assignments.length === 0) return;
+      const completed = assignments.filter(assignment => (
+        hasSuccessfulSubmission(participantSubmissions, assignment.id)
+      )).length;
+      totalProgressSum += completed / assignments.length;
     });
     const avgProgress = totalParticipants > 0 ? Math.round((totalProgressSum / totalParticipants) * 100) : 0;
 
@@ -227,13 +227,13 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
   }, [assessments, filteredParticipants, kpiStats.ineligibleCount, learningUnits, remedials, submissions]);
 
   // Dashboard insight data: derived from successful assignment submissions,
-  // the same source used by the student dashboard. A unit is complete only
-  // when all assignments in that unit have a successful submission.
+  // the same source used by the student dashboard. Partial uploads contribute
+  // proportionally to the unit's average progress.
   const insightStats = useMemo(() => {
     const total = kpiStats.totalParticipants;
     const progressByUnit = [1, 2, 3, 4, 5].map(unitNumber => {
       let enrolled = 0;
-      let completed = 0;
+      let progressSum = 0;
 
       filteredParticipants.forEach(participant => {
         const unit = learningUnits.find(item => (
@@ -241,22 +241,22 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         ));
         if (!unit) return;
 
-        enrolled += 1;
         const assignments = getUnitAssignments(unit);
+        if (assignments.length === 0) return;
+        enrolled += 1;
         const participantSubmissions = submissions.filter(submission => (
           submission.studentId === participant.studentId
           && submission.periodId === participant.periodId
         ));
-        if (assignments.length > 0 && assignments.every(assignment => (
+        const completedAssignments = assignments.filter(assignment => (
           hasSuccessfulSubmission(participantSubmissions, assignment.id)
-        ))) {
-          completed += 1;
-        }
+        )).length;
+        progressSum += completedAssignments / assignments.length;
       });
 
       return {
         label: `Unit ${unitNumber}`,
-        value: enrolled > 0 ? Math.round((completed / enrolled) * 100) : 0,
+        value: enrolled > 0 ? Math.round((progressSum / enrolled) * 100) : 0,
         enrolled
       };
     });
