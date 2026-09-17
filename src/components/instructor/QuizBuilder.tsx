@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { ImagePlus, Plus, Trash2, CheckCircle2, GripVertical } from 'lucide-react';
+import { ImagePlus, Plus, Trash2, CheckCircle2, GripVertical, Sparkles, Loader2 } from 'lucide-react';
 import { QuizDefinition, QuizOption, QuizQuestion } from '../../types';
+import { requestAiQuiz } from '../../services/aiService';
 
 interface QuizBuilderProps {
   initialQuiz?: QuizDefinition;
+  initialMaterial?: string;
   onSave: (quiz: QuizDefinition) => void;
   onCancel: () => void;
 }
@@ -26,13 +28,18 @@ const readImageFile = (file: File): Promise<string> => new Promise((resolve, rej
   reader.readAsDataURL(file);
 });
 
-export const QuizBuilder: React.FC<QuizBuilderProps> = ({ initialQuiz, onSave, onCancel }) => {
+export const QuizBuilder: React.FC<QuizBuilderProps> = ({ initialQuiz, initialMaterial = '', onSave, onCancel }) => {
   const [description, setDescription] = useState(initialQuiz?.description || 'Jawab pertanyaan berikut berdasarkan materi yang sudah dipelajari.');
   const [shuffleQuestions, setShuffleQuestions] = useState(Boolean(initialQuiz?.shuffleQuestions));
   const [passScore, setPassScore] = useState(String(initialQuiz?.passScore ?? 70));
   const [maxAttempts, setMaxAttempts] = useState(String(initialQuiz?.maxAttempts ?? 0));
   const [questions, setQuestions] = useState<QuizQuestion[]>(initialQuiz?.questions?.length ? initialQuiz.questions : [makeQuestion()]);
   const [error, setError] = useState('');
+  const [isAiGeneratorOpen, setIsAiGeneratorOpen] = useState(false);
+  const [aiMaterial, setAiMaterial] = useState(initialMaterial);
+  const [aiQuestionCount, setAiQuestionCount] = useState('5');
+  const [aiDifficulty, setAiDifficulty] = useState<'dasar' | 'menengah' | 'lanjutan'>('menengah');
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
   useEffect(() => {
     setDescription(initialQuiz?.description || 'Jawab pertanyaan berikut berdasarkan materi yang sudah dipelajari.');
@@ -40,7 +47,8 @@ export const QuizBuilder: React.FC<QuizBuilderProps> = ({ initialQuiz, onSave, o
     setPassScore(String(initialQuiz?.passScore ?? 70));
     setMaxAttempts(String(initialQuiz?.maxAttempts ?? 0));
     setQuestions(initialQuiz?.questions?.length ? initialQuiz.questions : [makeQuestion()]);
-  }, [initialQuiz]);
+    setAiMaterial(initialMaterial);
+  }, [initialMaterial, initialQuiz]);
 
   const updateQuestion = (questionId: string, patch: Partial<QuizQuestion>) => {
     setQuestions(prev => prev.map(question => question.id === questionId ? { ...question, ...patch } : question));
@@ -114,11 +122,61 @@ export const QuizBuilder: React.FC<QuizBuilderProps> = ({ initialQuiz, onSave, o
     });
   };
 
+  const handleGenerateWithAi = async () => {
+    if (!aiMaterial.trim()) {
+      setError('Masukkan materi atau ringkasan materi terlebih dahulu agar AI dapat membuat quiz.');
+      return;
+    }
+    setIsAiLoading(true);
+    setError('');
+    try {
+      const generated = await requestAiQuiz({
+        material: aiMaterial.trim(),
+        questionCount: Number(aiQuestionCount) || 5,
+        difficulty: aiDifficulty,
+      });
+      setDescription(generated.description || description);
+      setQuestions(generated.questions.map(question => {
+        const options = question.options.map(text => ({ id: makeId('option'), text }));
+        return {
+          id: makeId('question'),
+          prompt: question.prompt,
+          options,
+          correctOptionId: options[question.correctIndex]?.id || options[0]?.id,
+          explanation: question.explanation || '',
+        };
+      }));
+      setIsAiGeneratorOpen(false);
+    } catch (generationError) {
+      setError(generationError instanceof Error ? generationError.message : 'Quiz belum dapat dibuat oleh AI.');
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
         <p className="text-xs font-bold text-emerald-900">Kuis terhubung ke Supabase</p>
         <p className="mt-1 text-[11px] leading-relaxed text-emerald-800">Quiz, gambar soal, jawaban, dan hasil percobaan akan disimpan di server agar dapat diakses lintas perangkat.</p>
+      </div>
+
+      <div className="rounded-2xl border border-cyan-200 bg-gradient-to-br from-cyan-50 to-blue-50 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="flex items-center gap-2 text-xs font-bold text-cyan-950"><Sparkles className="h-4 w-4 text-cyan-600" /> Buat quiz dari materi dengan AI</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-cyan-800">Tempel materi, lalu AI mengisi pertanyaan, opsi jawaban, kunci, dan pembahasan. Semua hasil tetap bisa diedit.</p>
+          </div>
+          <button type="button" onClick={() => setIsAiGeneratorOpen(open => !open)} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 py-2 text-xs font-bold text-white hover:bg-cyan-500"><Sparkles className="h-4 w-4" /> {isAiGeneratorOpen ? 'Tutup AI' : 'Buat dengan AI'}</button>
+        </div>
+        {isAiGeneratorOpen && <div className="mt-4 border-t border-cyan-200 pt-4">
+          <textarea value={aiMaterial} onChange={event => setAiMaterial(event.target.value)} rows={6} maxLength={20000} placeholder="Tempel materi pembelajaran di sini…" className="w-full resize-y rounded-xl border border-cyan-200 bg-white px-3.5 py-3 text-xs leading-relaxed text-slate-900 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15" />
+          <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            <label className="text-[11px] font-semibold text-slate-700">Jumlah soal<select value={aiQuestionCount} onChange={event => setAiQuestionCount(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900"><option value="3">3 soal</option><option value="5">5 soal</option><option value="7">7 soal</option><option value="10">10 soal</option></select></label>
+            <label className="text-[11px] font-semibold text-slate-700">Tingkat kesulitan<select value={aiDifficulty} onChange={event => setAiDifficulty(event.target.value as typeof aiDifficulty)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900"><option value="dasar">Dasar</option><option value="menengah">Menengah</option><option value="lanjutan">Lanjutan</option></select></label>
+            <button type="button" onClick={() => void handleGenerateWithAi()} disabled={isAiLoading} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-500 disabled:cursor-wait disabled:opacity-60">{isAiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}{isAiLoading ? 'Menyusun…' : 'Generate quiz'}</button>
+          </div>
+        </div>}
       </div>
 
       <textarea

@@ -6,7 +6,8 @@ export type AiOperation =
   | 'shorten'
   | 'expand'
   | 'instruction'
-  | 'questions';
+  | 'questions'
+  | 'quiz';
 
 export interface AiTextRequest {
   operation: AiOperation;
@@ -17,6 +18,19 @@ export interface AiTextRequest {
 
 export interface AiTextResponse {
   text: string;
+  model?: string;
+}
+
+export interface AiQuizQuestion {
+  prompt: string;
+  options: string[];
+  correctIndex: number;
+  explanation?: string;
+}
+
+export interface AiQuizResponse {
+  description: string;
+  questions: AiQuizQuestion[];
   model?: string;
 }
 
@@ -51,4 +65,24 @@ export async function requestAiText(request: AiTextRequest): Promise<AiTextRespo
   }
 
   return data as AiTextResponse;
+}
+
+export async function requestAiQuiz(request: {
+  material: string;
+  questionCount: number;
+  difficulty: 'dasar' | 'menengah' | 'lanjutan';
+}): Promise<AiQuizResponse> {
+  if (!isSupabaseConfigured() || !supabase) {
+    throw new Error('AI belum terhubung. Hubungkan Supabase dan deploy Edge Function ai-assistant terlebih dahulu.');
+  }
+
+  const { data, error } = await supabase.functions.invoke('ai-assistant', {
+    body: { operation: 'quiz', ...request },
+  });
+
+  if (error) throw new Error(error.message || 'Pembuatan quiz dengan AI gagal diproses.');
+  if (!data?.quiz || !Array.isArray(data.quiz.questions)) {
+    throw new Error('AI tidak mengembalikan struktur quiz yang valid.');
+  }
+  return data as AiQuizResponse;
 }

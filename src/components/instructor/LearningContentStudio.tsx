@@ -1125,6 +1125,10 @@ export const LearningContentStudio: React.FC = () => {
                 />
                 <QuizBuilder
                   initialQuiz={editingMaterial?.quiz}
+                  initialMaterial={activeUnitMaterials
+                    .filter(material => material.type === 'RICHTEXT' && material.contentText)
+                    .map(material => `${material.title}\n${richTextToPlainText(material.contentText)}`)
+                    .join('\n\n')}
                   onSave={handleSaveQuiz}
                   onCancel={() => setIsMaterialModalOpen(false)}
                 />
