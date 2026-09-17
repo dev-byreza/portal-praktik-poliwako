@@ -79,7 +79,7 @@ export const QuizBuilder: React.FC<QuizBuilderProps> = ({ initialQuiz, onSave, o
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      setError('Ukuran gambar maksimal 2 MB untuk penyimpanan lokal.');
+      setError('Ukuran gambar maksimal 2 MB untuk dikirim ke server.');
       return;
     }
     const imageUrl = await readImageFile(file);
@@ -116,9 +116,9 @@ export const QuizBuilder: React.FC<QuizBuilderProps> = ({ initialQuiz, onSave, o
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
-        <p className="text-xs font-bold text-indigo-900">Kuis interaktif lokal</p>
-        <p className="mt-1 text-[11px] leading-relaxed text-indigo-800">Gambar disimpan sebagai data lokal di browser. Cocok untuk prototipe sebelum kuis dipindahkan ke Supabase.</p>
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+        <p className="text-xs font-bold text-emerald-900">Kuis terhubung ke Supabase</p>
+        <p className="mt-1 text-[11px] leading-relaxed text-emerald-800">Quiz, gambar soal, jawaban, dan hasil percobaan akan disimpan di server agar dapat diakses lintas perangkat.</p>
       </div>
 
       <textarea

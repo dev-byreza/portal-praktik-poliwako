@@ -57,7 +57,8 @@ export const LearningContentStudio: React.FC = () => {
     updatePeriod,
     deleteLearningUnit,
     copyLearningUnits,
-    showToast
+    showToast,
+    isLiveBackend,
   } = useApp();
 
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
@@ -366,6 +367,10 @@ export const LearningContentStudio: React.FC = () => {
 
   const handleSaveQuiz = (quiz: QuizDefinition) => {
     if (!activeSelectedUnit) return;
+    if (!isLiveBackend) {
+      showToast('Supabase Belum Terhubung', 'Quiz tidak disimpan lokal. Hubungkan Supabase terlebih dahulu untuk menyimpan quiz.', 'error');
+      return;
+    }
     const newMat: LearningMaterial = {
       id: editingMaterial?.id || newStudioEntityId('mat'),
       unitId: activeSelectedUnit.id,
@@ -386,7 +391,7 @@ export const LearningContentStudio: React.FC = () => {
     setEditingMaterial(null);
     setMatType('PDF');
     setMatTitle('');
-    showToast(editingMaterial ? 'Kuis Diperbarui' : 'Kuis Ditambahkan', `Kuis "${newMat.title}" tersimpan di perangkat lokal.`, 'success');
+    showToast(editingMaterial ? 'Kuis Diperbarui' : 'Kuis Ditambahkan', `Kuis "${newMat.title}" tersimpan di Supabase.`, 'success');
   };
 
   const handleOpenCreateQuiz = () => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { CheckCircle2, Circle, RotateCcw, Trophy, XCircle } from 'lucide-react';
 import { LearningMaterial, QuizAttemptResult, QuizQuestion } from '../../types';
 import { ApiService } from '../../services/apiService';
@@ -19,55 +19,62 @@ export const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ material, stud
   const [result, setResult] = useState<QuizAttemptResult | null>(null);
   const [showReview, setShowReview] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingResult, setIsLoadingResult] = useState(false);
   const [submitError, setSubmitError] = useState('');
-
-  const storageKey = useMemo(() => `poliwako_quiz_result:${studentId || 'anonymous'}:${material.id}`, [studentId, material.id]);
 
   useEffect(() => {
     if (!quiz) return;
     setQuestions(quiz.shuffleQuestions ? shuffle(quiz.questions) : quiz.questions);
     setAnswers({});
     setShowReview(false);
-    try {
-      const saved = localStorage.getItem(storageKey);
-      setResult(saved ? JSON.parse(saved) as QuizAttemptResult : null);
-    } catch {
-      setResult(null);
-    }
-  }, [quiz, storageKey]);
+    setSubmitError('');
+    setResult(null);
+    if (!ApiService.isLiveBackend() || !studentId || !periodId || !sessionToken) return;
+    setIsLoadingResult(true);
+    void ApiService.getLatestQuizAttempt({ sessionToken, materialId: material.id, periodId })
+      .then(saved => {
+        setResult(saved);
+        if (saved?.answers) {
+          const answerByQuestion = new Map(saved.answers.map(answer => [answer.questionId, answer]));
+          setQuestions(previous => previous.map(question => ({
+            ...question,
+            correctOptionId: answerByQuestion.get(question.id)?.correctOptionId || question.correctOptionId,
+          })));
+        }
+      })
+      .catch(error => setSubmitError(error?.message || 'Hasil quiz gagal dimuat dari server.'))
+      .finally(() => setIsLoadingResult(false));
+  }, [quiz, material.id, periodId, sessionToken, studentId]);
 
   if (!quiz || quiz.questions.length === 0) return null;
+
+  if (!ApiService.isLiveBackend()) {
+    return (
+      <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
+        Quiz belum dapat dibuka karena koneksi Supabase belum aktif. Hubungi instruktur atau coba lagi setelah koneksi tersedia.
+      </section>
+    );
+  }
 
   const submitQuiz = async () => {
     setSubmitError('');
     setIsSubmitting(true);
     try {
       let nextResult: QuizAttemptResult | null = null;
-      if (ApiService.isLiveBackend()) {
-        if (!studentId || !periodId || !sessionToken) {
-          throw new Error('Sesi mahasiswa belum siap. Silakan login kembali sebelum mengirim quiz.');
-        }
-        nextResult = await ApiService.submitQuizAttempt({ sessionToken, materialId: material.id, periodId, answers });
-        if (nextResult?.answers) {
-          const answerByQuestion = new Map(nextResult.answers.map(answer => [answer.questionId, answer]));
-          setQuestions(previous => previous.map(question => ({
-            ...question,
-            correctOptionId: answerByQuestion.get(question.id)?.correctOptionId || question.correctOptionId,
-          })));
-        }
-      } else {
-        const correct = questions.reduce((total, question) => total + (answers[question.id] === question.correctOptionId ? 1 : 0), 0);
-        nextResult = {
-          score: Math.round((correct / questions.length) * 100),
-          correct,
-          total: questions.length,
-          submittedAt: new Date().toISOString(),
-        };
+      if (!studentId || !periodId || !sessionToken) {
+        throw new Error('Sesi mahasiswa belum siap. Silakan login kembali sebelum mengirim quiz.');
+      }
+      nextResult = await ApiService.submitQuizAttempt({ sessionToken, materialId: material.id, periodId, answers });
+      if (nextResult?.answers) {
+        const answerByQuestion = new Map(nextResult.answers.map(answer => [answer.questionId, answer]));
+        setQuestions(previous => previous.map(question => ({
+          ...question,
+          correctOptionId: answerByQuestion.get(question.id)?.correctOptionId || question.correctOptionId,
+        })));
       }
       if (!nextResult) throw new Error('Hasil quiz belum diterima dari server.');
       setResult(nextResult);
       setShowReview(true);
-      localStorage.setItem(storageKey, JSON.stringify(nextResult));
     } catch (error: any) {
       setSubmitError(error?.message || 'Quiz gagal dikirim. Silakan coba lagi.');
     } finally {
@@ -80,7 +87,6 @@ export const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ material, stud
     setResult(null);
     setShowReview(false);
     setQuestions(quiz.shuffleQuestions ? shuffle(quiz.questions) : quiz.questions);
-    localStorage.removeItem(storageKey);
   };
 
   const answeredCount = Object.keys(answers).length;
@@ -130,9 +136,11 @@ export const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ material, stud
           );
         })}
 
-        {result ? (
+        {isLoadingResult ? (
+          <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-xs font-semibold text-indigo-800">Memuat hasil quiz dari server...</div>
+        ) : result ? (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-            <div><p className="text-sm font-bold text-emerald-900">Kuis selesai — {result.correct}/{result.total} jawaban benar</p><p className="mt-1 text-[11px] text-emerald-800">Hasil tersimpan di browser perangkat ini.</p></div>
+            <div><p className="text-sm font-bold text-emerald-900">Kuis selesai — {result.correct}/{result.total} jawaban benar</p><p className="mt-1 text-[11px] text-emerald-800">Hasil tersimpan di server dan dapat dilihat kembali setelah login.</p></div>
             <button type="button" onClick={resetQuiz} className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-xs font-bold text-emerald-700 shadow-sm hover:bg-emerald-100"><RotateCcw className="h-3.5 w-3.5" /> Coba Lagi</button>
           </div>
         ) : (

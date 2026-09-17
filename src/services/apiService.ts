@@ -1163,6 +1163,33 @@ export class ApiService {
     };
   }
 
+  static async getLatestQuizAttempt(params: {
+    sessionToken?: string;
+    materialId: string;
+    periodId: string;
+  }): Promise<QuizAttemptResult | null> {
+    if (!this.isLiveBackend() || !supabase || !params.sessionToken) return null;
+    const { data, error } = await supabase.rpc('get_student_quiz_attempt', {
+      p_session_token: params.sessionToken,
+      p_material_id: params.materialId,
+      p_period_id: params.periodId,
+    });
+    if (error) throw error;
+    if (!data) return null;
+    return {
+      attemptId: data.attemptId || undefined,
+      score: Number(data.score || 0),
+      correct: Number(data.correct || 0),
+      total: Number(data.total || 0),
+      submittedAt: data.submittedAt || new Date().toISOString(),
+      answers: Array.isArray(data.answers) ? data.answers.map((answer: any) => ({
+        questionId: answer.questionId,
+        correctOptionId: answer.correctOptionId || undefined,
+        isCorrect: Boolean(answer.isCorrect),
+      })) : [],
+    };
+  }
+
   // ====================================================================
   // SUBMISSIONS & ASSESSMENTS
   // ====================================================================
