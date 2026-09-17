@@ -24,6 +24,7 @@ import { formatPeriodRange } from '../../utils/dateUtils';
 import { getGradePredicate } from '../../utils/gradeCalculators';
 import { isSubmissionClosed } from '../../utils/submissionDeadline';
 import { getUnitAssignments } from '../../utils/learningAssignments';
+import { hasSuccessfulSubmission } from '../../utils/studentProgress';
 import { AnnouncementManager } from './AnnouncementManager';
 
 interface DashboardOverviewProps {
@@ -41,7 +42,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     attendance,
     remedials,
     learningUnits,
-    unitProgress,
     activeCourseId
   } = useApp();
 
@@ -80,7 +80,15 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     filteredParticipants.forEach(p => {
       const pUnits = learningUnits.filter(u => u.periodId === p.periodId);
       if (pUnits.length === 0) return;
-      const completed = unitProgress.filter(up => up.studentId === p.studentId && up.periodId === p.periodId && up.isCompleted).length;
+      const participantSubmissions = submissions.filter(submission => (
+        submission.studentId === p.studentId && submission.periodId === p.periodId
+      ));
+      const completed = pUnits.filter(unit => {
+        const assignments = getUnitAssignments(unit);
+        return assignments.length > 0 && assignments.every(assignment => (
+          hasSuccessfulSubmission(participantSubmissions, assignment.id)
+        ));
+      }).length;
       totalProgressSum += (completed / pUnits.length);
     });
     const avgProgress = totalParticipants > 0 ? Math.round((totalProgressSum / totalParticipants) * 100) : 0;
@@ -108,7 +116,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       ungradedCount,
       ineligibleCount
     };
-  }, [filteredParticipants, learningUnits, unitProgress, assessments, attendance]);
+  }, [filteredParticipants, learningUnits, submissions, assessments, attendance]);
 
   const actionQueue = useMemo(() => {
     const participantKeys = new Set(filteredParticipants.map(p => `${p.periodId}_${p.studentId}`));
@@ -218,8 +226,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     ].filter(item => item.count > 0);
   }, [assessments, filteredParticipants, kpiStats.ineligibleCount, learningUnits, remedials, submissions]);
 
-  // Dashboard insight data: derived from the active filters and real unit
-  // progress records, so the visual summary stays in sync with the KPIs.
+  // Dashboard insight data: derived from successful assignment submissions,
+  // the same source used by the student dashboard. A unit is complete only
+  // when all assignments in that unit have a successful submission.
   const insightStats = useMemo(() => {
     const total = kpiStats.totalParticipants;
     const progressByUnit = [1, 2, 3, 4, 5].map(unitNumber => {
@@ -233,11 +242,13 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         if (!unit) return;
 
         enrolled += 1;
-        if (unitProgress.some(progress => (
-          progress.unitId === unit.id
-          && progress.studentId === participant.studentId
-          && progress.periodId === participant.periodId
-          && progress.isCompleted
+        const assignments = getUnitAssignments(unit);
+        const participantSubmissions = submissions.filter(submission => (
+          submission.studentId === participant.studentId
+          && submission.periodId === participant.periodId
+        ));
+        if (assignments.length > 0 && assignments.every(assignment => (
+          hasSuccessfulSubmission(participantSubmissions, assignment.id)
         ))) {
           completed += 1;
         }
@@ -262,7 +273,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         { label: 'Belum dinilai', value: kpiStats.ungradedCount, color: 'bg-orange-500', text: 'text-orange-700' },
       ]
     };
-  }, [filteredParticipants, kpiStats, learningUnits, unitProgress]);
+  }, [filteredParticipants, kpiStats, learningUnits, submissions]);
 
   // Top 3 Rankings (PRD Section 15)
   const topRankings = useMemo(() => {
