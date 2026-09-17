@@ -16,6 +16,7 @@ import { AnalyticsView } from './AnalyticsView';
 import { CourseSettings } from './CourseSettings';
 import { CourseWizardModal } from './CourseWizardModal';
 import { CopyCourseModal } from './CopyCourseModal';
+import { AIAssistantPanel } from '../common/AIAssistantPanel';
 
 import { InstructorLoginGate } from './InstructorLoginGate';
 
@@ -54,6 +55,7 @@ export const InstructorCommandCenter: React.FC<InstructorCommandCenterProps> = (
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [isCopyCourseOpen, setIsCopyCourseOpen] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
 
   useEffect(() => {
     sessionStorage.setItem(INSTRUCTOR_TAB_STORAGE_KEY, activeTab);
@@ -98,6 +100,7 @@ export const InstructorCommandCenter: React.FC<InstructorCommandCenterProps> = (
           activeTab={activeTab}
           onOpenCopyCourse={() => setIsCopyCourseOpen(true)}
           onOpenMobileMenu={() => setIsMobileSidebarOpen(true)}
+          onOpenAiAssistant={() => setIsAiAssistantOpen(true)}
         />
 
         {/* Tab Pages */}
@@ -128,6 +131,13 @@ export const InstructorCommandCenter: React.FC<InstructorCommandCenterProps> = (
           sourceCourseId={activeCourse.id}
         />
       )}
+
+      <AIAssistantPanel
+        isOpen={isAiAssistantOpen}
+        onClose={() => setIsAiAssistantOpen(false)}
+        title="Asisten AI Portal Praktik"
+        context={`Anda membantu instruktur menyiapkan konten untuk mata kuliah ${activeCourse?.name || 'praktik'}. Gunakan bahasa Indonesia yang jelas, formal, dan ramah mahasiswa.`}
+      />
 
     </div>
   );

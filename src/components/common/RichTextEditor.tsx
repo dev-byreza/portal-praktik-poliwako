@@ -17,15 +17,18 @@ import {
   Pilcrow,
   Redo2,
   SeparatorHorizontal,
+  Sparkles,
   Underline,
   Undo2,
 } from 'lucide-react';
-import { sanitizeRichTextHtml, toRichTextHtml } from '../../utils/richText';
+import { sanitizeRichTextHtml, toRichTextHtml, richTextToPlainText } from '../../utils/richText';
+import { AIAssistantPanel } from './AIAssistantPanel';
 
 interface RichTextEditorProps {
   value: string;
   onChange: (html: string) => void;
   placeholder?: string;
+  aiContext?: string;
 }
 
 type ToolbarButtonProps = {
@@ -48,10 +51,11 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({ label, onClick, children 
 );
 
 /** A small Word-like editor intended for locally testing course materials. */
-export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeholder }) => {
+export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeholder, aiContext }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageError, setImageError] = useState('');
+  const [isAiOpen, setIsAiOpen] = useState(false);
 
   useEffect(() => {
     const editor = editorRef.current;
@@ -112,6 +116,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm focus-within:ring-2 focus-within:ring-blue-500/20">
       <div className="flex flex-wrap items-center gap-1 border-b border-slate-200 bg-slate-50 p-2">
+        <div className="mr-1 flex items-center border-r border-slate-200 pr-1">
+          <ToolbarButton label="Bantu dengan AI" onClick={() => setIsAiOpen(true)}><Sparkles className="h-4 w-4 text-cyan-600" /></ToolbarButton>
+        </div>
         <div className="flex items-center border-r border-slate-200 pr-1">
           <ToolbarButton label="Paragraf" onClick={() => runCommand('formatBlock', '<p>')}><Pilcrow className="h-4 w-4" /></ToolbarButton>
           <ToolbarButton label="Judul besar" onClick={() => runCommand('formatBlock', '<h2>')}><Heading2 className="h-4 w-4" /></ToolbarButton>
@@ -154,6 +161,14 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
         className="rich-text-editor min-h-[320px] w-full overflow-y-auto p-4 text-sm leading-relaxed text-slate-800 outline-none"
       />
       {imageError && <p className="border-t border-rose-100 bg-rose-50 px-4 py-2 text-xs text-rose-700">{imageError}</p>}
+      <AIAssistantPanel
+        isOpen={isAiOpen}
+        onClose={() => setIsAiOpen(false)}
+        title="Bantu edit materi dengan AI"
+        initialText={richTextToPlainText(value)}
+        context={aiContext || 'Editor materi pembelajaran praktik di Portal Praktik Poliwako.'}
+        onApply={text => onChange(toRichTextHtml(text))}
+      />
     </div>
   );
 };

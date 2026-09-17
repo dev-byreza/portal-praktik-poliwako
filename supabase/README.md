@@ -37,3 +37,23 @@ Untuk melihat dan mengelola data secara langsung melalui antarmuka web Drizzle S
 npx drizzle-kit studio
 ```
 Buka browser pada `https://local.drizzle.studio`.
+
+## 5. Mengaktifkan Asisten AI Editor
+
+Portal menyediakan tombol **Asisten AI** di header instruktur dan tombol bantuan AI
+langsung di editor rich-text materi. Kunci OpenRouter tidak disimpan di frontend; request
+diteruskan ke Supabase Edge Function `ai-assistant` dan hanya dapat dipanggil oleh
+akun instruktur dengan domain `@politekniksorowako.ac.id`.
+
+Jalankan dari root project setelah Supabase CLI terhubung:
+
+```bash
+supabase secrets set OPENROUTER_API_KEY=sk-or-...
+supabase secrets set OPENROUTER_MODEL=openai/gpt-4o-mini
+supabase functions deploy ai-assistant
+```
+
+Pastikan `VITE_SUPABASE_URL` dan `VITE_SUPABASE_PUBLISHABLE_KEY` (atau variabel
+legacy `VITE_SUPABASE_ANON_KEY`) tersedia pada aplikasi web. Jika Edge Function
+belum dideploy atau secret belum diisi, panel tetap tampil tetapi akan memberi pesan
+konfigurasi yang jelas.

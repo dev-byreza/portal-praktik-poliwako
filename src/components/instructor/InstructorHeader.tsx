@@ -6,7 +6,8 @@ import {
   Copy,
   ChevronRight,
   Share2,
-  Menu
+  Menu,
+  Sparkles,
 } from 'lucide-react';
 import { formatIndonesianDate, getWitaDateString } from '../../utils/dateUtils';
 import { SharePortalModal } from './SharePortalModal';
@@ -15,12 +16,14 @@ interface InstructorHeaderProps {
   activeTab: string;
   onOpenCopyCourse: () => void;
   onOpenMobileMenu: () => void;
+  onOpenAiAssistant: () => void;
 }
 
 export const InstructorHeader: React.FC<InstructorHeaderProps> = ({
   activeTab,
   onOpenCopyCourse,
-  onOpenMobileMenu
+  onOpenMobileMenu,
+  onOpenAiAssistant,
 }) => {
   const { activeCourse, resetToDefaultData } = useApp();
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -72,6 +75,15 @@ export const InstructorHeader: React.FC<InstructorHeaderProps> = ({
         </div>
 
         {/* Bagikan Link Portal ke Mahasiswa */}
+        <button
+          onClick={onOpenAiAssistant}
+          className="flex items-center gap-1.5 rounded-xl border border-cyan-200 bg-cyan-50 px-2 py-1.5 text-xs font-bold text-cyan-700 transition-colors hover:bg-cyan-100 sm:px-3"
+          title="Buka Asisten AI"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Asisten AI</span>
+        </button>
+
         <button
           onClick={() => setIsShareModalOpen(true)}
           className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold rounded-xl shadow-sm shadow-cyan-600/25 hover:shadow-cyan-600/40 transition-all cursor-pointer"

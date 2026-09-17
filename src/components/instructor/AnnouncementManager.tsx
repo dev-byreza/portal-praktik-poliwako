@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Clock, Megaphone, Plus, Trash2, X } from 'lucide-react';
+import { Clock, Megaphone, Plus, Sparkles, Trash2, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Announcement, AnnouncementPriority } from '../../types';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { AIAssistantPanel } from '../common/AIAssistantPanel';
 
 const priorityStyle: Record<AnnouncementPriority, { label: string; badge: string; border: string }> = {
   INFO: { label: 'Informasi', badge: 'bg-blue-100 text-blue-700', border: 'border-blue-200' },
@@ -38,6 +39,7 @@ export const AnnouncementManager: React.FC = () => {
   const [expiresAt, setExpiresAt] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Announcement | null>(null);
+  const [aiTarget, setAiTarget] = useState<'title' | 'message' | null>(null);
 
   const coursePeriods = useMemo(
     () => periods.filter(period => period.courseId === activeCourseId),
@@ -134,7 +136,10 @@ export const AnnouncementManager: React.FC = () => {
         <form onSubmit={handleSubmit} className="mt-5 rounded-2xl border border-cyan-200 bg-cyan-50/40 p-4 sm:p-5">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <label className="text-xs font-bold text-slate-700 md:col-span-2">
-              Judul
+              <span className="flex items-center justify-between gap-2">
+                <span>Judul</span>
+                <button type="button" onClick={() => setAiTarget('title')} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold text-cyan-700 hover:bg-cyan-100"><Sparkles className="h-3 w-3" /> Bantu AI</button>
+              </span>
               <input
                 value={title}
                 onChange={event => setTitle(event.target.value)}
@@ -144,7 +149,10 @@ export const AnnouncementManager: React.FC = () => {
               />
             </label>
             <label className="text-xs font-bold text-slate-700 md:col-span-2">
-              Isi pengumuman
+              <span className="flex items-center justify-between gap-2">
+                <span>Isi pengumuman</span>
+                <button type="button" onClick={() => setAiTarget('message')} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold text-cyan-700 hover:bg-cyan-100"><Sparkles className="h-3 w-3" /> Bantu AI</button>
+              </span>
               <textarea
                 value={message}
                 onChange={event => setMessage(event.target.value)}
@@ -218,6 +226,18 @@ export const AnnouncementManager: React.FC = () => {
           <p className="mt-1 text-xs text-slate-500">Buat pengumuman untuk perubahan jadwal, tenggat, atau instruksi penting.</p>
         </div>
       )}
+
+      <AIAssistantPanel
+        isOpen={Boolean(aiTarget)}
+        onClose={() => setAiTarget(null)}
+        title={aiTarget === 'title' ? 'Bantu susun judul pengumuman' : 'Bantu susun isi pengumuman'}
+        initialText={aiTarget === 'title' ? title : message}
+        context="Pengumuman resmi untuk mahasiswa di Portal Praktik Poliwako."
+        onApply={text => {
+          if (aiTarget === 'title') setTitle(text);
+          if (aiTarget === 'message') setMessage(text);
+        }}
+      />
     </section>
   );
 };
