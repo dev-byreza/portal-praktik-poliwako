@@ -17,6 +17,8 @@ import {
   PracticePeriod,
   PracticeParticipant,
   LearningUnit,
+  LearningMaterial,
+  QuizDefinition,
   Assignment,
   UnitProgress,
   Submission,
@@ -48,6 +50,26 @@ const normalizeDeadline = (value: string): string => {
     .replace(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})(?::(\d{2}))?([+-]\d{2}:\d{2})?$/, (_match: string, date: string, time: string, seconds?: string, timezone?: string) => `${date}T${time}:${seconds || '00'}${timezone || ''}`);
   const parsed = new Date(normalized);
   return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+};
+
+// Quiz content stays compatible with the existing learning_materials table
+// during the local-first phase. No schema migration is required: the quiz
+// definition is serialized into the existing content_text column and decoded
+// back into the richer local type when learning units are loaded.
+const QUIZ_CONTENT_PREFIX = '__POLIWAKO_QUIZ_V1__';
+const serializeMaterialContent = (material: LearningMaterial): string | null => (
+  material.type === 'QUIZ' && material.quiz
+    ? `${QUIZ_CONTENT_PREFIX}${JSON.stringify(material.quiz)}`
+    : material.contentText || null
+);
+const deserializeQuiz = (type: string, contentText?: string | null): QuizDefinition | undefined => {
+  if (type !== 'QUIZ' || !contentText?.startsWith(QUIZ_CONTENT_PREFIX)) return undefined;
+  try {
+    const parsed = JSON.parse(contentText.slice(QUIZ_CONTENT_PREFIX.length));
+    return parsed && Array.isArray(parsed.questions) ? parsed as QuizDefinition : undefined;
+  } catch {
+    return undefined;
+  }
 };
 
 const mapAssignmentRow = (row: any): Assignment => ({
@@ -160,13 +182,27 @@ export class ApiService {
       return StorageService.getCourses();
     }
     try {
+      // Never trust an instructor id supplied by the caller. In live mode an
+      // authenticated instructor may only read courses owned by the current
+      // Supabase session. Anonymous requests are reserved for the public
+      // student catalog and may only read published courses.
+      const authUser = await getCurrentAuthUser();
+      const requestedInstructorId = instructorId?.trim();
+      if (authUser) {
+        if (requestedInstructorId && requestedInstructorId !== authUser.id) return [];
+      } else if (requestedInstructorId) {
+        return [];
+      }
+
       let query = supabase.from('courses').select(`
         *,
         course_sub_cpmk (*),
         rubric_criteria (*)
       `);
-      if (instructorId) {
-        query = query.eq('instructor_id', instructorId);
+      if (authUser) {
+        query = query.eq('instructor_id', authUser.id);
+      } else {
+        query = query.eq('status', 'PUBLISHED');
       }
       const { data, error } = await query;
       if (error || !data) return [];
@@ -728,7 +764,8 @@ export class ApiService {
           title: m.title,
           type: m.type,
           contentUrl: m.content_url || undefined,
-          contentText: m.content_text || undefined,
+          contentText: m.type === 'QUIZ' ? (deserializeQuiz(m.type, m.content_text)?.description || undefined) : (m.content_text || undefined),
+          quiz: deserializeQuiz(m.type, m.content_text),
           fileSize: m.file_size || undefined,
           countdownEnabled: Boolean(m.countdown_enabled),
           countdownMinutes: Number(m.countdown_minutes) || undefined,
@@ -818,7 +855,7 @@ export class ApiService {
         title: material.title,
         type: material.type,
         content_url: material.contentUrl || null,
-        content_text: material.contentText || null,
+        content_text: serializeMaterialContent(material),
         file_size: material.fileSize || null,
         created_at: material.createdAt,
         countdown_enabled: Boolean(material.countdownEnabled),

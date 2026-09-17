@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { LearningUnit, LearningMaterial, Assignment } from '../../types';
+import { LearningUnit, LearningMaterial, Assignment, QuizDefinition } from '../../types';
 import {
   BookOpen,
   Plus,
@@ -35,6 +35,7 @@ import { formatDeadline, toDateTimeLocalWita, fromDateTimeLocalWita } from '../.
 import { getYouTubeVideoId, toYouTubeEmbedUrl } from '../../utils/youtubeUtils';
 import { richTextToPlainText } from '../../utils/richText';
 import { getUnitAssignments, withUnitAssignments } from '../../utils/learningAssignments';
+import { QuizBuilder } from './QuizBuilder';
 
 const newStudioEntityId = (prefix: string): string => (
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -78,7 +79,7 @@ export const LearningContentStudio: React.FC = () => {
   const [autoRedirectAfterCopy, setAutoRedirectAfterCopy] = useState(true);
 
   const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
-  const [matType, setMatType] = useState<'RICHTEXT' | 'PDF' | 'YOUTUBE' | 'EXTERNAL_LINK'>('PDF');
+  const [matType, setMatType] = useState<'RICHTEXT' | 'PDF' | 'YOUTUBE' | 'EXTERNAL_LINK' | 'QUIZ'>('PDF');
   const [matTitle, setMatTitle] = useState('');
   const [matUrl, setMatUrl] = useState('');
   const [matText, setMatText] = useState('');
@@ -359,6 +360,30 @@ export const LearningContentStudio: React.FC = () => {
       'info'
     );
     setEditingMaterial(null);
+  };
+
+  const handleSaveQuiz = (quiz: QuizDefinition) => {
+    if (!activeSelectedUnit) return;
+    const newMat: LearningMaterial = {
+      id: editingMaterial?.id || newStudioEntityId('mat'),
+      unitId: activeSelectedUnit.id,
+      title: matTitle.trim() || 'Kuis Interaktif',
+      type: 'QUIZ',
+      contentText: quiz.description,
+      quiz,
+      countdownEnabled: undefined,
+      countdownMinutes: undefined,
+      countdownStartedAt: undefined
+    };
+    const updatedMaterials = editingMaterial
+      ? activeSelectedUnit.materials.map(material => material.id === editingMaterial.id ? newMat : material)
+      : [...activeSelectedUnit.materials, newMat];
+    updateLearningUnit({ ...activeSelectedUnit, materials: updatedMaterials });
+    setIsMaterialModalOpen(false);
+    setEditingMaterial(null);
+    setMatType('PDF');
+    setMatTitle('');
+    showToast(editingMaterial ? 'Kuis Diperbarui' : 'Kuis Ditambahkan', `Kuis "${newMat.title}" tersimpan di perangkat lokal.`, 'success');
   };
 
   const handleOpenRichTextComposer = () => {
@@ -721,6 +746,7 @@ export const LearningContentStudio: React.FC = () => {
                           {mat.type === 'PDF' && <FileText className="w-5 h-5 text-red-600" />}
                           {mat.type === 'RICHTEXT' && <FileText className="w-5 h-5 text-blue-600" />}
                           {mat.type === 'EXTERNAL_LINK' && <ExternalLink className="w-5 h-5 text-emerald-600" />}
+                          {mat.type === 'QUIZ' && <CheckSquare className="w-5 h-5 text-indigo-600" />}
                         </div>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-1.5">
@@ -747,6 +773,9 @@ export const LearningContentStudio: React.FC = () => {
                                 Preview PDF
                               </button>
                             </div>
+                          )}
+                          {mat.type === 'QUIZ' && (
+                            <p className="mt-1 text-[11px] text-indigo-700">{mat.quiz?.questions.length || 0} pertanyaan interaktif · gambar didukung</p>
                           )}
                         </div>
                       </div>
@@ -1036,14 +1065,31 @@ export const LearningContentStudio: React.FC = () => {
       {isMaterialModalOpen && (
         <ModalPortal>
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className={`bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-h-[calc(100vh-2rem)] overflow-y-auto flex flex-col ${matType === 'RICHTEXT' ? 'max-w-4xl' : 'max-w-md'}`}>
+          <div className={`bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-h-[calc(100vh-2rem)] overflow-y-auto flex flex-col ${matType === 'RICHTEXT' || matType === 'QUIZ' ? 'max-w-4xl' : 'max-w-md'}`}>
             <div className="p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
-              <h3 className="text-base font-bold text-white">{editingMaterial ? 'Edit Lampiran Materi' : matType === 'RICHTEXT' ? 'Tulis Materi Unit' : 'Tambah Lampiran Materi'}</h3>
+              <h3 className="text-base font-bold text-white">{editingMaterial ? (matType === 'QUIZ' ? 'Edit Kuis Interaktif' : 'Edit Lampiran Materi') : matType === 'RICHTEXT' ? 'Tulis Materi Unit' : matType === 'QUIZ' ? 'Buat Kuis Interaktif' : 'Tambah Lampiran Materi'}</h3>
               <button onClick={() => setIsMaterialModalOpen(false)} className="text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
+            {matType === 'QUIZ' ? (
+              <div className="p-6">
+                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-700">Judul Kuis *</label>
+                <input
+                  type="text"
+                  value={matTitle}
+                  onChange={event => setMatTitle(event.target.value)}
+                  placeholder="Contoh: Kuis Pemahaman Dasar CNC"
+                  className="mb-4 w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                />
+                <QuizBuilder
+                  initialQuiz={editingMaterial?.quiz}
+                  onSave={handleSaveQuiz}
+                  onCancel={() => setIsMaterialModalOpen(false)}
+                />
+              </div>
+            ) : (
             <form onSubmit={handleAddMaterial} className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
@@ -1085,6 +1131,13 @@ export const LearningContentStudio: React.FC = () => {
                     }`}
                   >
                     Link Eksternal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMatType('QUIZ')}
+                    className="p-2.5 rounded-xl border text-center font-bold bg-slate-50 border-slate-200 text-slate-700"
+                  >
+                    Kuis Interaktif
                   </button>
                 </div>
               </div>
@@ -1162,6 +1215,7 @@ export const LearningContentStudio: React.FC = () => {
                 </button>
               </div>
             </form>
+            )}
           </div>
           </div>
         </ModalPortal>

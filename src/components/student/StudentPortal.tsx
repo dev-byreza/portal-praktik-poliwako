@@ -39,6 +39,7 @@ import { hasSuccessfulSubmission } from '../../utils/studentProgress';
 import { sanitizeRichTextHtml } from '../../utils/richText';
 import { CountdownLockedPanel, CountdownModal, getCountdownEndAt, isCountdownLocked } from './StudentCountdownGate';
 import { getUnitAssignments } from '../../utils/learningAssignments';
+import { InteractiveQuiz } from './InteractiveQuiz';
 
 interface StudentPortalProps {
   courseSlug?: string;
@@ -869,6 +870,10 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                                 dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(mat.contentText) }}
                               />
                             </div>
+                          )}
+
+                          {mat.type === 'QUIZ' && (
+                            <InteractiveQuiz material={mat} studentId={studentSession?.studentId} />
                           )}
 
                           {/* YouTube Video Embed (PRD Section 31) - Refined Comfortable Size */}

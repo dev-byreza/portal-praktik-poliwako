@@ -105,7 +105,27 @@ export interface PracticeParticipant {
   finalProjectFeedback?: string;
 }
 
-export type MaterialType = 'RICHTEXT' | 'PDF' | 'YOUTUBE' | 'EXTERNAL_LINK';
+export type MaterialType = 'RICHTEXT' | 'PDF' | 'YOUTUBE' | 'EXTERNAL_LINK' | 'QUIZ';
+
+export interface QuizOption {
+  id: string;
+  text: string;
+}
+
+export interface QuizQuestion {
+  id: string;
+  prompt: string;
+  imageUrl?: string;
+  options: QuizOption[];
+  correctOptionId: string;
+  explanation?: string;
+}
+
+export interface QuizDefinition {
+  description?: string;
+  questions: QuizQuestion[];
+  shuffleQuestions?: boolean;
+}
 
 export interface LearningMaterial {
   id: string;
@@ -114,6 +134,7 @@ export interface LearningMaterial {
   type: MaterialType;
   contentUrl?: string; // PDF link or YouTube or Google Drive
   contentText?: string; // Rich text notes
+  quiz?: QuizDefinition;
   fileSize?: string;
   countdownEnabled?: boolean;
   countdownMinutes?: number;

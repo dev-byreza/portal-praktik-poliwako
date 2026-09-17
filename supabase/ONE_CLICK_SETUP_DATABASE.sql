@@ -445,6 +445,12 @@ CREATE POLICY "Instructors manage own courses" ON public.courses FOR ALL TO auth
 USING ((select auth.uid()) = instructor_id)
 WITH CHECK ((select auth.uid()) = instructor_id);
 
+-- Students use the anonymous role. Keep this policy off authenticated
+-- sessions so one instructor cannot see another instructor's published
+-- courses through PostgreSQL's permissive policy OR behavior.
+CREATE POLICY "Student view published courses" ON public.courses FOR SELECT TO anon
+USING (status = 'PUBLISHED');
+
 -- 3. Students
 CREATE POLICY "Authenticated instructors view all students" ON public.students FOR SELECT TO authenticated USING ((select auth.uid()) IS NOT NULL);
 CREATE POLICY "Authenticated instructors add students" ON public.students FOR INSERT TO authenticated WITH CHECK ((select auth.uid()) IS NOT NULL);

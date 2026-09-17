@@ -11,7 +11,7 @@
 DROP POLICY IF EXISTS "Student view published courses" ON public.courses;
 CREATE POLICY "Student view published courses"
   ON public.courses FOR SELECT
-  TO anon, authenticated
+  TO anon
   USING (status = 'PUBLISHED');
 
 DROP POLICY IF EXISTS "Student view periods" ON public.practice_periods;
