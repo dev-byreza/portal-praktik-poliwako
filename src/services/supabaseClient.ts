@@ -5,19 +5,23 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// Prefer Supabase's publishable key name, while keeping the legacy variable as
+// a compatibility fallback for existing deployments.
+const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+  || import.meta.env.VITE_SUPABASE_ANON_KEY
+  || '';
 
 export const isSupabaseConfigured = (): boolean => {
   return Boolean(
     supabaseUrl &&
-    supabaseAnonKey &&
+    supabasePublishableKey &&
     supabaseUrl.startsWith('https://') &&
-    supabaseAnonKey.length > 20
+    supabasePublishableKey.length > 20
   );
 };
 
 export const supabase: SupabaseClient | null = isSupabaseConfigured()
-  ? createClient(supabaseUrl, supabaseAnonKey, {
+  ? createClient(supabaseUrl, supabasePublishableKey, {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
@@ -74,11 +78,12 @@ export async function signUpInstructor(
   name: string,
   department: string = 'Rekayasa Perancangan Mekanik',
   nip?: string
-): Promise<{ user: any; error: Error | null }> {
+): Promise<{ user: any; session: any; error: Error | null }> {
   const cleanEmail = email.trim().toLowerCase();
   if (!cleanEmail.endsWith('@politekniksorowako.ac.id')) {
     return {
       user: null,
+      session: null,
       error: new Error(
         'Akses ditolak: Hanya email resmi dengan domain @politekniksorowako.ac.id yang diizinkan.'
       ),
@@ -88,6 +93,7 @@ export async function signUpInstructor(
   if (password.length < 6) {
     return {
       user: null,
+      session: null,
       error: new Error('Password minimal harus terdiri dari 6 karakter.'),
     };
   }
@@ -99,6 +105,7 @@ export async function signUpInstructor(
         email: cleanEmail,
         user_metadata: { name, department, nip }
       },
+      session: null,
       error: null
     };
   }
@@ -119,8 +126,12 @@ export async function signUpInstructor(
 
     if (error) throw error;
 
-    if (data.user) {
-      await supabase.from('profiles').upsert({
+    // The database trigger creates the profile during auth signup. When email
+    // confirmation is disabled, refresh the profile fields while a session is
+    // available; when confirmation is enabled there is no authenticated
+    // browser session yet, so do not issue an RLS-protected write here.
+    if (data.user && data.session) {
+      const { error: profileError } = await supabase.from('profiles').upsert({
         id: data.user.id,
         email: cleanEmail,
         name: name.trim(),
@@ -128,11 +139,12 @@ export async function signUpInstructor(
         nip: nip?.trim() || null,
         updated_at: new Date().toISOString()
       });
+      if (profileError) throw profileError;
     }
 
-    return { user: data.user, error: null };
+    return { user: data.user, session: data.session, error: null };
   } catch (err: any) {
-    return { user: null, error: err };
+    return { user: null, session: null, error: err };
   }
 }
 

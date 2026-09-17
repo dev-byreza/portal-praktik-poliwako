@@ -120,7 +120,7 @@ interface AppContextType {
   submitStudentRemedial: (remedialId: string, file: File) => Promise<void>;
 
   // Instructor Actions
-  createCourse: (course: Partial<Course>) => Course;
+  createCourse: (course: Partial<Course>) => Promise<Course>;
   copyCourse: (sourceCourseId: string, newName: string, academicYear: string, semester: 'Ganjil' | 'Genap') => Course;
   updateCourse: (course: Course) => Promise<void>;
   deleteCourse: (courseId: string) => void;
@@ -423,10 +423,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (ApiService.isLiveBackend() && password) {
       const { error } = await ApiService.loginInstructor(cleanEmail, password);
       if (error) {
-        console.warn('Supabase auth notice:', error.message);
-        const message = error.message.includes('Invalid login credentials') || error.message.includes('invalid_credentials')
+        const rawMessage = String(error.message || '').trim();
+        const normalizedMessage = rawMessage.toLowerCase();
+        console.warn('Supabase auth notice:', rawMessage);
+        const message = normalizedMessage.includes('invalid login credentials') || normalizedMessage.includes('invalid_credentials')
           ? 'Email atau password salah. Silakan periksa kembali.'
-          : 'Login Supabase gagal. Periksa koneksi dan akun Anda.';
+          : normalizedMessage.includes('email not confirmed') || normalizedMessage.includes('email_not_confirmed')
+            ? 'Email akun belum dikonfirmasi. Buka email verifikasi Supabase lalu coba masuk kembali.'
+            : normalizedMessage.includes('failed to fetch') || normalizedMessage.includes('network')
+              ? 'Supabase tidak dapat dihubungi. Periksa koneksi internet dan URL proyek.'
+              : normalizedMessage.includes('invalid api key') || normalizedMessage.includes('apikey')
+                ? 'Kunci Supabase tidak valid. Periksa VITE_SUPABASE_PUBLISHABLE_KEY pada environment aplikasi.'
+                : `Login Supabase gagal: ${rawMessage || 'penyebab tidak diketahui'}`;
         showToast('Login Gagal', message, 'error');
         return { success: false, message };
       }
@@ -500,7 +508,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     try {
-      const { user, error } = await ApiService.signUpInstructor(
+      const { user, session, error } = await ApiService.signUpInstructor(
         cleanEmail,
         params.password,
         params.name.trim(),
@@ -513,7 +521,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return { success: false, message: error.message };
       }
 
-      const authInstructorId = user?.id || await ApiService.getCurrentInstructorId();
+      // A Supabase user can be returned before email confirmation, but that
+      // response does not grant an authenticated session. Do not enter the
+      // instructor dashboard or attempt RLS-protected writes in that state.
+      const authInstructorId = session?.user?.id || await ApiService.getCurrentInstructorId();
       if (ApiService.isLiveBackend() && !authInstructorId) {
         showToast('Pendaftaran Berhasil', 'Akun dibuat. Silakan masuk setelah verifikasi email selesai.', 'success');
         return { success: true, message: 'Akun dibuat. Silakan masuk setelah verifikasi email.' };
@@ -557,6 +568,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 
   const logoutInstructor = () => {
+    void ApiService.logout();
     setIsInstructorLoggedIn(false);
     StorageService.setInstructorLoggedIn(false);
     setRole('STUDENT');
@@ -891,7 +903,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Instructor Course Operations
-  const createCourse = (courseData: Partial<Course>): Course => {
+  const createCourse = async (courseData: Partial<Course>): Promise<Course> => {
     const newCourse: Course = {
       id: newEntityId('course'),
       instructorId: instructor.id,
@@ -915,16 +927,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ]
     };
 
-    setCourses(prev => [newCourse, ...prev]);
-    setActiveCourseId(newCourse.id);
-    void ApiService.saveCourse(newCourse).then(saved => {
-      setCourses(prev => prev.map(course => course.id === newCourse.id ? saved : course));
+    try {
+      const saved = await ApiService.saveCourse(newCourse);
+      setCourses(prev => [saved, ...prev.filter(course => course.id !== saved.id)]);
       setActiveCourseId(saved.id);
-    }).catch(error => {
-      showToast('Sinkronisasi Gagal', `Mata kuliah tersimpan lokal, tetapi gagal dikirim ke Supabase: ${error.message}`, 'error');
-    });
-    showToast('Mata Kuliah Dibuat', `Mata Kuliah "${newCourse.name}" berhasil dibuat dan siap digunakan.`, 'success');
-    return newCourse;
+      showToast(
+        'Mata Kuliah Tersimpan',
+        isLiveBackend
+          ? `Mata Kuliah "${saved.name}" berhasil disimpan ke Supabase.`
+          : `Mata Kuliah "${saved.name}" berhasil disimpan di perangkat ini.`,
+        'success'
+      );
+      return saved;
+    } catch (error: any) {
+      setCourses(prev => prev.filter(course => course.id !== newCourse.id));
+      if (activeCourseId === newCourse.id) setActiveCourseIdState('');
+      const message = error?.message || 'Mata kuliah tidak dapat disimpan ke Supabase.';
+      showToast('Penyimpanan Gagal', message, 'error');
+      throw error;
+    }
   };
 
   const copyCourse = (sourceCourseId: string, newName: string, academicYear: string, semester: 'Ganjil' | 'Genap'): Course => {

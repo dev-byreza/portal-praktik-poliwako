@@ -85,7 +85,7 @@ export class ApiService {
     name: string,
     department: string = 'Rekayasa Perancangan Mekanik',
     nip?: string
-  ): Promise<{ user?: any; error: Error | null }> {
+  ): Promise<{ user?: any; session?: any; error: Error | null }> {
     return authSignUpInstructor(email, password, name, department, nip);
   }
 

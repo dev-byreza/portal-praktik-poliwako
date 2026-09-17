@@ -59,16 +59,20 @@ BEGIN
         RAISE EXCEPTION 'Akses ditolak: Hanya akun email @politekniksorowako.ac.id yang diizinkan.';
     END IF;
 
-    INSERT INTO public.profiles (id, email, name, avatar_url)
+    INSERT INTO public.profiles (id, email, name, nip, department, avatar_url)
     VALUES (
         NEW.id,
         NEW.email,
         COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
+        NULLIF(NEW.raw_user_meta_data->>'nip', ''),
+        COALESCE(NULLIF(NEW.raw_user_meta_data->>'department', ''), 'Teknik Mesin'),
         NEW.raw_user_meta_data->>'avatar_url'
     )
     ON CONFLICT (id) DO UPDATE SET
         email = EXCLUDED.email,
         name = COALESCE(EXCLUDED.name, public.profiles.name),
+        nip = COALESCE(EXCLUDED.nip, public.profiles.nip),
+        department = COALESCE(EXCLUDED.department, public.profiles.department),
         avatar_url = COALESCE(EXCLUDED.avatar_url, public.profiles.avatar_url),
         updated_at = NOW();
 
@@ -432,6 +436,8 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 1. Profiles
 CREATE POLICY "Profiles viewable by owner" ON public.profiles FOR SELECT USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Profiles insertable by owner" ON public.profiles;
+CREATE POLICY "Profiles insertable by owner" ON public.profiles FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
 CREATE POLICY "Profiles updatable by owner" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
 -- 2. Courses

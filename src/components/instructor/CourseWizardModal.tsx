@@ -38,6 +38,7 @@ export const CourseWizardModal: React.FC<CourseWizardModalProps> = ({ isOpen, on
   const [department, setDepartment] = useState('Perawatan dan Perbaikan Mesin');
   const [description, setDescription] = useState('');
   const [slug, setSlug] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Sub-CPMK states
   const [subCpmks, setSubCpmks] = useState<SubCPMK[]>([
@@ -75,26 +76,32 @@ export const CourseWizardModal: React.FC<CourseWizardModalProps> = ({ isOpen, on
     setSubCpmks(subCpmks.filter(c => c.id !== id));
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     if (!courseName.trim()) {
       showToast('Form Tidak Lengkap', 'Nama Mata Kuliah wajib diisi.', 'error');
       setCurrentStep(1);
       return;
     }
 
-    createCourse({
-      name: courseName.trim(),
-      code: courseCode.trim() || 'MES-100',
-      academicYear,
-      semester,
-      slug: slug.trim() || `course-${Date.now()}`,
-      department,
-      description,
-      subCpmks,
-      qualityRubrics
-    });
-
-    onClose();
+    setIsSaving(true);
+    try {
+      await createCourse({
+        name: courseName.trim(),
+        code: courseCode.trim() || 'MES-100',
+        academicYear,
+        semester,
+        slug: slug.trim() || `course-${Date.now()}`,
+        department,
+        description,
+        subCpmks,
+        qualityRubrics
+      });
+      onClose();
+    } catch {
+      // The context already shows the backend error and removes the unsaved row.
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const steps = [
@@ -452,10 +459,11 @@ export const CourseWizardModal: React.FC<CourseWizardModalProps> = ({ isOpen, on
           ) : (
             <button
               onClick={handleFinish}
-              className="px-8 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/30 flex items-center gap-2"
+              disabled={isSaving}
+              className="px-8 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-60 disabled:cursor-wait text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/30 flex items-center gap-2"
             >
               <Send className="w-4 h-4" />
-              <span>Publikasikan Mata Kuliah</span>
+              <span>{isSaving ? 'Menyimpan ke Supabase...' : 'Publikasikan Mata Kuliah'}</span>
             </button>
           )}
         </div>
