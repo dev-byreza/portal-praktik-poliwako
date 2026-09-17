@@ -21,6 +21,7 @@ import {
   RemedialAssignment,
   FeedbackRule,
   Announcement,
+  StudentSession,
 } from '../types';
 import { StorageService } from '../services/storageService';
 import { isSupabaseConfigured, uploadSubmissionPDF } from '../services/supabaseClient';
@@ -88,7 +89,7 @@ interface AppContextType {
   announcements: Announcement[];
 
   // Student Session & Authentication
-  studentSession: { studentId: string; courseSlug: string; periodId: string } | null;
+  studentSession: StudentSession | null;
   currentStudent: Student | null;
   verifyStudentNim: (nim: string, courseSlug?: string, periodId?: string) => Promise<{
     exists: boolean;
@@ -677,7 +678,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ...StorageService.getStudents().filter(student => student.id !== updatedStudent.id),
           updatedStudent,
         ]);
-        const session = { studentId: updatedStudent.id, courseSlug, periodId: result.periodId || periodId };
+        const session = { studentId: updatedStudent.id, courseSlug, periodId: result.periodId || periodId, sessionToken: result.sessionToken };
         setStudentSessionState(session);
         StorageService.setStudentSession(session);
         setRole('STUDENT');
@@ -726,7 +727,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ...StorageService.getStudents().filter(student => student.id !== remoteStudent.id),
           remoteStudent,
         ]);
-        const session = { studentId: remoteStudent.id, courseSlug, periodId: result.periodId || periodId };
+        const session = { studentId: remoteStudent.id, courseSlug, periodId: result.periodId || periodId, sessionToken: result.sessionToken };
         setStudentSessionState(session);
         StorageService.setStudentSession(session);
         setRole('STUDENT');

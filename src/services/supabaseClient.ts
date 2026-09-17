@@ -289,3 +289,21 @@ export async function getSubmissionSignedUrl(storagePath: string): Promise<strin
     return null;
   }
 }
+
+/** Store quiz illustrations in Storage instead of embedding base64 data in
+ * the quiz JSON/database row. The materials bucket is public-read by design. */
+export async function uploadQuizImage(dataUrl: string, materialId: string, questionId: string): Promise<string> {
+  if (!supabase || !dataUrl.startsWith('data:')) return dataUrl;
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  const extension = blob.type.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'png';
+  const filePath = `quiz/${materialId}/${questionId}.${extension}`;
+  const { error } = await supabase.storage.from('materials').upload(filePath, blob, {
+    cacheControl: '3600',
+    upsert: true,
+    contentType: blob.type || 'image/png',
+  });
+  if (error) throw error;
+  const { data } = supabase.storage.from('materials').getPublicUrl(filePath);
+  return data.publicUrl;
+}

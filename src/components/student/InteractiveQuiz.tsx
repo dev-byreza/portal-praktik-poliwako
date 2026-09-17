@@ -1,27 +1,25 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Circle, RotateCcw, Trophy, XCircle } from 'lucide-react';
-import { LearningMaterial, QuizQuestion } from '../../types';
+import { LearningMaterial, QuizAttemptResult, QuizQuestion } from '../../types';
+import { ApiService } from '../../services/apiService';
 
 interface InteractiveQuizProps {
   material: LearningMaterial;
   studentId?: string;
-}
-
-interface QuizResult {
-  score: number;
-  correct: number;
-  total: number;
-  submittedAt: string;
+  periodId?: string;
+  sessionToken?: string;
 }
 
 const shuffle = <T,>(items: T[]) => [...items].sort(() => Math.random() - 0.5);
 
-export const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ material, studentId }) => {
+export const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ material, studentId, periodId, sessionToken }) => {
   const quiz = material.quiz;
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [result, setResult] = useState<QuizResult | null>(null);
+  const [result, setResult] = useState<QuizAttemptResult | null>(null);
   const [showReview, setShowReview] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const storageKey = useMemo(() => `poliwako_quiz_result:${studentId || 'anonymous'}:${material.id}`, [studentId, material.id]);
 
@@ -32,7 +30,7 @@ export const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ material, stud
     setShowReview(false);
     try {
       const saved = localStorage.getItem(storageKey);
-      setResult(saved ? JSON.parse(saved) as QuizResult : null);
+      setResult(saved ? JSON.parse(saved) as QuizAttemptResult : null);
     } catch {
       setResult(null);
     }
@@ -40,17 +38,41 @@ export const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ material, stud
 
   if (!quiz || quiz.questions.length === 0) return null;
 
-  const submitQuiz = () => {
-    const correct = questions.reduce((total, question) => total + (answers[question.id] === question.correctOptionId ? 1 : 0), 0);
-    const nextResult: QuizResult = {
-      score: Math.round((correct / questions.length) * 100),
-      correct,
-      total: questions.length,
-      submittedAt: new Date().toISOString()
-    };
-    setResult(nextResult);
-    setShowReview(true);
-    localStorage.setItem(storageKey, JSON.stringify(nextResult));
+  const submitQuiz = async () => {
+    setSubmitError('');
+    setIsSubmitting(true);
+    try {
+      let nextResult: QuizAttemptResult | null = null;
+      if (ApiService.isLiveBackend()) {
+        if (!studentId || !periodId || !sessionToken) {
+          throw new Error('Sesi mahasiswa belum siap. Silakan login kembali sebelum mengirim quiz.');
+        }
+        nextResult = await ApiService.submitQuizAttempt({ sessionToken, materialId: material.id, periodId, answers });
+        if (nextResult?.answers) {
+          const answerByQuestion = new Map(nextResult.answers.map(answer => [answer.questionId, answer]));
+          setQuestions(previous => previous.map(question => ({
+            ...question,
+            correctOptionId: answerByQuestion.get(question.id)?.correctOptionId || question.correctOptionId,
+          })));
+        }
+      } else {
+        const correct = questions.reduce((total, question) => total + (answers[question.id] === question.correctOptionId ? 1 : 0), 0);
+        nextResult = {
+          score: Math.round((correct / questions.length) * 100),
+          correct,
+          total: questions.length,
+          submittedAt: new Date().toISOString(),
+        };
+      }
+      if (!nextResult) throw new Error('Hasil quiz belum diterima dari server.');
+      setResult(nextResult);
+      setShowReview(true);
+      localStorage.setItem(storageKey, JSON.stringify(nextResult));
+    } catch (error: any) {
+      setSubmitError(error?.message || 'Quiz gagal dikirim. Silakan coba lagi.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const resetQuiz = () => {
@@ -114,8 +136,9 @@ export const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ material, stud
             <button type="button" onClick={resetQuiz} className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-xs font-bold text-emerald-700 shadow-sm hover:bg-emerald-100"><RotateCcw className="h-3.5 w-3.5" /> Coba Lagi</button>
           </div>
         ) : (
-          <button type="button" onClick={submitQuiz} disabled={answeredCount !== questions.length} className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-xs font-bold text-white shadow-md shadow-indigo-600/20 transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">{answeredCount === questions.length ? 'Kirim Jawaban & Lihat Skor' : `Jawab semua pertanyaan (${answeredCount}/${questions.length})`}</button>
+          <button type="button" onClick={() => { void submitQuiz(); }} disabled={answeredCount !== questions.length || isSubmitting} className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-xs font-bold text-white shadow-md shadow-indigo-600/20 transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">{isSubmitting ? 'Memeriksa jawaban...' : answeredCount === questions.length ? 'Kirim Jawaban & Lihat Skor' : `Jawab semua pertanyaan (${answeredCount}/${questions.length})`}</button>
         )}
+        {submitError && <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-700">{submitError}</p>}
       </div>
     </section>
   );

@@ -177,6 +177,8 @@ export const LearningContentStudio: React.FC = () => {
   }, [periodUnits, selectedUnitId, selectedUnitStorageKey]);
 
   const activeSelectedUnit = periodUnits.find(u => u.id === selectedUnitId) || periodUnits[0];
+  const activeUnitMaterials = activeSelectedUnit?.materials.filter(material => material.type !== 'QUIZ') || [];
+  const activeUnitQuizzes = activeSelectedUnit?.materials.filter(material => material.type === 'QUIZ') || [];
 
   const handleOpenProjectLink = () => {
     if (!activeSelectedPeriod) return;
@@ -376,14 +378,25 @@ export const LearningContentStudio: React.FC = () => {
       countdownStartedAt: undefined
     };
     const updatedMaterials = editingMaterial
-      ? activeSelectedUnit.materials.map(material => material.id === editingMaterial.id ? newMat : material)
-      : [...activeSelectedUnit.materials, newMat];
+      ? [...activeSelectedUnit.materials.map(material => material.id === editingMaterial.id ? newMat : material)
+          .filter(material => material.type !== 'QUIZ'), newMat, ...activeUnitQuizzes.filter(quizMaterial => quizMaterial.id !== editingMaterial.id)]
+      : [...activeUnitMaterials, ...activeUnitQuizzes, newMat];
     updateLearningUnit({ ...activeSelectedUnit, materials: updatedMaterials });
     setIsMaterialModalOpen(false);
     setEditingMaterial(null);
     setMatType('PDF');
     setMatTitle('');
     showToast(editingMaterial ? 'Kuis Diperbarui' : 'Kuis Ditambahkan', `Kuis "${newMat.title}" tersimpan di perangkat lokal.`, 'success');
+  };
+
+  const handleOpenCreateQuiz = () => {
+    if (!activeSelectedUnit) return;
+    setEditingMaterial(null);
+    setMatType('QUIZ');
+    setMatTitle(`Quiz Unit ${activeSelectedUnit.unitNumber}`);
+    setMatUrl('');
+    setMatText('');
+    setIsMaterialModalOpen(true);
   };
 
   const handleOpenRichTextComposer = () => {
@@ -418,16 +431,17 @@ export const LearningContentStudio: React.FC = () => {
 
   const handleMoveMaterial = (matId: string, direction: 'up' | 'down') => {
     if (!activeSelectedUnit) return;
-    const currentIndex = activeSelectedUnit.materials.findIndex(material => material.id === matId);
+    const reorderableMaterials = activeSelectedUnit.materials.filter(material => material.type !== 'QUIZ');
+    const currentIndex = reorderableMaterials.findIndex(material => material.id === matId);
     if (currentIndex < 0) return;
 
     const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (targetIndex < 0 || targetIndex >= activeSelectedUnit.materials.length) return;
+    if (targetIndex < 0 || targetIndex >= reorderableMaterials.length) return;
 
-    const reorderedMaterials = [...activeSelectedUnit.materials];
+    const reorderedMaterials = [...reorderableMaterials];
     const [movedMaterial] = reorderedMaterials.splice(currentIndex, 1);
     reorderedMaterials.splice(targetIndex, 0, movedMaterial);
-    updateLearningUnit({ ...activeSelectedUnit, materials: reorderedMaterials });
+    updateLearningUnit({ ...activeSelectedUnit, materials: [...reorderedMaterials, ...activeUnitQuizzes] });
     showToast(
       'Urutan Materi Diubah',
       `Materi "${movedMaterial.title}" dipindahkan ${direction === 'up' ? 'ke atas' : 'ke bawah'}.`,
@@ -702,43 +716,25 @@ export const LearningContentStudio: React.FC = () => {
                   )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={() => handleOpenCopyModal(activeSelectedUnit)}
-                    className="px-3.5 py-2 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-bold rounded-xl border border-slate-200 transition-colors flex items-center gap-1.5"
-                    title="Salin unit ini ke minggu lain"
-                  >
-                    <Copy className="w-4 h-4 text-blue-600" />
-                    <span>Salin Unit Ini</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setEditingMaterial(null);
-                      setMatType('PDF');
-                      setMatTitle('');
-                      setMatUrl('');
-                      setMatText('');
-                      setMatCountdownEnabled(false);
-                      setMatCountdownMinutes('5');
-                      setIsMaterialModalOpen(true);
-                    }}
-                    className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow-sm transition-colors flex items-center gap-1.5"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Tambah Materi</span>
-                  </button>
-                </div>
+                <button
+                  onClick={() => handleOpenCopyModal(activeSelectedUnit)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2 text-xs font-bold text-slate-700 transition-colors hover:bg-blue-50 hover:text-blue-700"
+                  title="Salin unit ini ke minggu lain"
+                >
+                  <Copy className="h-4 w-4 text-blue-600" />
+                  <span>Salin Unit Ini</span>
+                </button>
               </div>
 
               {/* Materials List */}
               <div className="space-y-3">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                   <BookOpen className="w-4 h-4 text-blue-600" />
-                  <span>Lampiran Materi Pada Unit Ini ({activeSelectedUnit.materials.length})</span>
+                  <span>Lampiran Materi Pada Unit Ini ({activeUnitMaterials.length})</span>
                 </h4>
 
                 <div className="space-y-3">
-                  {activeSelectedUnit.materials.map(mat => (
+                  {activeUnitMaterials.map(mat => (
                     <div key={mat.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3 min-w-0">
                         <div className="mt-0.5 shrink-0">
@@ -746,7 +742,6 @@ export const LearningContentStudio: React.FC = () => {
                           {mat.type === 'PDF' && <FileText className="w-5 h-5 text-red-600" />}
                           {mat.type === 'RICHTEXT' && <FileText className="w-5 h-5 text-blue-600" />}
                           {mat.type === 'EXTERNAL_LINK' && <ExternalLink className="w-5 h-5 text-emerald-600" />}
-                          {mat.type === 'QUIZ' && <CheckSquare className="w-5 h-5 text-indigo-600" />}
                         </div>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-1.5">
@@ -774,9 +769,6 @@ export const LearningContentStudio: React.FC = () => {
                               </button>
                             </div>
                           )}
-                          {mat.type === 'QUIZ' && (
-                            <p className="mt-1 text-[11px] text-indigo-700">{mat.quiz?.questions.length || 0} pertanyaan interaktif · gambar didukung</p>
-                          )}
                         </div>
                       </div>
 
@@ -784,7 +776,7 @@ export const LearningContentStudio: React.FC = () => {
                         <div className="flex flex-col items-center gap-0.5 mr-1">
                           <button
                             onClick={() => handleMoveMaterial(mat.id, 'up')}
-                            disabled={activeSelectedUnit.materials[0]?.id === mat.id}
+                            disabled={activeUnitMaterials[0]?.id === mat.id}
                             className="p-1 text-slate-400 hover:text-blue-600 disabled:opacity-25 disabled:cursor-not-allowed rounded transition-colors"
                             title="Pindahkan materi ke atas"
                             aria-label={`Pindahkan ${mat.title} ke atas`}
@@ -793,7 +785,7 @@ export const LearningContentStudio: React.FC = () => {
                           </button>
                           <button
                             onClick={() => handleMoveMaterial(mat.id, 'down')}
-                            disabled={activeSelectedUnit.materials[activeSelectedUnit.materials.length - 1]?.id === mat.id}
+                            disabled={activeUnitMaterials[activeUnitMaterials.length - 1]?.id === mat.id}
                             className="p-1 text-slate-400 hover:text-blue-600 disabled:opacity-25 disabled:cursor-not-allowed rounded transition-colors"
                             title="Pindahkan materi ke bawah"
                             aria-label={`Pindahkan ${mat.title} ke bawah`}
@@ -825,7 +817,7 @@ export const LearningContentStudio: React.FC = () => {
                     className="w-full rounded-xl border border-dashed border-blue-200 bg-blue-50/40 p-5 text-center transition-colors hover:border-blue-400 hover:bg-blue-50"
                   >
                     <span className="block text-xs font-bold text-blue-700">
-                      {activeSelectedUnit.materials.length === 0 ? 'Klik di sini untuk menulis materi' : 'Klik di sini untuk menulis materi berikutnya'}
+                      {activeUnitMaterials.length === 0 ? 'Klik di sini untuk menulis materi' : 'Klik di sini untuk menulis materi berikutnya'}
                     </span>
                     <span className="mt-1 block text-[11px] text-slate-500">Gunakan paragraf, daftar, judul, tautan, dan gambar langsung dari editor.</span>
                   </button>
@@ -900,6 +892,49 @@ export const LearningContentStudio: React.FC = () => {
                   <span className="mt-1 block text-[11px] text-amber-700/80">
                     Tambahkan instruksi, tenggat, dan format berkas yang harus dikumpulkan mahasiswa.
                   </span>
+                </button>
+              </div>
+
+              {/* Quiz Box — always rendered after materials and assignments. */}
+              <div className="border-t border-slate-100 pt-6">
+                <div className="mb-3 flex items-center gap-1.5">
+                  <CheckSquare className="h-4 w-4 text-indigo-600" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Quiz Interaktif
+                  </h4>
+                </div>
+
+                {activeUnitQuizzes.map((quizMaterial, index) => (
+                  <div key={quizMaterial.id} className="mb-3 flex items-start justify-between gap-4 rounded-2xl border border-indigo-200 bg-indigo-50/70 p-5">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded bg-indigo-200 px-2 py-0.5 text-[10px] font-bold text-indigo-900">Quiz {index + 1}</span>
+                        <h5 className="break-words text-xs font-bold text-indigo-950 [overflow-wrap:anywhere]">{quizMaterial.title}</h5>
+                      </div>
+                      <p className="mt-1 text-[11px] text-indigo-800">
+                        {quizMaterial.quiz?.questions.length || 0} pertanyaan · Lulus {quizMaterial.quiz?.passScore ?? 70}%
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button type="button" onClick={() => handleOpenEditMaterial(quizMaterial)} className="rounded p-1.5 text-indigo-600 transition-colors hover:bg-white hover:text-blue-600" title="Edit Quiz">
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button type="button" onClick={() => handleDeleteMaterial(quizMaterial.id)} className="rounded p-1.5 text-indigo-600 transition-colors hover:bg-white hover:text-rose-600" title="Hapus Quiz">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={handleOpenCreateQuiz}
+                  className="w-full rounded-xl border border-dashed border-indigo-300 bg-indigo-50/50 p-5 text-center transition-colors hover:border-indigo-500 hover:bg-indigo-50"
+                >
+                  <span className="block text-xs font-bold text-indigo-800">
+                    {activeUnitQuizzes.length > 0 ? 'Klik di sini untuk menambahkan quiz berikutnya' : 'Klik di sini untuk menambahkan quiz interaktif'}
+                  </span>
+                  <span className="mt-1 block text-[11px] text-indigo-700/80">Tambahkan pertanyaan untuk mengukur pemahaman mahasiswa setelah mengerjakan materi dan tugas.</span>
                 </button>
               </div>
 
@@ -1131,13 +1166,6 @@ export const LearningContentStudio: React.FC = () => {
                     }`}
                   >
                     Link Eksternal
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMatType('QUIZ')}
-                    className="p-2.5 rounded-xl border text-center font-bold bg-slate-50 border-slate-200 text-slate-700"
-                  >
-                    Kuis Interaktif
                   </button>
                 </div>
               </div>

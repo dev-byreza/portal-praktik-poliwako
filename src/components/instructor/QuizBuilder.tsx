@@ -29,12 +29,16 @@ const readImageFile = (file: File): Promise<string> => new Promise((resolve, rej
 export const QuizBuilder: React.FC<QuizBuilderProps> = ({ initialQuiz, onSave, onCancel }) => {
   const [description, setDescription] = useState(initialQuiz?.description || 'Jawab pertanyaan berikut berdasarkan materi yang sudah dipelajari.');
   const [shuffleQuestions, setShuffleQuestions] = useState(Boolean(initialQuiz?.shuffleQuestions));
+  const [passScore, setPassScore] = useState(String(initialQuiz?.passScore ?? 70));
+  const [maxAttempts, setMaxAttempts] = useState(String(initialQuiz?.maxAttempts ?? 0));
   const [questions, setQuestions] = useState<QuizQuestion[]>(initialQuiz?.questions?.length ? initialQuiz.questions : [makeQuestion()]);
   const [error, setError] = useState('');
 
   useEffect(() => {
     setDescription(initialQuiz?.description || 'Jawab pertanyaan berikut berdasarkan materi yang sudah dipelajari.');
     setShuffleQuestions(Boolean(initialQuiz?.shuffleQuestions));
+    setPassScore(String(initialQuiz?.passScore ?? 70));
+    setMaxAttempts(String(initialQuiz?.maxAttempts ?? 0));
     setQuestions(initialQuiz?.questions?.length ? initialQuiz.questions : [makeQuestion()]);
   }, [initialQuiz]);
 
@@ -84,19 +88,23 @@ export const QuizBuilder: React.FC<QuizBuilderProps> = ({ initialQuiz, onSave, o
   };
 
   const handleSave = () => {
+    const normalizedPassScore = Number(passScore);
+    const normalizedMaxAttempts = Number(maxAttempts);
     const invalid = questions.find(question => (
       !question.prompt.trim()
       || question.options.length < 2
       || question.options.some(option => !option.text.trim())
       || !question.options.some(option => option.id === question.correctOptionId)
     ));
-    if (questions.length === 0 || invalid) {
+    if (questions.length === 0 || invalid || !Number.isFinite(normalizedPassScore) || normalizedPassScore < 0 || normalizedPassScore > 100 || !Number.isInteger(normalizedMaxAttempts) || normalizedMaxAttempts < 0) {
       setError('Lengkapi pertanyaan, semua pilihan jawaban, dan tandai satu jawaban benar.');
       return;
     }
     onSave({
       description: description.trim(),
       shuffleQuestions,
+      passScore: normalizedPassScore,
+      maxAttempts: normalizedMaxAttempts,
       questions: questions.map(question => ({
         ...question,
         prompt: question.prompt.trim(),
@@ -120,6 +128,17 @@ export const QuizBuilder: React.FC<QuizBuilderProps> = ({ initialQuiz, onSave, o
         placeholder="Petunjuk pengerjaan kuis"
         className="w-full resize-y rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
       />
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-[11px] font-semibold text-slate-700">
+          Nilai minimal lulus (%)
+          <input type="number" min={0} max={100} value={passScore} onChange={event => setPassScore(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" />
+        </label>
+        <label className="text-[11px] font-semibold text-slate-700">
+          Batas percobaan (0 = bebas)
+          <input type="number" min={0} step={1} value={maxAttempts} onChange={event => setMaxAttempts(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" />
+        </label>
+      </div>
 
       <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-700">
         <input type="checkbox" checked={shuffleQuestions} onChange={event => setShuffleQuestions(event.target.checked)} className="h-4 w-4 accent-indigo-600" />

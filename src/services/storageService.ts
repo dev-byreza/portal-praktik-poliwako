@@ -15,7 +15,8 @@ import {
   Assessment,
   RemedialAssignment,
   FeedbackRule,
-  Announcement
+  Announcement,
+  StudentSession
 } from '../types';
 
 import {
@@ -346,11 +347,11 @@ export class StorageService {
   }
 
   // Student Session
-  static getStudentSession(): { studentId: string; courseSlug: string; periodId: string } | null {
+  static getStudentSession(): StudentSession | null {
     return getItem(STORAGE_KEYS.CURRENT_STUDENT_SESSION, null);
   }
 
-  static setStudentSession(session: { studentId: string; courseSlug: string; periodId: string } | null): void {
+  static setStudentSession(session: StudentSession | null): void {
     setItem(STORAGE_KEYS.CURRENT_STUDENT_SESSION, session);
   }
 }

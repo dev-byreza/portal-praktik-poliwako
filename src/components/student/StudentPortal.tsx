@@ -6,6 +6,7 @@ import { useApp } from '../../context/AppContext';
 import {
   BookOpen,
   CheckCircle2,
+  CheckSquare,
   Lock,
   PlayCircle,
   FileText,
@@ -278,6 +279,14 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
   const isFinalProjectActive = activePeriod?.finalProjectEnabled === true;
 
   const currentUnitAssignments = useMemo(() => getUnitAssignments(currentUnit), [currentUnit]);
+  const currentUnitMaterials = useMemo(
+    () => currentUnit?.materials.filter(material => material.type !== 'QUIZ') || [],
+    [currentUnit]
+  );
+  const currentUnitQuizzes = useMemo(
+    () => currentUnit?.materials.filter(material => material.type === 'QUIZ') || [],
+    [currentUnit]
+  );
 
   const currentUnitIndex = periodUnits.findIndex(u => u.id === currentUnit?.id);
 
@@ -857,8 +866,8 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                       <span>Materi & Instruksi Praktik</span>
                     </h3>
 
-                    {currentUnit.materials && currentUnit.materials.length > 0 ? (
-                      currentUnit.materials.map(mat => (
+                    {currentUnitMaterials.length > 0 ? (
+                      currentUnitMaterials.map(mat => (
                         <div key={mat.id} className="border border-slate-200 rounded-xl p-4 sm:p-5 bg-slate-50/60 shadow-xs">
                           <>
                           {/* Rich Text Material */}
@@ -870,10 +879,6 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                                 dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(mat.contentText) }}
                               />
                             </div>
-                          )}
-
-                          {mat.type === 'QUIZ' && (
-                            <InteractiveQuiz material={mat} studentId={studentSession?.studentId} />
                           )}
 
                           {/* YouTube Video Embed (PRD Section 31) - Refined Comfortable Size */}
@@ -997,6 +1002,25 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                       : undefined}
                   />
                 ))}
+
+                {/* Quiz is intentionally the final activity in every unit. */}
+                {!currentUnitCountdownLocked && currentUnitQuizzes.length > 0 && (
+                  <div className="mt-7 space-y-4 border-t border-slate-200 pt-6">
+                    <h3 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      <CheckSquare className="h-3.5 w-3.5 text-indigo-600" />
+                      <span>Quiz Interaktif</span>
+                    </h3>
+                    {currentUnitQuizzes.map(quiz => (
+                      <InteractiveQuiz
+                        key={quiz.id}
+                        material={quiz}
+                        studentId={studentSession?.studentId}
+                        periodId={studentSession?.periodId}
+                        sessionToken={studentSession?.sessionToken}
+                      />
+                    ))}
+                  </div>
+                )}
 
               </div>
             )}

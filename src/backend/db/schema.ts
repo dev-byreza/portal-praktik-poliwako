@@ -263,6 +263,59 @@ export const learningMaterialsRelations = relations(learningMaterials, ({ one })
   }),
 }));
 
+// ====================================================================
+// 9A. QUIZZES (normalized content and student attempts)
+// ====================================================================
+export const quizDefinitions = pgTable('quiz_definitions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  materialId: uuid('material_id').notNull().unique().references(() => learningMaterials.id, { onDelete: 'cascade' }),
+  description: text('description'),
+  shuffleQuestions: boolean('shuffle_questions').notNull().default(false),
+  passScore: numeric('pass_score', { precision: 5, scale: 2 }).notNull().default('70'),
+  maxAttempts: integer('max_attempts').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const quizQuestions = pgTable('quiz_questions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  quizId: uuid('quiz_id').notNull().references(() => quizDefinitions.id, { onDelete: 'cascade' }),
+  prompt: text('prompt').notNull(),
+  imageUrl: text('image_url'),
+  explanation: text('explanation'),
+  position: integer('position').notNull().default(0),
+  correctOptionId: uuid('correct_option_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const quizOptions = pgTable('quiz_options', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  questionId: uuid('question_id').notNull().references(() => quizQuestions.id, { onDelete: 'cascade' }),
+  optionText: text('option_text').notNull(),
+  position: integer('position').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const quizAttempts = pgTable('quiz_attempts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  quizId: uuid('quiz_id').notNull().references(() => quizDefinitions.id, { onDelete: 'cascade' }),
+  studentId: uuid('student_id').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  periodId: uuid('period_id').notNull().references(() => practicePeriods.id, { onDelete: 'cascade' }),
+  attemptNumber: integer('attempt_number').notNull(),
+  score: numeric('score', { precision: 5, scale: 2 }).notNull(),
+  correctCount: integer('correct_count').notNull(),
+  totalQuestions: integer('total_questions').notNull(),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const quizAnswers = pgTable('quiz_answers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  attemptId: uuid('attempt_id').notNull().references(() => quizAttempts.id, { onDelete: 'cascade' }),
+  questionId: uuid('question_id').notNull().references(() => quizQuestions.id, { onDelete: 'cascade' }),
+  selectedOptionId: uuid('selected_option_id').references(() => quizOptions.id, { onDelete: 'set null' }),
+  isCorrect: boolean('is_correct').notNull().default(false),
+});
+
 // ==========================================
 // 10. UNIT PROGRESS (Progress Pembelajaran)
 // ==========================================

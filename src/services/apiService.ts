@@ -9,6 +9,7 @@ import {
   signOutInstructor as authSignOutInstructor,
   getCurrentAuthUser,
   getSubmissionSignedUrl,
+  uploadQuizImage,
 } from './supabaseClient';
 import { StorageService } from './storageService';
 import {
@@ -19,6 +20,8 @@ import {
   LearningUnit,
   LearningMaterial,
   QuizDefinition,
+  QuizQuestion,
+  QuizAttemptResult,
   Assignment,
   UnitProgress,
   Submission,
@@ -71,6 +74,19 @@ const deserializeQuiz = (type: string, contentText?: string | null): QuizDefinit
     return undefined;
   }
 };
+
+const mapQuizQuestion = (row: any, optionsByQuestion: Map<string, any[]>): QuizQuestion => ({
+  id: row.id,
+  prompt: row.prompt || '',
+  imageUrl: row.image_url || undefined,
+  explanation: row.explanation || undefined,
+  options: (optionsByQuestion.get(row.id) || [])
+    .sort((a: any, b: any) => Number(a.position || 0) - Number(b.position || 0))
+    .map((option: any) => ({ id: option.id, text: option.option_text || '' })),
+  ...(row.correct_option_id ? { correctOptionId: row.correct_option_id } : {}),
+});
+
+const isMissingQuizArchitecture = (error: any): boolean => /quiz_definitions|quiz_questions|quiz_options|relation .* does not exist|could not find the table/i.test(error?.message || '');
 
 const mapAssignmentRow = (row: any): Assignment => ({
   id: row.id,
@@ -386,6 +402,7 @@ export class ApiService {
     success: boolean;
     message: string;
     periodId?: string;
+    sessionToken?: string;
     student?: Student;
   }> {
     if (!this.isLiveBackend() || !supabase) {
@@ -405,6 +422,7 @@ export class ApiService {
       success: Boolean(result.success),
       message: result.message || (result.success ? 'Password berhasil disimpan.' : 'Password gagal disimpan.'),
       periodId: result.periodId || undefined,
+      sessionToken: result.sessionToken || undefined,
       student: rawStudent ? {
         id: rawStudent.id,
         nim: rawStudent.nim,
@@ -420,6 +438,7 @@ export class ApiService {
     success: boolean;
     message: string;
     periodId?: string;
+    sessionToken?: string;
     student?: Student;
   }> {
     if (!this.isLiveBackend() || !supabase) {
@@ -438,6 +457,7 @@ export class ApiService {
       success: Boolean(result.success),
       message: result.message || (result.success ? 'Login berhasil.' : 'Login gagal.'),
       periodId: result.periodId || undefined,
+      sessionToken: result.sessionToken || undefined,
       student: rawStudent ? {
         id: rawStudent.id,
         nim: rawStudent.nim,
@@ -684,6 +704,80 @@ export class ApiService {
   // ====================================================================
   // LEARNING UNITS & MATERIALS
   // ====================================================================
+  private static async syncNormalizedQuizzes(materials: LearningMaterial[]): Promise<void> {
+    if (!supabase) return;
+    const quizMaterials = materials.filter(material => material.type === 'QUIZ' && material.quiz);
+    const nonQuizMaterialIds = materials.filter(material => material.type !== 'QUIZ').map(material => material.id);
+
+    if (nonQuizMaterialIds.length) {
+      const { error } = await supabase.from('quiz_definitions').delete().in('material_id', nonQuizMaterialIds);
+      if (error && !isMissingQuizArchitecture(error)) throw error;
+    }
+
+    for (const material of quizMaterials) {
+      const quiz = material.quiz!;
+      const quizId = await databaseId(material.id, 'quiz-definition');
+      const { error: quizError } = await supabase.from('quiz_definitions').upsert({
+        id: quizId,
+        material_id: material.id,
+        description: quiz.description || null,
+        shuffle_questions: Boolean(quiz.shuffleQuestions),
+        pass_score: Math.min(100, Math.max(0, Number(quiz.passScore ?? 70))),
+        max_attempts: Math.max(0, Number(quiz.maxAttempts ?? 0)),
+        updated_at: new Date().toISOString(),
+      });
+      if (quizError) throw quizError;
+
+      const { data: existingQuestions, error: existingQuestionError } = await supabase
+        .from('quiz_questions').select('id').eq('quiz_id', quizId);
+      if (existingQuestionError) throw existingQuestionError;
+      const existingQuestionIds = (existingQuestions || []).map((question: any) => question.id);
+      if (existingQuestionIds.length) {
+        const { error: optionDeleteError } = await supabase.from('quiz_options').delete().in('question_id', existingQuestionIds);
+        if (optionDeleteError) throw optionDeleteError;
+        const { error: questionDeleteError } = await supabase.from('quiz_questions').delete().in('id', existingQuestionIds);
+        if (questionDeleteError) throw questionDeleteError;
+      }
+
+      for (let questionIndex = 0; questionIndex < quiz.questions.length; questionIndex += 1) {
+        const question = quiz.questions[questionIndex];
+        const questionId = await databaseId(question.id, `quiz-question:${material.id}`);
+        const imageUrl = question.imageUrl
+          ? await uploadQuizImage(question.imageUrl, material.id, questionId)
+          : undefined;
+        const optionRows = await Promise.all(question.options.map(async (option, optionIndex) => ({
+          id: await databaseId(option.id, `quiz-option:${questionId}`),
+          question_id: questionId,
+          option_text: option.text,
+          position: optionIndex,
+        })));
+        const correctOption = optionRows[question.options.findIndex(option => option.id === question.correctOptionId)];
+        const { error: questionInsertError } = await supabase.from('quiz_questions').insert({
+          id: questionId,
+          quiz_id: quizId,
+          prompt: question.prompt,
+          image_url: imageUrl || null,
+          explanation: question.explanation || null,
+          position: questionIndex,
+          // Options are inserted immediately after the question; set the
+          // foreign key in a second update so the insert is not circular.
+          correct_option_id: null,
+        });
+        if (questionInsertError) throw questionInsertError;
+        if (optionRows.length) {
+          const { error: optionInsertError } = await supabase.from('quiz_options').insert(optionRows);
+          if (optionInsertError) throw optionInsertError;
+        }
+        if (correctOption?.id) {
+          const { error: correctOptionError } = await supabase.from('quiz_questions')
+            .update({ correct_option_id: correctOption.id })
+            .eq('id', questionId);
+          if (correctOptionError) throw correctOptionError;
+        }
+      }
+    }
+  }
+
   static async getLearningUnits(periodId?: string): Promise<LearningUnit[]> {
     if (!this.isLiveBackend() || !supabase) {
       return StorageService.getLearningUnits();
@@ -725,6 +819,56 @@ export class ApiService {
         assignmentsByUnit.set(assignment.unit_id, list);
       });
 
+      // New quiz records are normalized. If the migration has not been
+      // applied yet, or when loading a student view without the answer key,
+      // retain the legacy JSON path below.
+      const normalizedQuizByMaterial = new Map<string, QuizDefinition>();
+      const quizMaterialIds = (materialsResult.data || [])
+        .filter((material: any) => material.type === 'QUIZ')
+        .map((material: any) => material.id);
+      const quizDefinitionResult = quizMaterialIds.length
+        ? await supabase.from('quiz_definitions').select('*').in('material_id', quizMaterialIds)
+        : { data: [], error: null };
+      if (!quizDefinitionResult.error && (quizDefinitionResult.data || []).length) {
+        const quizIds = (quizDefinitionResult.data || []).map((quiz: any) => quiz.id);
+        let questionResult: any = await supabase.from('quiz_questions')
+          .select('id, quiz_id, prompt, image_url, explanation, position, correct_option_id')
+          .in('quiz_id', quizIds);
+        if (questionResult.error) {
+          questionResult = await supabase.from('quiz_questions_public')
+            .select('id, quiz_id, prompt, image_url, explanation, position')
+            .in('quiz_id', quizIds);
+        }
+        const optionResult = await supabase.from('quiz_options')
+          .select('id, question_id, option_text, position')
+          .in('question_id', (questionResult.data || []).map((question: any) => question.id));
+        if (!questionResult.error && !optionResult.error) {
+          const optionsByQuestion = new Map<string, any[]>();
+          (optionResult.data || []).forEach((option: any) => {
+            const list = optionsByQuestion.get(option.question_id) || [];
+            list.push(option);
+            optionsByQuestion.set(option.question_id, list);
+          });
+          const questionsByQuiz = new Map<string, any[]>();
+          (questionResult.data || []).forEach((question: any) => {
+            const list = questionsByQuiz.get(question.quiz_id) || [];
+            list.push(question);
+            questionsByQuiz.set(question.quiz_id, list);
+          });
+          (quizDefinitionResult.data || []).forEach((quiz: any) => {
+            normalizedQuizByMaterial.set(quiz.material_id, {
+              description: quiz.description || undefined,
+              shuffleQuestions: Boolean(quiz.shuffle_questions),
+              passScore: Number(quiz.pass_score ?? 70),
+              maxAttempts: Number(quiz.max_attempts ?? 0),
+              questions: (questionsByQuiz.get(quiz.id) || [])
+                .sort((a: any, b: any) => Number(a.position || 0) - Number(b.position || 0))
+                .map((question: any) => mapQuizQuestion(question, optionsByQuestion)),
+            });
+          });
+        }
+      }
+
       // Older databases may not have the unit countdown columns yet. Preserve
       // the last locally saved unit gate while the rest of the unit remains
       // authoritative from Supabase.
@@ -764,8 +908,10 @@ export class ApiService {
           title: m.title,
           type: m.type,
           contentUrl: m.content_url || undefined,
-          contentText: m.type === 'QUIZ' ? (deserializeQuiz(m.type, m.content_text)?.description || undefined) : (m.content_text || undefined),
-          quiz: deserializeQuiz(m.type, m.content_text),
+          contentText: m.type === 'QUIZ'
+            ? (normalizedQuizByMaterial.get(m.id)?.description || deserializeQuiz(m.type, m.content_text)?.description || undefined)
+            : (m.content_text || undefined),
+          quiz: normalizedQuizByMaterial.get(m.id) || deserializeQuiz(m.type, m.content_text),
           fileSize: m.file_size || undefined,
           countdownEnabled: Boolean(m.countdown_enabled),
           countdownMinutes: Number(m.countdown_minutes) || undefined,
@@ -903,6 +1049,16 @@ export class ApiService {
 
       }
 
+      try {
+        await this.syncNormalizedQuizzes(savedMaterials);
+      } catch (error) {
+        if (isMissingQuizArchitecture(error)) {
+          console.warn('Quiz architecture migration 0022 belum diterapkan; quiz tetap disimpan dalam format kompatibilitas lama.', error);
+        } else {
+          throw error;
+        }
+      }
+
       const assignmentRows = savedAssignments.map(savedAssignment => ({
           id: savedAssignment.id,
           unit_id: unitId,
@@ -975,6 +1131,36 @@ export class ApiService {
       if (error) throw error;
     }
     StorageService.saveLearningUnits(StorageService.getLearningUnits().filter(unit => unit.id !== unitId));
+  }
+
+  static async submitQuizAttempt(params: {
+    sessionToken?: string;
+    materialId: string;
+    periodId: string;
+    answers: Record<string, string>;
+  }): Promise<QuizAttemptResult | null> {
+    if (!this.isLiveBackend() || !supabase || !params.sessionToken) return null;
+    const { data, error } = await supabase.rpc('submit_quiz_attempt', {
+      p_session_token: params.sessionToken,
+      p_material_id: params.materialId,
+      p_period_id: params.periodId,
+      p_answers: Object.entries(params.answers).map(([questionId, optionId]) => ({ questionId, optionId })),
+    });
+    if (error) throw error;
+    const result = data || {};
+    return {
+      attemptId: result.attemptId || undefined,
+      score: Number(result.score || 0),
+      correct: Number(result.correct || 0),
+      total: Number(result.total || 0),
+      passed: result.passed == null ? undefined : Boolean(result.passed),
+      submittedAt: new Date().toISOString(),
+      answers: Array.isArray(result.answers) ? result.answers.map((answer: any) => ({
+        questionId: answer.questionId,
+        correctOptionId: answer.correctOptionId || undefined,
+        isCorrect: Boolean(answer.isCorrect),
+      })) : [],
+    };
   }
 
   // ====================================================================

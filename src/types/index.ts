@@ -91,6 +91,14 @@ export interface PracticePeriod {
   createdAt: string;
 }
 
+export interface StudentSession {
+  studentId: string;
+  courseSlug: string;
+  periodId: string;
+  /** Opaque server-issued token used for student quiz submissions. */
+  sessionToken?: string;
+}
+
 export interface PracticeParticipant {
   id: string;
   periodId: string;
@@ -117,7 +125,8 @@ export interface QuizQuestion {
   prompt: string;
   imageUrl?: string;
   options: QuizOption[];
-  correctOptionId: string;
+  /** Omitted in the student payload until the server grades an attempt. */
+  correctOptionId?: string;
   explanation?: string;
 }
 
@@ -125,6 +134,22 @@ export interface QuizDefinition {
   description?: string;
   questions: QuizQuestion[];
   shuffleQuestions?: boolean;
+  passScore?: number;
+  maxAttempts?: number;
+}
+
+export interface QuizAttemptResult {
+  attemptId?: string;
+  score: number;
+  correct: number;
+  total: number;
+  passed?: boolean;
+  submittedAt: string;
+  answers?: Array<{
+    questionId: string;
+    correctOptionId?: string;
+    isCorrect: boolean;
+  }>;
 }
 
 export interface LearningMaterial {
