@@ -178,8 +178,12 @@ const newEntityId = (prefix: string): string => (
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const isLiveBackend = useMemo(() => isSupabaseConfigured(), []);
-  const [isInstructorLoggedIn, setIsInstructorLoggedIn] = useState<boolean>(() => StorageService.isInstructorLoggedIn());
-  const [role, setRole] = useState<UserRole>(() => (StorageService.isInstructorLoggedIn() ? 'INSTRUCTOR' : 'STUDENT'));
+  const [isInstructorLoggedIn, setIsInstructorLoggedIn] = useState<boolean>(() => (
+    isLiveBackend ? false : StorageService.isInstructorLoggedIn()
+  ));
+  const [role, setRole] = useState<UserRole>(() => (
+    isLiveBackend ? 'STUDENT' : (StorageService.isInstructorLoggedIn() ? 'INSTRUCTOR' : 'STUDENT')
+  ));
   const [instructor, setInstructor] = useState<InstructorProfile>(StorageService.getInstructor());
   const [instructorDirectory, setInstructorDirectory] = useState<Record<string, PublicInstructorProfile>>(() => {
     if (isLiveBackend) return {};
@@ -191,9 +195,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Supabase is authoritative in live mode. Do not paint the previous account's local course cache while the authenticated scope is loading.
   const [courses, setCourses] = useState<Course[]>(() => (isLiveBackend ? [] : StorageService.getCourses()));
   const [activeCourseId, setActiveCourseIdState] = useState<string>(() => (
-    isLiveBackend
-      ? StorageService.getActiveCourseId(instructor.id)
-      : StorageService.getActiveCourseId()
+    isLiveBackend ? '' : StorageService.getActiveCourseId()
   ));
   const [students, setStudents] = useState<Student[]>(StorageService.getStudents());
   const [periods, setPeriods] = useState<PracticePeriod[]>(StorageService.getPeriods());
@@ -253,7 +255,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const authInstructorId = await ApiService.getCurrentInstructorId();
         // A stale local login flag must not block the public scope or make the
         // protected instructor scope look like an empty database.
-        if (!authInstructorId && (isInstructorLoggedIn || role === 'INSTRUCTOR')) {
+        if (authInstructorId) {
+          StorageService.setInstructorLoggedIn(true);
+          setIsInstructorLoggedIn(true);
+          setRole('INSTRUCTOR');
+          const liveProfile = await ApiService.getInstructorProfile(authInstructorId);
+          const scopedProfile = { ...liveProfile, id: authInstructorId };
+          setInstructor(scopedProfile);
+          StorageService.saveInstructor(scopedProfile);
+        } else if (isInstructorLoggedIn || role === 'INSTRUCTOR') {
           clearLiveInstructorSession();
         }
         const courseScope = authInstructorId || undefined;
