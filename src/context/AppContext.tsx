@@ -1,7 +1,7 @@
 import { isSubmissionClosed, submissionDeadline } from '../utils/submissionDeadline';
 // Central React Context for Portal Praktik Poliwako
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback, useRef } from 'react';
 import {
   UserRole,
   InstructorProfile,
@@ -212,6 +212,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [announcements, setAnnouncements] = useState<Announcement[]>(StorageService.getAnnouncements());
   const [studentSession, setStudentSessionState] = useState(StorageService.getStudentSession());
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
+  // A background read can finish after an instructor has changed a unit but
+  // before that edit reaches Supabase. Track local mutations so a stale read
+  // cannot make an item briefly jump back to its old position.
+  const learningUnitRevisionRef = useRef(0);
+  const learningUnitSyncRef = useRef(new Map<string, { revision: number; pending: boolean }>());
+
+  const mergeLearningUnitsFromServer = useCallback((serverUnits: LearningUnit[], fetchRevision: number) => {
+    setLearningUnits(currentUnits => {
+      const localById = new Map(currentUnits.map(unit => [unit.id, unit]));
+      const serverIds = new Set(serverUnits.map(unit => unit.id));
+      const merged = serverUnits.map(serverUnit => {
+        const syncState = learningUnitSyncRef.current.get(serverUnit.id);
+        const shouldKeepLocal = Boolean(
+          syncState && (syncState.pending || syncState.revision > fetchRevision)
+        );
+        return shouldKeepLocal ? (localById.get(serverUnit.id) || serverUnit) : serverUnit;
+      });
+
+      // A newly created unit is absent from an older read response. Keep it
+      // visible while its first save is still in flight.
+      currentUnits.forEach(localUnit => {
+        const syncState = learningUnitSyncRef.current.get(localUnit.id);
+        if (!serverIds.has(localUnit.id) && syncState && (syncState.pending || syncState.revision > fetchRevision)) {
+          merged.push(localUnit);
+        }
+      });
+      return merged;
+    });
+  }, []);
 
   // In live mode Supabase Auth is authoritative. The local flag is retained
   // only for offline/demo mode and must never keep an expired instructor
@@ -267,6 +296,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           clearLiveInstructorSession();
         }
         const courseScope = authInstructorId || undefined;
+        const unitsFetchRevision = learningUnitRevisionRef.current;
         const [liveCourses, liveStudents, livePeriods, liveParticipants, liveUnits, liveAttendance, liveSubmissions, liveAssessments, liveInstructorDirectory, liveRemedials, liveAnnouncements] = await Promise.all([
           ApiService.getCourses(courseScope),
           ApiService.getStudents(),
@@ -316,7 +346,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
 
         if (liveParticipants) setParticipants(liveParticipants);
-        if (liveUnits) setLearningUnits(liveUnits);
+        if (liveUnits) mergeLearningUnitsFromServer(liveUnits, unitsFetchRevision);
         if (liveAttendance) setAttendance(liveAttendance);
         if (liveSubmissions) setSubmissions(liveSubmissions);
         if (liveAssessments) setAssessments(liveAssessments);
@@ -331,6 +361,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const refreshLiveData = async () => {
       if (!isLiveBackend || document.visibilityState === 'hidden') return;
       try {
+        const unitsFetchRevision = learningUnitRevisionRef.current;
         const [latestPeriods, latestUnits, latestSubmissions, latestAnnouncements] = await Promise.all([
           ApiService.getPeriods(),
           ApiService.getLearningUnits(),
@@ -339,7 +370,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ]);
         if (!isMounted) return;
         if (latestPeriods.length > 0) setPeriods(latestPeriods);
-        setLearningUnits(latestUnits);
+        mergeLearningUnitsFromServer(latestUnits, unitsFetchRevision);
         if (latestSubmissions) setSubmissions(latestSubmissions);
         setAnnouncements(latestAnnouncements);
       } catch (error) {
@@ -358,7 +389,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       window.removeEventListener('focus', handleWindowFocus);
       document.removeEventListener('visibilitychange', handleWindowFocus);
     };
-  }, [isLiveBackend, isInstructorLoggedIn, instructor.id, role, clearLiveInstructorSession]);
+  }, [isLiveBackend, isInstructorLoggedIn, instructor.id, role, clearLiveInstructorSession, mergeLearningUnitsFromServer]);
 
   // Sync to LocalStorage on changes
   useEffect(() => {
@@ -1387,12 +1418,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       countdownStartedAt: unitData.countdownStartedAt
     };
 
+    const revision = ++learningUnitRevisionRef.current;
+    learningUnitSyncRef.current.set(newUnit.id, { revision, pending: true });
     setLearningUnits(prev => [...prev, newUnit]);
     ApiService.saveLearningUnit(newUnit).then(savedUnit => {
-      if (savedUnit.id !== newUnit.id) {
-        setLearningUnits(prev => prev.map(unit => unit.id === newUnit.id ? savedUnit : unit));
-      }
+      const syncState = learningUnitSyncRef.current.get(newUnit.id);
+      if (!syncState || syncState.revision !== revision) return;
+      if (savedUnit.id !== newUnit.id) learningUnitSyncRef.current.delete(newUnit.id);
+      learningUnitSyncRef.current.set(savedUnit.id, { revision, pending: false });
+      setLearningUnits(prev => prev.map(unit => (
+        unit.id === newUnit.id || unit.id === savedUnit.id ? savedUnit : unit
+      )));
     }).catch(error => {
+      const syncState = learningUnitSyncRef.current.get(newUnit.id);
+      if (syncState?.revision === revision) learningUnitSyncRef.current.delete(newUnit.id);
       console.error('Error syncing learning unit:', error);
       showToast('Sinkronisasi Gagal', `Unit belum tersimpan ke Supabase. ${error?.message || 'Periksa koneksi dan hak akses.'}`, 'error');
     });
@@ -1401,8 +1440,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateLearningUnit = (updated: LearningUnit) => {
+    const revision = ++learningUnitRevisionRef.current;
+    learningUnitSyncRef.current.set(updated.id, { revision, pending: true });
     setLearningUnits(prev => prev.map(u => u.id === updated.id ? updated : u));
     ApiService.saveLearningUnit(updated).then(savedUnit => {
+      const syncState = learningUnitSyncRef.current.get(updated.id);
+      // A newer local edit has already taken ownership of this unit. Do not
+      // let an older response briefly replace its current material order.
+      if (!syncState || syncState.revision !== revision) return;
+
+      if (savedUnit.id !== updated.id) learningUnitSyncRef.current.delete(updated.id);
+      // Keep the completed revision briefly as a watermark. A read request
+      // that started before this save must not overwrite the saved ordering
+      // when it eventually returns.
+      learningUnitSyncRef.current.set(savedUnit.id, { revision, pending: false });
       // Reconcile the optimistic state with the canonical backend response,
       // including database IDs and the assignment/material payload.
       setLearningUnits(prev => prev.map(unit => (
@@ -1410,12 +1461,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       )));
       showToast('Unit Diperbarui', `Unit ${savedUnit.unitNumber} berhasil disinkronkan ke Supabase.`, 'success');
     }).catch(error => {
+      const syncState = learningUnitSyncRef.current.get(updated.id);
+      if (syncState?.revision === revision) learningUnitSyncRef.current.delete(updated.id);
       console.error('Error syncing learning unit:', error);
       showToast('Sinkronisasi Gagal', `Perubahan tugas belum tersimpan ke Supabase. ${error?.message || 'Periksa koneksi dan hak akses.'}`, 'error');
     });
   };
 
   const deleteLearningUnit = (unitId: string) => {
+    learningUnitSyncRef.current.delete(unitId);
     setLearningUnits(prev => prev.filter(u => u.id !== unitId));
     ApiService.deleteLearningUnit(unitId).catch(error => {
       console.error('Error deleting learning unit:', error);
