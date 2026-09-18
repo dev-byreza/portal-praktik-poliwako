@@ -301,11 +301,12 @@ export const LearningContentStudio: React.FC = () => {
     );
   };
 
-  const handleExecuteCopy = (e: React.FormEvent) => {
+  const handleExecuteCopy = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedUnitIdsToCopy.length === 0 || selectedTargetPeriodIds.length === 0) return;
 
-    copyLearningUnits(selectedUnitIdsToCopy, selectedTargetPeriodIds, copyMode === 'REPLACE');
+    const result = await copyLearningUnits(selectedUnitIdsToCopy, selectedTargetPeriodIds, copyMode === 'REPLACE');
+    if (result.copiedCount === 0) return;
 
     const firstTarget = selectedTargetPeriodIds[0];
     setIsCopyModalOpen(false);

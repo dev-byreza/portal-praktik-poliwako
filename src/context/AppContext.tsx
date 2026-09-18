@@ -144,7 +144,7 @@ interface AppContextType {
   createLearningUnit: (unit: Partial<LearningUnit>) => LearningUnit;
   updateLearningUnit: (unit: LearningUnit) => void;
   deleteLearningUnit: (unitId: string) => void;
-  copyLearningUnits: (sourceUnitIds: string[], targetPeriodIds: string[], overwrite?: boolean) => { copiedCount: number; targetCount: number };
+  copyLearningUnits: (sourceUnitIds: string[], targetPeriodIds: string[], overwrite?: boolean) => Promise<{ copiedCount: number; targetCount: number }>;
 
   updateAttendanceCell: (periodId: string, studentId: string, day: 'day1' | 'day2' | 'day3' | 'day4' | 'day5', status: AttendanceStatus) => void;
   autoInitializeAttendanceForPeriod: (periodId: string) => Promise<void>;
@@ -1424,11 +1424,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast('Unit Dihapus', 'Unit pembelajaran telah dihapus.', 'info');
   };
 
-  const copyLearningUnits = (
+  const copyLearningUnits = async (
     sourceUnitIds: string[],
     targetPeriodIds: string[],
     overwrite: boolean = false
-  ): { copiedCount: number; targetCount: number } => {
+  ): Promise<{ copiedCount: number; targetCount: number }> => {
     const selectedSourceUnits = learningUnits
       .filter(u => sourceUnitIds.includes(u.id))
       .sort((a, b) => a.unitNumber - b.unitNumber);
@@ -1439,6 +1439,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     const newUnitsToInsert: LearningUnit[] = [];
+    const existingTargetUnits = learningUnits.filter(u => targetPeriodIds.includes(u.periodId));
 
     targetPeriodIds.forEach(targetPeriodId => {
       const existingUnitsInTarget = overwrite
@@ -1448,7 +1449,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       let nextUnitNumber = existingUnitsInTarget.length + 1;
 
       selectedSourceUnits.forEach(srcUnit => {
-        const newUnitId = `unit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        const newUnitId = newEntityId('unit');
         const clonedMaterials: LearningMaterial[] = srcUnit.materials.map(m => ({
           ...m,
           id: newEntityId('mat'),
@@ -1478,24 +1479,44 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
     });
 
-    setLearningUnits(prev => {
-      let filtered = prev;
-      if (overwrite) {
-        filtered = prev.filter(u => !targetPeriodIds.includes(u.periodId));
+    try {
+      // The live backend is authoritative. The previous implementation only
+      // updated React/localStorage state, so a refresh reloaded Supabase and
+      // discarded the copied units before students could see them.
+      const persistedUnits: LearningUnit[] = [];
+      for (const unit of newUnitsToInsert) {
+        persistedUnits.push(isLiveBackend ? await ApiService.saveLearningUnit(unit) : unit);
       }
-      return [...filtered, ...newUnitsToInsert];
-    });
 
-    showToast(
-      'Modul Berhasil Disalin',
-      `${selectedSourceUnits.length} modul berhasil disalin ke ${targetPeriodIds.length} minggu tujuan.`,
-      'success'
-    );
+      // Save the replacements before deleting the old units. If a save fails,
+      // the existing target content remains recoverable in the database.
+      if (isLiveBackend && overwrite && existingTargetUnits.length > 0) {
+        await Promise.all(existingTargetUnits.map(unit => ApiService.deleteLearningUnit(unit.id)));
+      }
 
-    return {
-      copiedCount: selectedSourceUnits.length,
-      targetCount: targetPeriodIds.length
-    };
+      setLearningUnits(prev => {
+        const filtered = overwrite
+          ? prev.filter(u => !targetPeriodIds.includes(u.periodId))
+          : prev;
+        return [...filtered, ...persistedUnits];
+      });
+
+      showToast(
+        'Modul Berhasil Disalin',
+        `${selectedSourceUnits.length} modul berhasil disalin ke ${targetPeriodIds.length} minggu tujuan dan disimpan ke Supabase.`,
+        'success'
+      );
+
+      return {
+        copiedCount: selectedSourceUnits.length,
+        targetCount: targetPeriodIds.length
+      };
+    } catch (error) {
+      console.error('Error syncing copied learning units:', error);
+      const message = error instanceof Error ? error.message : 'Periksa koneksi dan hak akses.';
+      showToast('Salin Gagal', `Modul belum berhasil disalin. ${message}`, 'error');
+      return { copiedCount: 0, targetCount: 0 };
+    }
   };
 
   // Attendance Matrix Update & Realtime Sync
