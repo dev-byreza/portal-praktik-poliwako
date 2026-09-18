@@ -1,7 +1,7 @@
 import { isSubmissionClosed, submissionDeadline } from '../utils/submissionDeadline';
 // Central React Context for Portal Praktik Poliwako
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import {
   UserRole,
   InstructorProfile,
@@ -24,7 +24,7 @@ import {
   StudentSession,
 } from '../types';
 import { StorageService } from '../services/storageService';
-import { isSupabaseConfigured, uploadSubmissionPDF } from '../services/supabaseClient';
+import { isSupabaseConfigured, supabase, uploadSubmissionPDF } from '../services/supabaseClient';
 import { ApiService } from '../services/apiService';
 import { computeAttendanceStats, calculateWeightedFinalScore, getFeedbackForScore } from '../utils/gradeCalculators';
 import { computePeriodEndDate, computePeriodStatus, getWitaDateString } from '../utils/dateUtils';
@@ -211,6 +211,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [studentSession, setStudentSessionState] = useState(StorageService.getStudentSession());
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
 
+  // In live mode Supabase Auth is authoritative. The local flag is retained
+  // only for offline/demo mode and must never keep an expired instructor
+  // session inside the protected dashboard.
+  const clearLiveInstructorSession = useCallback(() => {
+    StorageService.setInstructorLoggedIn(false);
+    setIsInstructorLoggedIn(false);
+    setRole('STUDENT');
+    setCourses([]);
+    setActiveCourseIdState('');
+  }, []);
+
+  // Keep React state aligned with Supabase Auth across refresh, token expiry,
+  // sign-in from another tab, and explicit sign-out.
+  useEffect(() => {
+    if (!isLiveBackend || !supabase) return;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session || event === 'SIGNED_OUT') {
+        clearLiveInstructorSession();
+        return;
+      }
+
+      StorageService.setInstructorLoggedIn(true);
+      setIsInstructorLoggedIn(true);
+      setRole('INSTRUCTOR');
+    });
+
+    return () => subscription.unsubscribe();
+  }, [isLiveBackend, clearLiveInstructorSession]);
+
   // Synchronize live data from Supabase backend & reconcile period statuses with realtime internet time
   useEffect(() => {
     let isMounted = true;
@@ -221,9 +251,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         if (!isLiveBackend) return;
         const authInstructorId = await ApiService.getCurrentInstructorId();
-        const courseScope = authInstructorId || (role === 'STUDENT' && !isInstructorLoggedIn ? undefined : null);
+        // A stale local login flag must not block the public scope or make the
+        // protected instructor scope look like an empty database.
+        if (!authInstructorId && (isInstructorLoggedIn || role === 'INSTRUCTOR')) {
+          clearLiveInstructorSession();
+        }
+        const courseScope = authInstructorId || undefined;
         const [liveCourses, liveStudents, livePeriods, liveParticipants, liveUnits, liveAttendance, liveSubmissions, liveAssessments, liveInstructorDirectory, liveRemedials, liveAnnouncements] = await Promise.all([
-          courseScope === null ? Promise.resolve([]) : ApiService.getCourses(courseScope),
+          ApiService.getCourses(courseScope),
           ApiService.getStudents(),
           ApiService.getPeriods(),
           ApiService.getParticipants(),
@@ -242,8 +277,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setCourses(liveCourses);
           if (liveCourses.length === 0) {
             setActiveCourseIdState('');
-          } else if (authInstructorId || isInstructorLoggedIn) {
-            const scopedInstructorId = authInstructorId || instructor.id;
+          } else if (authInstructorId) {
+            const scopedInstructorId = authInstructorId;
             const restoredId = StorageService.getActiveCourseId(scopedInstructorId, liveCourses);
             setActiveCourseIdState(restoredId);
             if (restoredId) StorageService.setActiveCourseId(restoredId, scopedInstructorId);
@@ -313,7 +348,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       window.removeEventListener('focus', handleWindowFocus);
       document.removeEventListener('visibilitychange', handleWindowFocus);
     };
-  }, [isLiveBackend, isInstructorLoggedIn, instructor.id, role]);
+  }, [isLiveBackend, isInstructorLoggedIn, instructor.id, role, clearLiveInstructorSession]);
 
   // Sync to LocalStorage on changes
   useEffect(() => {

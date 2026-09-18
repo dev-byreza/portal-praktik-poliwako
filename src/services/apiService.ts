@@ -221,7 +221,11 @@ export class ApiService {
         query = query.eq('status', 'PUBLISHED');
       }
       const { data, error } = await query;
-      if (error || !data) return [];
+      if (error) {
+        console.error('Unable to load courses from Supabase:', error);
+        throw error;
+      }
+      if (!data) return [];
 
       return data.map((c: any) => ({
         id: c.id,
@@ -251,8 +255,8 @@ export class ApiService {
       }));
     } catch (err) {
       // Never fall back to the shared local cache in live mode: it may belong to a different instructor account.
-      console.warn('Unable to load scoped courses from Supabase:', err);
-      return [];
+      console.error('Unable to load scoped courses from Supabase:', err);
+      throw err;
     }
   }
 
@@ -341,7 +345,11 @@ export class ApiService {
     }
     try {
       const { data, error } = await supabase.from('students').select('*').order('nim', { ascending: true });
-      if (error || !data || data.length === 0) return StorageService.getStudents();
+      if (error) {
+        console.error('Unable to load students from Supabase:', error);
+        throw error;
+      }
+      if (!data) return [];
       return data.map((s: any) => ({
         id: s.id,
         nim: s.nim,
@@ -352,8 +360,9 @@ export class ApiService {
         hasCreatedPassword: Boolean(s.password_hash),
         createdAt: s.created_at,
       }));
-    } catch {
-      return StorageService.getStudents();
+    } catch (error) {
+      console.error('Unable to load students from Supabase:', error);
+      throw error;
     }
   }
 
@@ -510,7 +519,11 @@ export class ApiService {
         query = query.eq('course_id', courseId);
       }
       const { data, error } = await query;
-      if (error || !data) return StorageService.getPeriods();
+      if (error) {
+        console.error('Unable to load periods from Supabase:', error);
+        throw error;
+      }
+      if (!data) return [];
       return data.map((p: any) => ({
         id: p.id,
         courseId: p.course_id,
@@ -524,8 +537,9 @@ export class ApiService {
         finalProjectEnabled: p.final_project_enabled === true,
         createdAt: p.created_at,
       }));
-    } catch {
-      return StorageService.getPeriods();
+    } catch (error) {
+      console.error('Unable to load periods from Supabase:', error);
+      throw error;
     }
   }
 
@@ -680,10 +694,22 @@ export class ApiService {
     });
 
     try {
+      const authUser = await getCurrentAuthUser();
       let query = supabase.from('practice_participants').select('*, students(*)');
       if (periodId) query = query.eq('period_id', periodId);
       const { data, error } = await query;
       if (!error && data && data.length > 0) return data.map(p => mapParticipant(p));
+
+      // An authenticated instructor must never receive the anonymous minimal
+      // enrollment view as a silent fallback. That view has no student names
+      // and can make a valid instructor query look partially empty.
+      if (authUser) {
+        if (error) {
+          console.error('Unable to load participants from Supabase:', error);
+          throw error;
+        }
+        return [];
+      }
 
       // Student sessions use the public anon key. Fall back to the minimal
       // enrollment view so they can see only their registered course IDs.
@@ -697,6 +723,7 @@ export class ApiService {
       return publicData.map(p => mapParticipant(p, false));
     } catch (error) {
       console.error('Error loading participants from Supabase:', error);
+      if (await getCurrentAuthUser()) throw error;
       return [];
     }
   }
