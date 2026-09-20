@@ -217,6 +217,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // cannot make an item briefly jump back to its old position.
   const learningUnitRevisionRef = useRef(0);
   const learningUnitSyncRef = useRef(new Map<string, { revision: number; pending: boolean }>());
+  // Prevent auth changes and focus events from starting overlapping full syncs.
+  const liveSyncInFlightRef = useRef(false);
 
   const mergeLearningUnitsFromServer = useCallback((serverUnits: LearningUnit[], fetchRevision: number) => {
     setLearningUnits(currentUnits => {
@@ -276,6 +278,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     let isMounted = true;
     const syncBackendData = async () => {
+      if (liveSyncInFlightRef.current) return;
+      liveSyncInFlightRef.current = true;
       try {
         // Kick off authoritative internet time fetch
         fetchInternetNetworkTime().catch(() => {});
@@ -297,9 +301,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
         const courseScope = authInstructorId || undefined;
         const unitsFetchRevision = learningUnitRevisionRef.current;
-        const [liveCourses, liveStudents, livePeriods, liveParticipants, liveUnits, liveAttendance, liveSubmissions, liveAssessments, liveInstructorDirectory, liveRemedials, liveAnnouncements] = await Promise.all([
+        // Load the critical instructor shell first. This lets the course
+        // selector render without waiting for attendance, submissions, and
+        // the other large secondary datasets.
+        const [liveCourses, liveStudents] = await Promise.all([
           ApiService.getCourses(courseScope),
           ApiService.getStudents(),
+        ]);
+        if (!isMounted) return;
+        if (liveCourses) {
+          setCourses(liveCourses);
+          if (liveCourses.length === 0) {
+            setActiveCourseIdState('');
+          } else if (authInstructorId) {
+            const scopedInstructorId = authInstructorId;
+            const restoredId = StorageService.getActiveCourseId(scopedInstructorId, liveCourses);
+            setActiveCourseIdState(restoredId);
+            if (restoredId) StorageService.setActiveCourseId(restoredId, scopedInstructorId);
+          }
+        }
+        if (liveStudents) setStudents(liveStudents);
+
+        // Secondary data can continue loading after the instructor shell is
+        // visible. Promise.all is retained here so these independent reads
+        // still run in parallel without delaying the critical shell.
+        const [livePeriods, liveParticipants, liveUnits, liveAttendance, liveSubmissions, liveAssessments, liveInstructorDirectory, liveRemedials, liveAnnouncements] = await Promise.all([
           ApiService.getPeriods(),
           ApiService.getParticipants(),
           ApiService.getLearningUnits(),
@@ -313,18 +339,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!isMounted) return;
         if (liveRemedials) setRemedials(liveRemedials);
         if (liveAnnouncements) setAnnouncements(liveAnnouncements);
-        if (liveCourses) {
-          setCourses(liveCourses);
-          if (liveCourses.length === 0) {
-            setActiveCourseIdState('');
-          } else if (authInstructorId) {
-            const scopedInstructorId = authInstructorId;
-            const restoredId = StorageService.getActiveCourseId(scopedInstructorId, liveCourses);
-            setActiveCourseIdState(restoredId);
-            if (restoredId) StorageService.setActiveCourseId(restoredId, scopedInstructorId);
-          }
-        }
-        if (liveStudents) setStudents(liveStudents);
 
         if (livePeriods && livePeriods.length > 0) {
           const todayStr = getRealtimeWitaDateString();
@@ -353,6 +367,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (liveInstructorDirectory) setInstructorDirectory(liveInstructorDirectory);
       } catch (e) {
         console.warn('Sync from Supabase notice:', e);
+      } finally {
+        liveSyncInFlightRef.current = false;
       }
     };
 
@@ -389,7 +405,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       window.removeEventListener('focus', handleWindowFocus);
       document.removeEventListener('visibilitychange', handleWindowFocus);
     };
-  }, [isLiveBackend, isInstructorLoggedIn, instructor.id, role, clearLiveInstructorSession, mergeLearningUnitsFromServer]);
+  }, [isLiveBackend, isInstructorLoggedIn, clearLiveInstructorSession, mergeLearningUnitsFromServer]);
 
   // Sync to LocalStorage on changes
   useEffect(() => {
