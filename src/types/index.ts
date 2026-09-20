@@ -93,6 +93,8 @@ export interface PracticePeriod {
 
 export interface StudentSession {
   studentId: string;
+  /** NIM verified at login; used to guard against stale or mismatched sessions. */
+  nim?: string;
   courseSlug: string;
   periodId: string;
   /** Opaque server-issued token used for student quiz submissions. */

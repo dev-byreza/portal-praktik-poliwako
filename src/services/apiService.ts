@@ -336,6 +336,18 @@ export class ApiService {
     return savedCourse;
   }
 
+  static async deleteCourse(courseId: string): Promise<void> {
+    if (this.isLiveBackend() && supabase) {
+      const { error } = await supabase
+        .from('courses')
+        .delete()
+        .eq('id', courseId);
+      if (error) throw error;
+    }
+
+    StorageService.saveCourses(StorageService.getCourses().filter(course => course.id !== courseId));
+  }
+
   // ====================================================================
   // MASTER STUDENTS
   // ====================================================================

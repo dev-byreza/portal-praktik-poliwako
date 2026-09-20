@@ -5,6 +5,7 @@ import { useApp } from '../../context/AppContext';
 import { FeedbackRule, RubricCriterion, SubCPMK } from '../../types';
 import { getCourseRubrics } from '../../utils/courseRubrics';
 import { validateFeedbackRulesOverlap } from '../../utils/gradeCalculators';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 import {
   Sparkles,
   Save,
@@ -126,6 +127,7 @@ export const CourseSettings: React.FC = () => {
   const {
     activeCourse,
     updateCourse,
+    deleteCourse,
     feedbackRules,
     saveCustomFeedbackRules,
     showToast
@@ -141,6 +143,8 @@ export const CourseSettings: React.FC = () => {
   const [semester, setSemester] = useState<'Ganjil' | 'Genap'>(activeCourse?.semester || 'Ganjil');
   const [courseDesc, setCourseDesc] = useState<string>(activeCourse?.description || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [overlapError, setOverlapError] = useState<string | null>(null);
 
   const [localAttitudeRubrics, setLocalAttitudeRubrics] = useState<LocalRubric[]>([]);
@@ -370,9 +374,32 @@ export const CourseSettings: React.FC = () => {
     }
   };
 
+  const handleDeleteCourse = async () => {
+    if (!activeCourse || isDeleting) return;
+    setIsDeleting(true);
+    try {
+      await deleteCourse(activeCourse.id);
+      setIsDeleteDialogOpen(false);
+    } catch (error) {
+      console.error('Gagal menghapus mata kuliah:', error);
+      showToast('Mata Kuliah Belum Dihapus', 'Penghapusan gagal. Periksa koneksi dan akses akun, lalu coba kembali.', 'error');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
 
   return (
     <div className="space-y-8">
+
+      <ConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        title="Hapus mata kuliah?"
+        message={`Mata kuliah “${activeCourse?.name || ''}” beserta periode praktik, materi, peserta, absensi, nilai, tugas, dan pengumuman terkait akan dihapus permanen.`}
+        confirmLabel={isDeleting ? 'Menghapus...' : 'Hapus Mata Kuliah'}
+        onConfirm={() => { void handleDeleteCourse(); }}
+        onCancel={() => { if (!isDeleting) setIsDeleteDialogOpen(false); }}
+      />
 
       {/* Header */}
       <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -728,6 +755,26 @@ export const CourseSettings: React.FC = () => {
 
         </fieldset>
       </form>
+
+      <section className="rounded-3xl border border-rose-200 bg-rose-50/70 p-6 sm:p-8 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-base font-bold text-rose-900">Zona Bahaya</h3>
+            <p className="mt-1 max-w-2xl text-xs leading-relaxed text-rose-700">
+              Hapus mata kuliah ini hanya jika sudah tidak digunakan. Seluruh data praktik yang terhubung akan ikut terhapus dan tidak dapat dipulihkan.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsDeleteDialogOpen(true)}
+            disabled={!activeCourse || isSaving || isDeleting}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-rose-600/20 transition-colors hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Trash2 className="h-4 w-4" />
+            {isDeleting ? 'Menghapus...' : 'Hapus Mata Kuliah'}
+          </button>
+        </div>
+      </section>
     </div>
   );
 };

@@ -44,6 +44,9 @@ const parseAssignmentDeadline = (value: string): number | null => {
   return Number.isFinite(timestamp) ? timestamp : null;
 };
 
+const normalizeStudentNim = (value: string | null | undefined): string =>
+  String(value || '').trim().toLowerCase();
+
 interface ToastInfo {
   id: string;
   title: string;
@@ -124,7 +127,7 @@ interface AppContextType {
   createCourse: (course: Partial<Course>) => Promise<Course>;
   copyCourse: (sourceCourseId: string, newName: string, academicYear: string, semester: 'Ganjil' | 'Genap') => Course;
   updateCourse: (course: Course) => Promise<void>;
-  deleteCourse: (courseId: string) => void;
+  deleteCourse: (courseId: string) => Promise<void>;
 
   createPeriod: (period: Partial<PracticePeriod>) => PracticePeriod;
   duplicatePeriod: (sourcePeriodId: string, newName: string, startDate: string) => PracticePeriod;
@@ -489,7 +492,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const currentStudent = useMemo(() => {
     if (!studentSession) return null;
-    return students.find(s => s.id === studentSession.studentId) || null;
+    const student = students.find(s => s.id === studentSession.studentId);
+    if (!student) return null;
+
+    // Older sessions do not contain `nim`, so only apply this guard when the
+    // session has the new verified identity marker.
+    if (studentSession.nim && normalizeStudentNim(student.nim) !== normalizeStudentNim(studentSession.nim)) {
+      console.warn('Student session identity mismatch; hiding the session until the student logs in again.');
+      return null;
+    }
+
+    return student;
   }, [studentSession, students]);
 
   // Migrate passwords created by older builds from the legacy browser cache
@@ -698,6 +711,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       try {
         const remote = await ApiService.studentAuthLookup(cleanNim, courseSlug, periodId);
         const remoteStudent = remote.student;
+        if (remoteStudent && normalizeStudentNim(remoteStudent.nim) !== cleanNim) {
+          console.error('Student authentication lookup returned a different NIM than requested.');
+          return {
+            exists: false,
+            isEnrolled: false,
+            periodId: undefined,
+            hasCreatedPassword: false,
+            message: 'Data NIM dari server tidak cocok dengan NIM yang dimasukkan. Silakan coba lagi.'
+          };
+        }
         if (remoteStudent) {
           setStudents(previous => [
             ...previous.filter(student => student.id !== remoteStudent.id),
@@ -771,6 +794,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const result = await ApiService.studentAuthSetPassword(studentId, nim || std.nim, password, courseSlug, periodId);
         if (!result.success) return { success: false, message: result.message };
         const remoteStudent = result.student || std;
+        const requestedNim = normalizeStudentNim(nim || std.nim);
+        if (normalizeStudentNim(remoteStudent.nim) !== requestedNim) {
+          console.error('Student password activation returned a different NIM than requested.');
+          return { success: false, message: 'Data NIM dari server tidak cocok. Password belum diaktifkan.' };
+        }
         const updatedStudent = { ...remoteStudent, hasCreatedPassword: true };
         setStudents(previous => [
           ...previous.filter(student => student.id !== updatedStudent.id),
@@ -780,7 +808,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ...StorageService.getStudents().filter(student => student.id !== updatedStudent.id),
           updatedStudent,
         ]);
-        const session = { studentId: updatedStudent.id, courseSlug, periodId: result.periodId || periodId, sessionToken: result.sessionToken };
+        const session = { studentId: updatedStudent.id, nim: updatedStudent.nim, courseSlug, periodId: result.periodId || periodId, sessionToken: result.sessionToken };
         setStudentSessionState(session);
         StorageService.setStudentSession(session);
         setRole('STUDENT');
@@ -804,7 +832,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     StorageService.saveStudents(updatedStudents);
 
     // Establish session
-    const session = { studentId, courseSlug, periodId };
+    const session = { studentId, nim: std.nim, courseSlug, periodId };
     setStudentSessionState(session);
     StorageService.setStudentSession(session);
     setRole('STUDENT');
@@ -821,6 +849,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const result = await ApiService.studentAuthLogin(cleanNim, password, courseSlug, periodId);
         if (!result.success || !result.student) return { success: false, message: result.message };
         const remoteStudent = { ...result.student, hasCreatedPassword: true };
+        if (normalizeStudentNim(remoteStudent.nim) !== cleanNim) {
+          console.error('Student password login returned a different NIM than requested.');
+          return { success: false, message: 'Data NIM dari server tidak cocok dengan NIM yang dimasukkan.' };
+        }
         setStudents(previous => [
           ...previous.filter(student => student.id !== remoteStudent.id),
           remoteStudent,
@@ -829,7 +861,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ...StorageService.getStudents().filter(student => student.id !== remoteStudent.id),
           remoteStudent,
         ]);
-        const session = { studentId: remoteStudent.id, courseSlug, periodId: result.periodId || periodId, sessionToken: result.sessionToken };
+        const session = { studentId: remoteStudent.id, nim: remoteStudent.nim, courseSlug, periodId: result.periodId || periodId, sessionToken: result.sessionToken };
         setStudentSessionState(session);
         StorageService.setStudentSession(session);
         setRole('STUDENT');
@@ -856,7 +888,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     // Establish session
-    const session = { studentId: std.id, courseSlug, periodId };
+    const session = { studentId: std.id, nim: std.nim, courseSlug, periodId };
     setStudentSessionState(session);
     StorageService.setStudentSession(session);
     setRole('STUDENT');
@@ -881,7 +913,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Student Identity
   const setStudentIdentity = (studentId: string, courseSlug: string, periodId: string) => {
-    const session = { studentId, courseSlug, periodId };
+    const std = students.find(s => s.id === studentId);
+    const session = { studentId, nim: std?.nim, courseSlug, periodId };
     setStudentSessionState(session);
     StorageService.setStudentSession(session);
     setRole('STUDENT');
@@ -894,7 +927,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return p;
     }));
 
-    const std = students.find(s => s.id === studentId);
     showToast('Selamat Datang', `Praktik aktif untuk ${std?.name || 'Mahasiswa'} (NIM: ${std?.nim})`, 'success');
   };
 
@@ -1098,15 +1130,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCourses(prev => prev.map(c => c.id === saved.id ? saved : c));
   };
 
-  const deleteCourse = (courseId: string) => {
-    setCourses(prev => prev.filter(c => c.id !== courseId));
+  const deleteCourse = async (courseId: string) => {
+    const deletedPeriodIds = new Set(periods.filter(period => period.courseId === courseId).map(period => period.id));
+    const deletedUnitIds = new Set(learningUnits.filter(unit => deletedPeriodIds.has(unit.periodId)).map(unit => unit.id));
+    const remainingCourses = courses.filter(course => course.id !== courseId);
+
+    await ApiService.deleteCourse(courseId);
+
+    setCourses(remainingCourses);
+    setPeriods(prev => prev.filter(period => !deletedPeriodIds.has(period.id)));
+    setParticipants(prev => prev.filter(participant => !deletedPeriodIds.has(participant.periodId)));
+    setLearningUnits(prev => prev.filter(unit => !deletedPeriodIds.has(unit.periodId)));
+    setUnitProgress(prev => prev.filter(progress => !deletedPeriodIds.has(progress.periodId) && !deletedUnitIds.has(progress.unitId)));
+    setSubmissions(prev => prev.filter(submission => !deletedPeriodIds.has(submission.periodId)));
+    setAttendance(prev => prev.filter(record => !deletedPeriodIds.has(record.periodId)));
+    setAssessments(prev => prev.filter(assessment => !deletedPeriodIds.has(assessment.periodId)));
+    setRemedials(prev => prev.filter(remedial => !deletedPeriodIds.has(remedial.periodId)));
+    setFeedbackRules(prev => prev.filter(rule => rule.courseId !== courseId));
+    setAnnouncements(prev => prev.filter(announcement => announcement.courseId !== courseId));
+
     if (activeCourseId === courseId) {
-      const remaining = courses.filter(c => c.id !== courseId);
-      if (remaining.length > 0) {
-        setActiveCourseId(remaining[0].id);
-      }
+      const nextActiveCourseId = remainingCourses[0]?.id || '';
+      setActiveCourseIdState(nextActiveCourseId);
+      StorageService.setActiveCourseId(nextActiveCourseId, isInstructorLoggedIn ? instructor.id : undefined);
     }
-    showToast('Mata Kuliah Dihapus', 'Mata kuliah dan relasi terkait telah dihapus.', 'info');
+    showToast('Mata Kuliah Dihapus', 'Mata kuliah dan seluruh data praktik terkait telah dihapus.', 'info');
   };
 
   // Instructor Period Operations

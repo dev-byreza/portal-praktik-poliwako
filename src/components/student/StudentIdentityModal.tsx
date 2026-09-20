@@ -1,6 +1,6 @@
 // Student Authentication Gate & Identity Modal (NIM Login & First-time Password Activation)
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Student } from '../../types';
 import {
@@ -57,6 +57,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   // Feedback states
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const verificationRequestRef = useRef(0);
 
   const activeCourse = courseSlug ? courses.find(c => c.slug === courseSlug) : undefined;
   const activePeriod = activeCourse
@@ -76,12 +77,22 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
       return;
     }
 
+    const requestId = ++verificationRequestRef.current;
+    setTargetStudent(null);
+    setTargetPeriodId('');
+    setTargetCourseSlug('');
     setIsSubmitting(true);
     try {
       const verification = await verifyStudentNim(nim, courseSlug, activePeriod?.id);
+      if (requestId !== verificationRequestRef.current) return;
 
       if (!verification.exists || !verification.student || !verification.isEnrolled) {
         setErrorMessage(verification.message || `NIM "${nim}" tidak terdaftar dalam pangkalan data mahasiswa Politeknik Sorowako.`);
+        return;
+      }
+
+      if (verification.student.nim.trim().toLowerCase() !== nim.toLowerCase()) {
+        setErrorMessage('NIM yang dikembalikan server tidak cocok dengan NIM yang dimasukkan. Silakan coba lagi.');
         return;
       }
 
@@ -103,7 +114,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
         setStep('CREATE_PASSWORD');
       }
     } finally {
-      setIsSubmitting(false);
+      if (requestId === verificationRequestRef.current) setIsSubmitting(false);
     }
   };
 
