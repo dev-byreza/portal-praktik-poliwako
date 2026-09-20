@@ -219,6 +219,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const learningUnitSyncRef = useRef(new Map<string, { revision: number; pending: boolean }>());
   // Prevent auth changes and focus events from starting overlapping full syncs.
   const liveSyncInFlightRef = useRef(false);
+  const liveSyncQueuedRef = useRef(false);
 
   const mergeLearningUnitsFromServer = useCallback((serverUnits: LearningUnit[], fetchRevision: number) => {
     setLearningUnits(currentUnits => {
@@ -278,7 +279,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     let isMounted = true;
     const syncBackendData = async () => {
-      if (liveSyncInFlightRef.current) return;
+      if (liveSyncInFlightRef.current) {
+        // A first-load sync may still be running when the user completes the
+        // first login. Queue one authenticated sync instead of losing it.
+        liveSyncQueuedRef.current = true;
+        return;
+      }
       liveSyncInFlightRef.current = true;
       try {
         // Kick off authoritative internet time fetch
@@ -369,6 +375,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.warn('Sync from Supabase notice:', e);
       } finally {
         liveSyncInFlightRef.current = false;
+        if (liveSyncQueuedRef.current && isMounted) {
+          liveSyncQueuedRef.current = false;
+          void syncBackendData();
+        }
       }
     };
 
