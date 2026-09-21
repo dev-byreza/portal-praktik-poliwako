@@ -315,7 +315,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         // the other large secondary datasets.
         const [liveCourses, liveStudents] = await Promise.all([
           ApiService.getCourses(courseScope),
-          ApiService.getStudents(),
+          // The students master table is protected for authenticated
+          // instructors. A student portal uses the anonymous client, so
+          // fetching this table here would return an empty RLS-filtered list
+          // and erase the student's locally persisted identity on refresh.
+          authInstructorId ? ApiService.getStudents() : Promise.resolve(null),
         ]);
         if (!isMounted) return;
         if (liveCourses) {
@@ -329,7 +333,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             if (restoredId) StorageService.setActiveCourseId(restoredId, scopedInstructorId);
           }
         }
-        if (liveStudents) setStudents(liveStudents);
+        if (authInstructorId && liveStudents) setStudents(liveStudents);
 
         // Secondary data can continue loading after the instructor shell is
         // visible. Promise.all is retained here so these independent reads
@@ -504,6 +508,51 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     return student;
   }, [studentSession, students]);
+
+  // Recover sessions created before the student cache was overwritten by an
+  // anonymous RLS-filtered `getStudents()` request. The RPC is intentionally
+  // used instead of exposing the protected students table to anon users.
+  const studentSessionRestoreKey = `${studentSession?.studentId || ''}:${studentSession?.nim || ''}:${studentSession?.courseSlug || ''}:${studentSession?.periodId || ''}`;
+  const studentSessionRestoreRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isLiveBackend || !studentSession || currentStudent || !studentSession.nim) return;
+    if (studentSessionRestoreRef.current === studentSessionRestoreKey) return;
+    studentSessionRestoreRef.current = studentSessionRestoreKey;
+
+    void ApiService.studentAuthLookup(
+      studentSession.nim,
+      studentSession.courseSlug,
+      studentSession.periodId,
+    ).then(remote => {
+      const remoteStudent = remote.student;
+      const isMatchingSession = Boolean(
+        remoteStudent
+        && remoteStudent.id === studentSession.studentId
+        && normalizeStudentNim(remoteStudent.nim) === normalizeStudentNim(studentSession.nim),
+      );
+      if (!isMatchingSession || !remoteStudent) {
+        console.warn('Stored student session could not be restored from Supabase.');
+        return;
+      }
+
+      const restoredStudent = { ...remoteStudent, hasCreatedPassword: remote.hasCreatedPassword };
+      setStudents(previous => [
+        ...previous.filter(student => student.id !== restoredStudent.id),
+        restoredStudent,
+      ]);
+      StorageService.saveStudents([
+        ...StorageService.getStudents().filter(student => student.id !== restoredStudent.id),
+        restoredStudent,
+      ]);
+    }).catch(error => {
+      console.warn('Student session restore notice:', error);
+    });
+  }, [
+    isLiveBackend,
+    currentStudent,
+    studentSession,
+    studentSessionRestoreKey,
+  ]);
 
   // Migrate passwords created by older builds from the legacy browser cache
   // exactly once per session. This lets an already-logged-in student carry
