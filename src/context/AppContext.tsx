@@ -90,6 +90,7 @@ interface AppContextType {
   remedials: RemedialAssignment[];
   feedbackRules: FeedbackRule[];
   announcements: Announcement[];
+  isInitialDataLoaded: boolean;
 
   // Student Session & Authentication
   studentSession: StudentSession | null;
@@ -213,6 +214,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [remedials, setRemedials] = useState<RemedialAssignment[]>(StorageService.getRemedials());
   const [feedbackRules, setFeedbackRules] = useState<FeedbackRule[]>(StorageService.getFeedbackRules());
   const [announcements, setAnnouncements] = useState<Announcement[]>(StorageService.getAnnouncements());
+  const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(!isLiveBackend);
   const [studentSession, setStudentSessionState] = useState(StorageService.getStudentSession());
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
   // A background read can finish after an instructor has changed a unit but
@@ -289,6 +291,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return;
       }
       liveSyncInFlightRef.current = true;
+      if (isLiveBackend) setIsInitialDataLoaded(false);
       try {
         // Kick off authoritative internet time fetch
         fetchInternetNetworkTime().catch(() => {});
@@ -335,25 +338,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
         if (authInstructorId && liveStudents) setStudents(liveStudents);
 
-        // Secondary data can continue loading after the instructor shell is
-        // visible. Promise.all is retained here so these independent reads
-        // still run in parallel without delaying the critical shell.
-        const [livePeriods, liveParticipants, liveUnits, liveAttendance, liveSubmissions, liveAssessments, liveInstructorDirectory, liveRemedials, liveAnnouncements] = await Promise.all([
+        // Catalog-critical data is loaded first so a slow secondary request
+        // cannot keep the mobile course catalog in an empty state.
+        const [periodsResult, participantsResult] = await Promise.allSettled([
           ApiService.getPeriods(),
           ApiService.getParticipants(),
-          ApiService.getLearningUnits(),
-          ApiService.getAttendance(),
-          ApiService.getSubmissions(),
-          ApiService.getAssessments(),
-          ApiService.getInstructorDirectory(),
-          ApiService.getRemedials().catch(() => null),
-          ApiService.getAnnouncements(),
         ]);
         if (!isMounted) return;
-        if (liveRemedials) setRemedials(liveRemedials);
-        if (liveAnnouncements) setAnnouncements(liveAnnouncements);
 
-        if (livePeriods && livePeriods.length > 0) {
+        if (periodsResult.status === 'fulfilled') {
+          const livePeriods = periodsResult.value;
           const todayStr = getRealtimeWitaDateString();
           let needsUpdate = false;
           const reconciledPeriods = livePeriods.map(p => {
@@ -367,20 +361,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             return p;
           });
           setPeriods(reconciledPeriods);
-          if (needsUpdate) {
+          if (needsUpdate && reconciledPeriods.length > 0) {
             ApiService.savePeriodsBulk(reconciledPeriods);
           }
         }
+        if (participantsResult.status === 'fulfilled') setParticipants(participantsResult.value);
+        setIsInitialDataLoaded(true);
 
-        if (liveParticipants) setParticipants(liveParticipants);
-        if (liveUnits) mergeLearningUnitsFromServer(liveUnits, unitsFetchRevision);
-        if (liveAttendance) setAttendance(liveAttendance);
-        if (liveSubmissions) setSubmissions(liveSubmissions);
-        if (liveAssessments) setAssessments(liveAssessments);
-        if (liveInstructorDirectory) setInstructorDirectory(liveInstructorDirectory);
+        // Secondary data is independent from catalog visibility. Each result
+        // is applied separately so one RLS/schema/network issue does not
+        // discard the course and enrollment data already loaded above.
+        const [unitsResult, attendanceResult, submissionsResult, assessmentsResult, instructorDirectoryResult, remedialsResult, announcementsResult] = await Promise.allSettled([
+          ApiService.getLearningUnits(),
+          ApiService.getAttendance(),
+          ApiService.getSubmissions(),
+          ApiService.getAssessments(),
+          ApiService.getInstructorDirectory(),
+          ApiService.getRemedials().catch(() => null),
+          ApiService.getAnnouncements(),
+        ]);
+        if (!isMounted) return;
+        if (unitsResult.status === 'fulfilled') mergeLearningUnitsFromServer(unitsResult.value, unitsFetchRevision);
+        if (attendanceResult.status === 'fulfilled') setAttendance(attendanceResult.value);
+        if (submissionsResult.status === 'fulfilled') setSubmissions(submissionsResult.value);
+        if (assessmentsResult.status === 'fulfilled') setAssessments(assessmentsResult.value);
+        if (instructorDirectoryResult.status === 'fulfilled') setInstructorDirectory(instructorDirectoryResult.value);
+        if (remedialsResult.status === 'fulfilled' && remedialsResult.value) setRemedials(remedialsResult.value);
+        if (announcementsResult.status === 'fulfilled') setAnnouncements(announcementsResult.value);
       } catch (e) {
         console.warn('Sync from Supabase notice:', e);
       } finally {
+        if (isMounted) setIsInitialDataLoaded(true);
         liveSyncInFlightRef.current = false;
         if (liveSyncQueuedRef.current && isMounted) {
           liveSyncQueuedRef.current = false;
@@ -422,7 +433,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       window.removeEventListener('focus', handleWindowFocus);
       document.removeEventListener('visibilitychange', handleWindowFocus);
     };
-  }, [isLiveBackend, isInstructorLoggedIn, clearLiveInstructorSession, mergeLearningUnitsFromServer]);
+  }, [
+    isLiveBackend,
+    isInstructorLoggedIn,
+    studentSession?.studentId,
+    clearLiveInstructorSession,
+    mergeLearningUnitsFromServer,
+  ]);
 
   // Sync to LocalStorage on changes
   useEffect(() => {
@@ -2119,6 +2136,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         instructor,
         isInstructorLoggedIn,
         isLiveBackend,
+        isInitialDataLoaded,
         loginInstructor,
         signUpInstructor,
         logoutInstructor,

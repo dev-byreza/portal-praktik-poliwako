@@ -1,15 +1,16 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
-  BookOpen, 
-  CheckCircle2, 
-  Clock, 
-  ArrowRight, 
-  Calendar, 
-  LogOut, 
-  Layers, 
+  BookOpen,
+  CheckCircle2,
+  Clock,
+  ArrowRight,
+  Calendar,
+  LogOut,
+  Layers,
   Sparkles,
-  UserRound
+  UserRound,
+  LoaderCircle
 } from 'lucide-react';
 import { formatPeriodRange } from '../../utils/dateUtils';
 import { hasSuccessfulSubmission } from '../../utils/studentProgress';
@@ -29,6 +30,7 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
     participants,
     learningUnits,
     submissions,
+    isInitialDataLoaded,
     clearStudentIdentity
   } = useApp();
 
@@ -163,7 +165,16 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
 
         {/* Course Cards Container: Selalu center! Jika 1 frame berada di tengah, jika 2 frame bergeser seimbang ke kiri dan kanan dengan titik tengah simetris */}
         <div className="flex flex-wrap justify-center items-stretch gap-6 w-full max-w-5xl mx-auto">
-          {visibleCourses.length === 0 && (
+          {!isInitialDataLoaded && (
+            <div className="w-full max-w-xl rounded-2xl border border-slate-800 bg-slate-900/70 p-8 text-center shadow-xl">
+              <LoaderCircle className="mx-auto mb-3 h-10 w-10 animate-spin text-cyan-400" />
+              <h2 className="text-lg font-bold text-white">Memuat mata kuliah...</h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                Tunggu sebentar, kami sedang mengambil daftar mata kuliah dan pendaftaran praktik Anda.
+              </p>
+            </div>
+          )}
+          {isInitialDataLoaded && visibleCourses.length === 0 && (
             <div className="w-full max-w-xl rounded-2xl border border-slate-800 bg-slate-900/70 p-8 text-center shadow-xl">
               <BookOpen className="mx-auto mb-3 h-10 w-10 text-cyan-400" />
               <h2 className="text-lg font-bold text-white">Belum ada mata kuliah terdaftar</h2>
