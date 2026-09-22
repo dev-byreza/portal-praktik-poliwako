@@ -198,25 +198,19 @@ export class ApiService {
       return StorageService.getCourses();
     }
     try {
-      // Never trust an instructor id supplied by the caller. In live mode an
-      // authenticated instructor may only read courses owned by the current
-      // Supabase session. Anonymous requests are reserved for the public
-      // student catalog and may only read published courses.
-      const authUser = await getCurrentAuthUser();
+      // RLS is the authorization boundary. The optional instructor filter is
+      // only a query scope, so callers cannot use it to read another owner's
+      // private courses. Avoiding a second getUser() request here materially
+      // shortens the refresh path after the session was already verified.
       const requestedInstructorId = instructorId?.trim();
-      if (authUser) {
-        if (requestedInstructorId && requestedInstructorId !== authUser.id) return [];
-      } else if (requestedInstructorId) {
-        return [];
-      }
 
       let query = supabase.from('courses').select(`
         *,
         course_sub_cpmk (*),
         rubric_criteria (*)
       `);
-      if (authUser) {
-        query = query.eq('instructor_id', authUser.id);
+      if (requestedInstructorId) {
+        query = query.eq('instructor_id', requestedInstructorId);
       } else {
         query = query.eq('status', 'PUBLISHED');
       }
@@ -706,11 +700,14 @@ export class ApiService {
     });
 
     try {
-      const authUser = await getCurrentAuthUser();
       let query = supabase.from('practice_participants').select('*, students(*)');
       if (periodId) query = query.eq('period_id', periodId);
       const { data, error } = await query;
       if (!error && data && data.length > 0) return data.map(p => mapParticipant(p));
+
+      // Resolve the auth role only when the direct query was empty or failed.
+      // The normal catalog path therefore avoids a second Auth request.
+      const authUser = await getCurrentAuthUser();
 
       // An authenticated instructor must never receive the anonymous minimal
       // enrollment view as a silent fallback. That view has no student names

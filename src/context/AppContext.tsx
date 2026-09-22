@@ -222,10 +222,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // cannot make an item briefly jump back to its old position.
   const learningUnitRevisionRef = useRef(0);
   const learningUnitSyncRef = useRef(new Map<string, { revision: number; pending: boolean }>());
-  // Prevent auth changes and focus events from starting overlapping full syncs.
-  const liveSyncInFlightRef = useRef(false);
-  const liveSyncQueuedRef = useRef(false);
-
   const mergeLearningUnitsFromServer = useCallback((serverUnits: LearningUnit[], fetchRevision: number) => {
     setLearningUnits(currentUnits => {
       const localById = new Map(currentUnits.map(unit => [unit.id, unit]));
@@ -284,19 +280,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     let isMounted = true;
     const syncBackendData = async () => {
-      if (liveSyncInFlightRef.current) {
-        // A first-load sync may still be running when the user completes the
-        // first login. Queue one authenticated sync instead of losing it.
-        liveSyncQueuedRef.current = true;
-        return;
-      }
-      liveSyncInFlightRef.current = true;
       if (isLiveBackend) setIsInitialDataLoaded(false);
       try {
         // Kick off authoritative internet time fetch
         fetchInternetNetworkTime().catch(() => {});
 
         if (!isLiveBackend) return;
+        // Begin the student catalog reads immediately. They are protected by
+        // RLS and do not need to wait for the separate instructor identity
+        // verification request to finish first.
+        const catalogDataPromise = Promise.allSettled([
+          ApiService.getCourses(),
+          ApiService.getPeriods(),
+          ApiService.getParticipants(),
+        ]);
         const authInstructorId = await ApiService.getCurrentInstructorId();
         // A stale local login flag must not block the public scope or make the
         // protected instructor scope look like an empty database.
@@ -304,47 +301,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           StorageService.setInstructorLoggedIn(true);
           setIsInstructorLoggedIn(true);
           setRole('INSTRUCTOR');
-          const liveProfile = await ApiService.getInstructorProfile(authInstructorId);
-          const scopedProfile = { ...liveProfile, id: authInstructorId };
-          setInstructor(scopedProfile);
-          StorageService.saveInstructor(scopedProfile);
         } else if (isInstructorLoggedIn || role === 'INSTRUCTOR') {
           clearLiveInstructorSession();
         }
-        const courseScope = authInstructorId || undefined;
         const unitsFetchRevision = learningUnitRevisionRef.current;
-        // Load the critical instructor shell first. This lets the course
-        // selector render without waiting for attendance, submissions, and
-        // the other large secondary datasets.
-        const [liveCourses, liveStudents] = await Promise.all([
-          ApiService.getCourses(courseScope),
-          // The students master table is protected for authenticated
-          // instructors. A student portal uses the anonymous client, so
-          // fetching this table here would return an empty RLS-filtered list
-          // and erase the student's locally persisted identity on refresh.
-          authInstructorId ? ApiService.getStudents() : Promise.resolve(null),
-        ]);
+        const profilePromise = authInstructorId
+          ? ApiService.getInstructorProfile(authInstructorId)
+          : Promise.resolve(null);
+        const scopedCoursesPromise = authInstructorId
+          ? ApiService.getCourses(authInstructorId)
+          : Promise.resolve(null);
+        const studentsPromise = authInstructorId
+          ? ApiService.getStudents()
+          : Promise.resolve(null);
+
+        // Courses, periods, and enrollments are all required by the student
+        // catalog. Start them together so refresh latency is one network
+        // round-trip instead of waiting for authentication first.
+        const [coursesResult, periodsResult, participantsResult] = await catalogDataPromise;
         if (!isMounted) return;
-        if (liveCourses) {
+
+        if (coursesResult.status === 'fulfilled') {
+          const liveCourses = coursesResult.value;
           setCourses(liveCourses);
           if (liveCourses.length === 0) {
             setActiveCourseIdState('');
-          } else if (authInstructorId) {
-            const scopedInstructorId = authInstructorId;
-            const restoredId = StorageService.getActiveCourseId(scopedInstructorId, liveCourses);
-            setActiveCourseIdState(restoredId);
-            if (restoredId) StorageService.setActiveCourseId(restoredId, scopedInstructorId);
           }
         }
-        if (authInstructorId && liveStudents) setStudents(liveStudents);
-
-        // Catalog-critical data is loaded first so a slow secondary request
-        // cannot keep the mobile course catalog in an empty state.
-        const [periodsResult, participantsResult] = await Promise.allSettled([
-          ApiService.getPeriods(),
-          ApiService.getParticipants(),
-        ]);
-        if (!isMounted) return;
 
         if (periodsResult.status === 'fulfilled') {
           const livePeriods = periodsResult.value;
@@ -371,7 +354,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         // Secondary data is independent from catalog visibility. Each result
         // is applied separately so one RLS/schema/network issue does not
         // discard the course and enrollment data already loaded above.
-        const [unitsResult, attendanceResult, submissionsResult, assessmentsResult, instructorDirectoryResult, remedialsResult, announcementsResult] = await Promise.allSettled([
+        const [scopedCoursesResult, studentsResult, profileResult, unitsResult, attendanceResult, submissionsResult, assessmentsResult, instructorDirectoryResult, remedialsResult, announcementsResult] = await Promise.allSettled([
+          scopedCoursesPromise,
+          studentsPromise,
+          profilePromise,
           ApiService.getLearningUnits(),
           ApiService.getAttendance(),
           ApiService.getSubmissions(),
@@ -381,6 +367,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ApiService.getAnnouncements(),
         ]);
         if (!isMounted) return;
+        if (authInstructorId && scopedCoursesResult.status === 'fulfilled' && scopedCoursesResult.value) {
+          const scopedCourses = scopedCoursesResult.value;
+          setCourses(scopedCourses);
+          const restoredId = StorageService.getActiveCourseId(authInstructorId, scopedCourses);
+          setActiveCourseIdState(restoredId);
+          if (restoredId) StorageService.setActiveCourseId(restoredId, authInstructorId);
+        }
+        if (authInstructorId && studentsResult.status === 'fulfilled' && studentsResult.value) {
+          setStudents(studentsResult.value);
+        }
+        if (authInstructorId && profileResult.status === 'fulfilled' && profileResult.value) {
+          const scopedProfile = { ...profileResult.value, id: authInstructorId };
+          setInstructor(scopedProfile);
+          StorageService.saveInstructor(scopedProfile);
+        }
         if (unitsResult.status === 'fulfilled') mergeLearningUnitsFromServer(unitsResult.value, unitsFetchRevision);
         if (attendanceResult.status === 'fulfilled') setAttendance(attendanceResult.value);
         if (submissionsResult.status === 'fulfilled') setSubmissions(submissionsResult.value);
@@ -392,11 +393,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.warn('Sync from Supabase notice:', e);
       } finally {
         if (isMounted) setIsInitialDataLoaded(true);
-        liveSyncInFlightRef.current = false;
-        if (liveSyncQueuedRef.current && isMounted) {
-          liveSyncQueuedRef.current = false;
-          void syncBackendData();
-        }
       }
     };
 
