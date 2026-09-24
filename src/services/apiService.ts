@@ -34,6 +34,7 @@ import {
   Announcement,
 } from '../types';
 import { getUnitAssignments } from '../utils/learningAssignments';
+import { normalizeLearningUnitNumbers } from '../utils/learningUnitOrdering';
 
 const isUuid = (value: string): boolean => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 const databaseId = async (id: string, kind: string): Promise<string> => {
@@ -916,7 +917,7 @@ export class ApiService {
         }])
       );
 
-      return data.map((u: any) => ({
+      const mappedUnits: LearningUnit[] = data.map((u: any) => ({
         id: u.id,
         periodId: u.period_id,
         unitNumber: u.unit_number,
@@ -963,6 +964,28 @@ export class ApiService {
         // Keep the first assignment available to older UI/cache consumers.
         assignment: assignmentsByUnit.get(u.id)?.[0] ? mapAssignmentRow(assignmentsByUnit.get(u.id)![0]) : undefined,
       }));
+      const normalizedUnits = normalizeLearningUnitNumbers(mappedUnits);
+      const renumberedUnits = normalizedUnits.filter((unit, index) => (
+        unit.unitNumber !== mappedUnits[index].unitNumber
+      ));
+      const backend = supabase;
+
+      // Repair duplicate or gapped numbers left by older data while keeping
+      // the visible order and persisted order in sync after a refresh.
+      if (renumberedUnits.length && backend) {
+        const results = await Promise.all(renumberedUnits.map(async unit => (
+          backend
+            .from('learning_units')
+            .update({ unit_number: unit.unitNumber })
+            .eq('id', unit.id)
+        )));
+        const failedRepair = results.find(result => result.error);
+        if (failedRepair?.error) {
+          console.warn('Unable to repair learning unit numbering:', failedRepair.error);
+        }
+      }
+
+      return normalizedUnits;
     } catch (error) {
       console.error('Unable to load learning units and assignments from Supabase:', error);
       // Keep an instructor's just-saved work visible during a transient
@@ -1167,6 +1190,22 @@ export class ApiService {
       if (error) throw error;
     }
     StorageService.saveLearningUnits(StorageService.getLearningUnits().filter(unit => unit.id !== unitId));
+  }
+
+  /** Persist only a unit's sequence number without rewriting its content. */
+  static async updateLearningUnitNumber(unitId: string, unitNumber: number): Promise<void> {
+    if (this.isLiveBackend() && supabase) {
+      const { error } = await supabase
+        .from('learning_units')
+        .update({ unit_number: unitNumber })
+        .eq('id', await databaseId(unitId, 'learning-unit'));
+      if (error) throw error;
+    }
+
+    const units = StorageService.getLearningUnits().map(unit => (
+      unit.id === unitId ? { ...unit, unitNumber } : unit
+    ));
+    StorageService.saveLearningUnits(units);
   }
 
   static async submitQuizAttempt(params: {

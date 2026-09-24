@@ -30,6 +30,7 @@ import { computeAttendanceStats, calculateWeightedFinalScore, getFeedbackForScor
 import { computePeriodEndDate, computePeriodStatus, getWitaDateString } from '../utils/dateUtils';
 import { getRealtimeWitaDateString, fetchInternetNetworkTime } from '../services/networkTimeService';
 import { getUnitAssignments } from '../utils/learningAssignments';
+import { normalizeLearningUnitNumbers, orderLearningUnits } from '../utils/learningUnitOrdering';
 
 const parseAssignmentDeadline = (value: string): number | null => {
   const raw = String(value || '').trim();
@@ -147,6 +148,7 @@ interface AppContextType {
 
   createLearningUnit: (unit: Partial<LearningUnit>) => LearningUnit;
   updateLearningUnit: (unit: LearningUnit) => void;
+  reorderLearningUnits: (periodId: string, orderedUnitIds: string[]) => void;
   deleteLearningUnit: (unitId: string) => void;
   copyLearningUnits: (sourceUnitIds: string[], targetPeriodIds: string[], overwrite?: boolean) => Promise<{ copiedCount: number; targetCount: number }>;
 
@@ -205,7 +207,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [periods, setPeriods] = useState<PracticePeriod[]>(StorageService.getPeriods());
   const [participants, setParticipants] = useState<PracticeParticipant[]>(() => (isLiveBackend ? [] : StorageService.getParticipants()));
   const [learningUnits, setLearningUnits] = useState<LearningUnit[]>(() => (
-    isLiveBackend ? [] : StorageService.getLearningUnits()
+    isLiveBackend ? [] : normalizeLearningUnitNumbers(StorageService.getLearningUnits())
   ));
   const [unitProgress, setUnitProgress] = useState<UnitProgress[]>(StorageService.getUnitProgress());
   const [submissions, setSubmissions] = useState<Submission[]>(StorageService.getSubmissions());
@@ -223,10 +225,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const learningUnitRevisionRef = useRef(0);
   const learningUnitSyncRef = useRef(new Map<string, { revision: number; pending: boolean }>());
   const mergeLearningUnitsFromServer = useCallback((serverUnits: LearningUnit[], fetchRevision: number) => {
+    const normalizedServerUnits = normalizeLearningUnitNumbers(serverUnits);
+    const renumberedUnits = normalizedServerUnits.filter((unit, index) => (
+      unit.unitNumber !== serverUnits[index].unitNumber
+    ));
+    if (isLiveBackend && renumberedUnits.length) {
+      Promise.all(renumberedUnits.map(unit => ApiService.updateLearningUnitNumber(unit.id, unit.unitNumber)))
+        .catch(error => console.warn('Unable to persist repaired learning unit numbering:', error));
+    }
+
     setLearningUnits(currentUnits => {
       const localById = new Map(currentUnits.map(unit => [unit.id, unit]));
-      const serverIds = new Set(serverUnits.map(unit => unit.id));
-      const merged = serverUnits.map(serverUnit => {
+      const serverIds = new Set(normalizedServerUnits.map(unit => unit.id));
+      const merged = normalizedServerUnits.map(serverUnit => {
         const syncState = learningUnitSyncRef.current.get(serverUnit.id);
         const shouldKeepLocal = Boolean(
           syncState && (syncState.pending || syncState.revision > fetchRevision)
@@ -244,7 +255,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
       return merged;
     });
-  }, []);
+  }, [isLiveBackend]);
 
   // In live mode Supabase Auth is authoritative. The local flag is retained
   // only for offline/demo mode and must never keep an expired instructor
@@ -1536,8 +1547,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Learning Unit CRUD
+  const persistChangedUnitNumbers = (nextUnits: LearningUnit[], previousUnits: LearningUnit[]) => {
+    if (!isLiveBackend) {
+      StorageService.saveLearningUnits(nextUnits);
+      return;
+    }
+
+    const previousNumbers = new Map(previousUnits.map(unit => [unit.id, unit.unitNumber]));
+    const changedUnits = nextUnits.filter(unit => (
+      previousNumbers.has(unit.id) && previousNumbers.get(unit.id) !== unit.unitNumber
+    ));
+
+    void Promise.all(changedUnits.map(unit => (
+      ApiService.updateLearningUnitNumber(unit.id, unit.unitNumber)
+        .catch(error => {
+          console.error('Error syncing learning unit order:', error);
+          showToast('Urutan Belum Tersimpan', `Nomor Unit ${unit.unitNumber} gagal disimpan ke Supabase.`, 'error');
+        })
+    )));
+  };
+
   const createLearningUnit = (unitData: Partial<LearningUnit>): LearningUnit => {
-    const periodUnits = learningUnits.filter(u => u.periodId === unitData.periodId);
+    const normalizedUnits = normalizeLearningUnitNumbers(learningUnits);
+    const periodUnits = normalizedUnits.filter(u => u.periodId === unitData.periodId);
     const unitNumber = periodUnits.length + 1;
 
     const newUnit: LearningUnit = {
@@ -1556,15 +1588,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const revision = ++learningUnitRevisionRef.current;
     learningUnitSyncRef.current.set(newUnit.id, { revision, pending: true });
-    setLearningUnits(prev => [...prev, newUnit]);
+    const nextUnits = normalizeLearningUnitNumbers([...normalizedUnits, newUnit]);
+    setLearningUnits(nextUnits);
+    persistChangedUnitNumbers(nextUnits, learningUnits);
     ApiService.saveLearningUnit(newUnit).then(savedUnit => {
       const syncState = learningUnitSyncRef.current.get(newUnit.id);
       if (!syncState || syncState.revision !== revision) return;
       if (savedUnit.id !== newUnit.id) learningUnitSyncRef.current.delete(newUnit.id);
       learningUnitSyncRef.current.set(savedUnit.id, { revision, pending: false });
-      setLearningUnits(prev => prev.map(unit => (
+      setLearningUnits(prev => normalizeLearningUnitNumbers(prev.map(unit => (
         unit.id === newUnit.id || unit.id === savedUnit.id ? savedUnit : unit
-      )));
+      ))));
     }).catch(error => {
       const syncState = learningUnitSyncRef.current.get(newUnit.id);
       if (syncState?.revision === revision) learningUnitSyncRef.current.delete(newUnit.id);
@@ -1604,10 +1638,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   };
 
+  const reorderLearningUnits = (periodId: string, orderedUnitIds: string[]) => {
+    const previousUnits = learningUnits;
+    const periodUnits = orderLearningUnits(previousUnits.filter(unit => unit.periodId === periodId));
+    const unitsById = new Map(periodUnits.map(unit => [unit.id, unit]));
+    const requestedUnits = orderedUnitIds
+      .map(unitId => unitsById.get(unitId))
+      .filter((unit): unit is LearningUnit => Boolean(unit));
+    const requestedIds = new Set(requestedUnits.map(unit => unit.id));
+    const remainingUnits = periodUnits.filter(unit => !requestedIds.has(unit.id));
+    const reorderedPeriodUnits = [...requestedUnits, ...remainingUnits]
+      .map((unit, index) => ({ ...unit, unitNumber: index + 1 }));
+    const reorderedById = new Map(reorderedPeriodUnits.map(unit => [unit.id, unit]));
+    const nextUnits = previousUnits.map(unit => reorderedById.get(unit.id) || unit);
+
+    setLearningUnits(nextUnits);
+    persistChangedUnitNumbers(nextUnits, previousUnits);
+    showToast('Urutan Unit Diperbarui', 'Urutan unit pembelajaran berhasil disimpan.', 'success');
+  };
+
   const deleteLearningUnit = (unitId: string) => {
+    const previousUnits = learningUnits;
+    const nextUnits = normalizeLearningUnitNumbers(previousUnits.filter(unit => unit.id !== unitId));
     learningUnitSyncRef.current.delete(unitId);
-    setLearningUnits(prev => prev.filter(u => u.id !== unitId));
-    ApiService.deleteLearningUnit(unitId).catch(error => {
+    setLearningUnits(nextUnits);
+    ApiService.deleteLearningUnit(unitId).then(() => {
+      persistChangedUnitNumbers(nextUnits, previousUnits);
+    }).catch(error => {
       console.error('Error deleting learning unit:', error);
       showToast('Penghapusan Gagal', 'Unit belum berhasil dihapus dari Supabase.', 'error');
     });
@@ -2184,6 +2241,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         importStudentsCSV,
         createLearningUnit,
         updateLearningUnit,
+        reorderLearningUnits,
         deleteLearningUnit,
         copyLearningUnits,
         updateAttendanceCell,

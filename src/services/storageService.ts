@@ -1,5 +1,6 @@
 // Reactive LocalStorage & Mock Persistence Service
 import { reconcileRpmSchedule } from '../utils/rpmSchedule';
+import { normalizeLearningUnitNumbers } from '../utils/learningUnitOrdering';
 
 import {
   InstructorProfile,
@@ -272,10 +273,14 @@ export class StorageService {
       ...unit,
       materials: (unit.materials || []).filter(material => !/dummy\.pdf/i.test(material.contentUrl || ''))
     }));
-    if (cleaned.some((unit, index) => cleaned[index].materials.length !== (units[index].materials || []).length)) {
-      this.saveLearningUnits(cleaned);
+    const normalized = normalizeLearningUnitNumbers(cleaned);
+    if (normalized.some((unit, index) => (
+      normalized[index].unitNumber !== units[index].unitNumber
+      || normalized[index].materials.length !== (units[index].materials || []).length
+    ))) {
+      this.saveLearningUnits(normalized);
     }
-    return cleaned;
+    return normalized;
   }
 
   static saveLearningUnits(units: LearningUnit[]): void {

@@ -35,6 +35,7 @@ import { formatDeadline, toDateTimeLocalWita, fromDateTimeLocalWita } from '../.
 import { getYouTubeVideoId, toYouTubeEmbedUrl } from '../../utils/youtubeUtils';
 import { richTextToPlainText } from '../../utils/richText';
 import { getUnitAssignments, withUnitAssignments } from '../../utils/learningAssignments';
+import { orderLearningUnits } from '../../utils/learningUnitOrdering';
 import { QuizBuilder } from './QuizBuilder';
 
 const newStudioEntityId = (prefix: string): string => (
@@ -54,6 +55,7 @@ export const LearningContentStudio: React.FC = () => {
     learningUnits,
     createLearningUnit,
     updateLearningUnit,
+    reorderLearningUnits,
     updatePeriod,
     deleteLearningUnit,
     copyLearningUnits,
@@ -125,9 +127,7 @@ export const LearningContentStudio: React.FC = () => {
   // Units for selected period
   const periodUnits = useMemo(() => {
     if (!activeSelectedPeriod) return [];
-    return learningUnits
-      .filter(u => u.periodId === activeSelectedPeriod.id)
-      .sort((a, b) => a.unitNumber - b.unitNumber);
+    return orderLearningUnits(learningUnits.filter(u => u.periodId === activeSelectedPeriod.id));
   }, [learningUnits, activeSelectedPeriod]);
 
   const selectedPeriodStorageKey = `${INSTRUCTOR_STUDIO_PERIOD_PREFIX}:${activeCourseId || 'none'}`;
@@ -216,6 +216,20 @@ export const LearningContentStudio: React.FC = () => {
     setUnitCountdownEnabled(false);
     setUnitCountdownMinutes('5');
     setIsUnitModalOpen(true);
+  };
+
+  const handleReorderUnit = (unitId: string, direction: 'up' | 'down') => {
+    if (!activeSelectedPeriod) return;
+    const currentIndex = periodUnits.findIndex(unit => unit.id === unitId);
+    const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= periodUnits.length) return;
+
+    const orderedUnitIds = periodUnits.map(unit => unit.id);
+    [orderedUnitIds[currentIndex], orderedUnitIds[nextIndex]] = [
+      orderedUnitIds[nextIndex],
+      orderedUnitIds[currentIndex],
+    ];
+    reorderLearningUnits(activeSelectedPeriod.id, orderedUnitIds);
   };
 
   const handleOpenEditUnit = (unit: LearningUnit) => {
@@ -578,6 +592,11 @@ export const LearningContentStudio: React.FC = () => {
         <div className="lg:col-span-4 space-y-2.5">
           <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-500 px-1">
             <span>Daftar Unit Pembelajaran ({periodUnits.length})</span>
+            {periodUnits.length > 1 && (
+              <span className="text-[10px] font-medium normal-case tracking-normal text-slate-400">
+                Gunakan panah untuk mengatur urutan
+              </span>
+            )}
           </div>
 
           {activeSelectedPeriod && (
@@ -620,7 +639,7 @@ export const LearningContentStudio: React.FC = () => {
             </div>
           )}
 
-          {periodUnits.map(unit => {
+          {periodUnits.map((unit, unitIndex) => {
             const isSelected = activeSelectedUnit?.id === unit.id;
             return (
               <div
@@ -641,6 +660,34 @@ export const LearningContentStudio: React.FC = () => {
                     <p className="text-[11px] text-slate-500 truncate mt-1">{unit.description || 'Tidak ada deskripsi'}</p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleReorderUnit(unit.id, 'up');
+                        }}
+                        disabled={unitIndex === 0}
+                        className="rounded-md p-1 text-slate-400 transition-colors hover:bg-white hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-30"
+                        title="Naikkan unit"
+                        aria-label={`Naikkan Unit ${unit.unitNumber}`}
+                      >
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleReorderUnit(unit.id, 'down');
+                        }}
+                        disabled={unitIndex === periodUnits.length - 1}
+                        className="rounded-md p-1 text-slate-400 transition-colors hover:bg-white hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-30"
+                        title="Turunkan unit"
+                        aria-label={`Turunkan Unit ${unit.unitNumber}`}
+                      >
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
