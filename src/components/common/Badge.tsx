@@ -27,9 +27,9 @@ interface BadgeProps {
 
 export const Badge: React.FC<BadgeProps> = ({ status, label, size = 'md' }) => {
   const sizeClasses = {
-    sm: 'text-[11px] px-2 py-0.5',
-    md: 'text-xs px-2.5 py-1',
-    lg: 'text-sm px-3 py-1.5 font-semibold'
+    sm: 'ui-status text-[11px] px-2 py-0.5',
+    md: 'ui-status text-xs px-2.5 py-1',
+    lg: 'ui-status text-sm px-3 py-1.5 font-semibold'
   }[size];
 
   switch (status) {
@@ -37,7 +37,7 @@ export const Badge: React.FC<BadgeProps> = ({ status, label, size = 'md' }) => {
     case 'Aktif':
       return (
         <span className={`inline-flex items-center gap-1.5 rounded-full font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 ${sizeClasses}`}>
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
           {label || 'Aktif'}
         </span>
       );
@@ -107,7 +107,7 @@ export const Badge: React.FC<BadgeProps> = ({ status, label, size = 'md' }) => {
     case 'PUBLISHED':
     case 'Dipublikasikan':
       return (
-        <span className={`inline-flex items-center gap-1.5 rounded-full font-medium bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm ${sizeClasses}`}>
+        <span className={`inline-flex items-center gap-1.5 rounded-full font-medium bg-emerald-100 text-emerald-800 border border-emerald-300 ${sizeClasses}`}>
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
           {label || 'Dipublikasikan'}
         </span>

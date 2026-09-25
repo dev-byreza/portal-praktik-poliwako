@@ -56,6 +56,8 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     submissions,
     studentSession,
     currentStudent,
+    isInitialDataLoaded,
+    initialDataError,
     setStudentIdentity,
     clearStudentIdentity
   } = useApp();
@@ -373,6 +375,20 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     return <StudentCourseCatalog onSelectCourse={handleSelectCourse} />;
   }
 
+  if (currentStudent && studentSession && !isInitialDataLoaded) {
+    return (
+      <section aria-busy="true" aria-live="polite" className="min-h-[60vh] space-y-4 bg-slate-100 p-4 sm:p-8" role="status">
+        <span className="sr-only">Memuat aktivitas, tenggat, dan nilai dari server…</span>
+        <div className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+        <div className="h-36 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="h-28 animate-pulse rounded-xl border border-slate-200 bg-white" />
+          <div className="h-28 animate-pulse rounded-xl border border-slate-200 bg-white" />
+        </div>
+      </section>
+    );
+  }
+
   // Gate check: If student is not authenticated, render login gate directly with interactive pointer-following animations & glassmorphism
   if (!currentStudent || !studentSession) {
     const spotlightX = rawMouse.x !== null ? `${rawMouse.x}px` : '50%';
@@ -497,6 +513,12 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
   return (
     <div className="h-full w-full flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-100">
+      {initialDataError && (
+        <div role="alert" className="flex flex-col gap-2 border-b border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <span>{initialDataError}</span>
+          <button type="button" onClick={() => window.location.reload()} className="min-h-10 self-start rounded-lg border border-amber-400 bg-white px-3 font-semibold hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 sm:self-auto">Muat ulang</button>
+        </div>
+      )}
       
       {/* Top Compact Banner & Header */}
       <div className="sticky top-0 z-30 bg-slate-900 text-white border-b border-slate-800 shadow-sm shrink-0">

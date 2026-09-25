@@ -98,6 +98,7 @@ interface AppContextType {
   feedbackRules: FeedbackRule[];
   announcements: Announcement[];
   isInitialDataLoaded: boolean;
+  initialDataError: string | null;
   serverSaveStatus: ServerSaveStatus;
   retryServerSave: () => Promise<void>;
 
@@ -235,6 +236,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [feedbackRules, setFeedbackRules] = useState<FeedbackRule[]>(() => isLiveBackend ? [] : StorageService.getFeedbackRules());
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => isLiveBackend ? [] : StorageService.getAnnouncements());
   const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(!isLiveBackend);
+  const [initialDataError, setInitialDataError] = useState<string | null>(null);
   const [serverSaveStatus, setServerSaveStatus] = useState<ServerSaveStatus>({ state: 'IDLE' });
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
   const serverSaveSequenceRef = useRef(0);
@@ -340,7 +342,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     let isMounted = true;
     const syncBackendData = async () => {
-      if (isLiveBackend) setIsInitialDataLoaded(false);
+      if (isLiveBackend) {
+        setIsInitialDataLoaded(false);
+        setInitialDataError(null);
+      }
       try {
         // Kick off authoritative internet time fetch
         fetchInternetNetworkTime().catch(() => {});
@@ -382,6 +387,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         // round-trip instead of waiting for authentication first.
         const [coursesResult, periodsResult, participantsResult] = await catalogDataPromise;
         if (!isMounted) return;
+        if ([coursesResult, periodsResult, participantsResult].some(result => result.status === 'rejected')) {
+          setInitialDataError('Data server belum berhasil dimuat seluruhnya. Coba muat ulang untuk melihat status terbaru.');
+        }
 
         if (coursesResult.status === 'fulfilled') {
           const liveCourses = coursesResult.value;
@@ -411,8 +419,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }
         }
         if (participantsResult.status === 'fulfilled') setParticipants(participantsResult.value);
-        setIsInitialDataLoaded(true);
-
         // Secondary data is independent from catalog visibility. Each result
         // is applied separately so one RLS/schema/network issue does not
         // discard the course and enrollment data already loaded above.
@@ -425,10 +431,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ApiService.getSubmissions(),
           ApiService.getAssessments(),
           ApiService.getInstructorDirectory(),
-          ApiService.getRemedials().catch(() => null),
+          ApiService.getRemedials(),
           ApiService.getAnnouncements(),
         ]);
         if (!isMounted) return;
+        if ([scopedCoursesResult, studentsResult, profileResult, unitsResult, attendanceResult, submissionsResult, assessmentsResult, instructorDirectoryResult, remedialsResult, announcementsResult]
+          .some(result => result.status === 'rejected')) {
+          setInitialDataError('Sebagian data server belum tersedia. Data yang tampil mungkin belum lengkap; muat ulang untuk mencoba lagi.');
+        }
         if (authInstructorId && scopedCoursesResult.status === 'fulfilled' && scopedCoursesResult.value) {
           const scopedCourses = scopedCoursesResult.value;
           setCourses(scopedCourses);
@@ -449,10 +459,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (submissionsResult.status === 'fulfilled') setSubmissions(submissionsResult.value);
         if (assessmentsResult.status === 'fulfilled') setAssessments(assessmentsResult.value);
         if (instructorDirectoryResult.status === 'fulfilled') setInstructorDirectory(instructorDirectoryResult.value);
-        if (remedialsResult.status === 'fulfilled' && remedialsResult.value) setRemedials(remedialsResult.value);
+        if (remedialsResult.status === 'fulfilled') setRemedials(remedialsResult.value);
         if (announcementsResult.status === 'fulfilled') setAnnouncements(announcementsResult.value);
       } catch (e) {
         console.warn('Sync from Supabase notice:', e);
+        if (isMounted) setInitialDataError('Koneksi ke server gagal. Periksa koneksi lalu muat ulang.');
       } finally {
         if (isMounted) setIsInitialDataLoaded(true);
       }
@@ -2216,6 +2227,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         isInstructorLoggedIn,
         isLiveBackend,
         isInitialDataLoaded,
+        initialDataError,
         serverSaveStatus,
         retryServerSave,
         loginInstructor,

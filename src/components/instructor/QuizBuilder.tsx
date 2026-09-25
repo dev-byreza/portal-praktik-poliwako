@@ -219,9 +219,9 @@ export const QuizBuilder: React.FC<QuizBuilderProps> = ({ initialQuiz, initialMa
             />
 
             {question.imageUrl && <img src={question.imageUrl} alt="Ilustrasi pertanyaan" className="mt-3 max-h-40 w-full rounded-xl border border-slate-200 object-contain bg-slate-50" />}
-            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-indigo-300 bg-indigo-50/50 px-3 py-2 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-50">
+            <label className="relative mt-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-indigo-300 bg-indigo-50/50 px-3 py-2 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-50 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-cyan-700">
               <ImagePlus className="h-4 w-4" /> {question.imageUrl ? 'Ganti gambar' : 'Tambahkan gambar'}
-              <input type="file" accept="image/*" className="hidden" onChange={event => { void handleImage(question.id, event.target.files?.[0]); event.currentTarget.value = ''; }} />
+              <input type="file" accept="image/*" className="ui-file-input" onChange={event => { void handleImage(question.id, event.target.files?.[0]); event.currentTarget.value = ''; }} />
             </label>
 
             <div className="mt-4 space-y-2">

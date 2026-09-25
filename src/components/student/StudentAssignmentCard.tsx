@@ -181,7 +181,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
       `Tugas        : ${assignment.title}`,
       `Nama berkas  : ${submission.fileName}`,
       `Ukuran       : ${submission.fileSize}`,
-      `Dikirim      : ${formatWitaDateTime(submission.submittedAt)}`,
+      `Waktu server : ${formatWitaDateTime(submission.submittedAt)}`,
       `Status       : ${submission.status === 'REVISION_REQUIRED' ? 'Perlu revisi' : submission.status === 'ACCEPTED' ? 'Diterima instruktur' : submission.status === 'GRADED' ? 'Sudah dinilai' : 'Menunggu pemeriksaan'}`,
       `Revisi ke    : ${submission.revisionNumber || 1}`,
       ...(submission.reviewFeedback ? [`Catatan      : ${submission.reviewFeedback}`] : []),
@@ -281,7 +281,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    {submission.fileSize} • Revisi {submission.revisionNumber || 1} • Diunggah pada {formatWitaDateTime(submission.submittedAt)}
+                    {submission.fileSize} • Revisi ke-{submission.revisionNumber || 1} • Waktu server: {formatWitaDateTime(submission.submittedAt)}
                   </p>
                 </div>
               </div>
@@ -343,13 +343,13 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                   <>
                   <div className="flex flex-col justify-between gap-2 xl:flex-row xl:items-center">
                     <span>{isRevisionRequired ? 'Unggah berkas yang sudah diperbaiki.' : 'Ingin memperbarui file tugas?'}</span>
-                    <label className="text-blue-600 hover:text-blue-700 font-semibold cursor-pointer underline">
+                    <label className="relative text-blue-600 hover:text-blue-700 font-semibold cursor-pointer underline focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-cyan-700">
                       {isRevisionRequired ? 'Pilih File Revisi' : 'Ganti File'}
                       <input
                         type="file"
                         accept={fileRule((assignment.allowedFileType || 'PDF') as AllowedFileType).accept}
                         onChange={handleFileInputChange}
-                        className="hidden"
+                        className="ui-file-input"
                       />
                     </label>
                   </div>
@@ -434,13 +434,13 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                   <p className="text-xs font-bold text-slate-700">
                     Tarik dan lepas file {fileRule((assignment.allowedFileType || 'PDF') as AllowedFileType).label} tugas Anda di sini, atau
                   </p>
-                  <label className="inline-block mt-2 px-4 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg cursor-pointer transition-colors shadow-sm">
+                  <label className="relative inline-block mt-2 px-4 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg cursor-pointer transition-colors shadow-sm focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-cyan-700">
                     Pilih File
                     <input
                       type="file"
                     accept={fileRule((assignment.allowedFileType || 'PDF') as AllowedFileType).accept}
                       onChange={handleFileInputChange}
-                      className="hidden"
+                      className="ui-file-input"
                     />
                   </label>
                   <p className="text-[11px] text-slate-400 mt-2">Format: {fileRule((assignment.allowedFileType || 'PDF') as AllowedFileType).extensions} (Maks. 50 MB)</p>

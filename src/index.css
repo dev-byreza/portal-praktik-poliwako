@@ -2,52 +2,135 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --poliwako-brand: #1d4ed8;
+  --poliwako-brand-strong: #1e40af;
+  --poliwako-accent: #0891b2;
+  --poliwako-ink: #0f172a;
+  --poliwako-muted: #64748b;
+  --poliwako-border: #e2e8f0;
+  --poliwako-surface: #ffffff;
+  --poliwako-radius-control: 0.625rem;
+  --poliwako-radius-panel: 1rem;
+  --poliwako-space-panel: 1.25rem;
+  --poliwako-text-body: 0.875rem;
+}
+
 @layer base {
   body {
     @apply bg-slate-100 text-slate-800 font-sans antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
+
+  :focus-visible {
+    outline: 3px solid var(--poliwako-accent);
+    outline-offset: 2px;
+  }
 }
 
 @layer components {
-  /* Glass surfaces for the instructor workspace. The opacity keeps the
-     underlying ambient gradients visible without sacrificing readability. */
+  .ui-card {
+    border: 1px solid var(--poliwako-border);
+    border-radius: var(--poliwako-radius-panel);
+    background: var(--poliwako-surface);
+  }
+
+  .ui-button {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: var(--poliwako-radius-control);
+    padding: 0.625rem 1rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+  }
+
+  .ui-button-primary {
+    background: var(--poliwako-brand);
+    color: white;
+  }
+  .ui-button-primary:hover { background: var(--poliwako-brand-strong); }
+
+  .ui-button-secondary {
+    border: 1px solid var(--poliwako-border);
+    background: white;
+    color: var(--poliwako-ink);
+  }
+  .ui-button-secondary:hover { background: #f1f5f9; }
+
+  .ui-field {
+    min-height: 2.75rem;
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: var(--poliwako-radius-control);
+    background: white;
+    padding: 0.625rem 0.75rem;
+    color: var(--poliwako-ink);
+  }
+  .ui-field:focus-visible { border-color: var(--poliwako-brand); }
+
+  .ui-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border: 1px solid var(--poliwako-border);
+    border-radius: 9999px;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1.25rem;
+  }
+
+  .ui-file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* Operational surfaces use solid, high-contrast colors for quick scanning. */
   .instructor-shell {
     background-color: #eef2f7;
-    background-image:
-      radial-gradient(circle at 14% 0%, rgba(14, 165, 233, 0.11), transparent 28rem),
-      radial-gradient(circle at 92% 18%, rgba(99, 102, 241, 0.10), transparent 26rem);
   }
 
   .glass-sidebar {
-    background: linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(2, 6, 23, 0.94));
-    border-color: rgba(148, 163, 184, 0.18);
-    box-shadow: 14px 0 42px rgba(2, 6, 23, 0.18), inset -1px 0 rgba(255, 255, 255, 0.04);
-    -webkit-backdrop-filter: blur(22px) saturate(140%);
-    backdrop-filter: blur(22px) saturate(140%);
+    background: #0f172a;
+    border-color: #334155;
+    box-shadow: 4px 0 12px rgba(2, 6, 23, 0.12);
   }
 
   .glass-header {
-    background: rgba(255, 255, 255, 0.76);
-    border-color: rgba(148, 163, 184, 0.28);
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
-    -webkit-backdrop-filter: blur(18px) saturate(145%);
-    backdrop-filter: blur(18px) saturate(145%);
+    background: #ffffff;
+    border-color: #e2e8f0;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
   }
 
   .glass-dark-panel {
-    background: rgba(30, 41, 59, 0.52);
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    -webkit-backdrop-filter: blur(14px) saturate(135%);
-    backdrop-filter: blur(14px) saturate(135%);
+    background: #1e293b;
+    border: 1px solid #475569;
   }
 
   .glass-light-panel {
-    background: rgba(255, 255, 255, 0.74);
-    border: 1px solid rgba(148, 163, 184, 0.26);
-    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
-    -webkit-backdrop-filter: blur(16px) saturate(135%);
-    backdrop-filter: blur(16px) saturate(135%);
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 

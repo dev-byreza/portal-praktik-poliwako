@@ -332,7 +332,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
                     }
                   }}
                   placeholder="Ketik NIM Anda (contoh: 240001)..."
-                  className="w-full pl-10 pr-4 py-3.5 bg-slate-950/60 backdrop-blur-xl border border-slate-700/80 focus:border-cyan-400 focus:bg-slate-900/90 rounded-2xl text-sm font-semibold text-white focus:outline-none focus:ring-4 focus:ring-cyan-500/20 transition-all placeholder:text-slate-500 placeholder:font-normal shadow-inner"
+                  className="ui-field w-full border-slate-700 bg-slate-950 pl-10 pr-4 py-3.5 text-sm font-semibold text-white placeholder:text-slate-500 placeholder:font-normal focus:border-cyan-400 focus:bg-slate-900 focus:ring-2 focus:ring-cyan-500/20"
                   autoFocus
                 />
               </div>
@@ -341,7 +341,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
             <button
               type="button"
               onClick={() => handleVerifyNim()}
-              className="w-full py-3.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:via-indigo-500 hover:to-cyan-500 text-white font-bold text-sm rounded-2xl transition-all shadow-lg shadow-blue-600/30 hover:shadow-cyan-500/30 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 group cursor-pointer"
+              className="ui-button ui-button-primary w-full text-sm group"
             >
               <span>Lanjutkan dengan NIM</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -394,13 +394,13 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
                 autoCapitalize="characters"
                 maxLength={24}
                 placeholder="Tempel kode 24 karakter dari instruktur"
-                className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-3 font-mono text-sm tracking-widest text-white outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20"
+                className="ui-field w-full border-slate-700 bg-slate-950 font-mono text-sm tracking-widest text-white focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20"
               />
             </div>}
 
             {/* Input Password Baru */}
             <div className="mb-3">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+              <label htmlFor="student-new-password" className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
                 Password Baru
               </label>
               <div className="relative group">
@@ -408,11 +408,12 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
                   <KeyRound className="w-4 h-4" />
                 </div>
                 <input
+                  id="student-new-password"
                   type={showPassword ? 'text' : 'password'}
                   value={passwordInput}
                   onChange={e => setPasswordInput(e.target.value)}
                   placeholder="Buat password (min. 8 karakter)..."
-                  className="w-full pl-10 pr-10 py-3 bg-slate-950/60 backdrop-blur-xl border border-slate-700/80 focus:border-cyan-400 focus:bg-slate-900/90 rounded-2xl text-sm font-semibold text-white focus:outline-none focus:ring-4 focus:ring-cyan-500/20 transition-all placeholder:text-slate-500 placeholder:font-normal shadow-inner"
+                  className="ui-field w-full border-slate-700 bg-slate-950 pl-10 pr-10 py-3 text-sm font-semibold text-white placeholder:text-slate-500 placeholder:font-normal focus:border-cyan-400 focus:bg-slate-900 focus:ring-2 focus:ring-cyan-500/20"
                   autoFocus
                 />
                 <button
@@ -427,7 +428,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
 
             {/* Input Konfirmasi Password */}
             <div className="mb-5">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+              <label htmlFor="student-confirm-password" className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
                 Konfirmasi Password Baru
               </label>
               <div className="relative group">
@@ -435,11 +436,12 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
                   <Lock className="w-4 h-4" />
                 </div>
                 <input
+                  id="student-confirm-password"
                   type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPasswordInput}
                   onChange={e => setConfirmPasswordInput(e.target.value)}
                   placeholder="Ulangi password baru..."
-                  className="w-full pl-10 pr-10 py-3 bg-slate-950/60 backdrop-blur-xl border border-slate-700/80 focus:border-cyan-400 focus:bg-slate-900/90 rounded-2xl text-sm font-semibold text-white focus:outline-none focus:ring-4 focus:ring-cyan-500/20 transition-all placeholder:text-slate-500 placeholder:font-normal shadow-inner"
+                  className="ui-field w-full border-slate-700 bg-slate-950 pl-10 pr-10 py-3 text-sm font-semibold text-white placeholder:text-slate-500 placeholder:font-normal focus:border-cyan-400 focus:bg-slate-900 focus:ring-2 focus:ring-cyan-500/20"
                 />
                 <button
                   type="button"
@@ -478,7 +480,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
               <button
                 type="submit"
                 disabled={isSubmitting || !passwordInput || passwordInput !== confirmPasswordInput}
-                className="flex-1 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm rounded-2xl transition-all shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 cursor-pointer"
+                className="ui-button ui-button-primary flex-1 bg-emerald-700 text-sm hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <ShieldCheck className="w-4 h-4" />
                 <span>Simpan Password & Masuk</span>
@@ -520,7 +522,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
             </div>
 
             <div className="mb-5">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+              <label htmlFor="student-login-password" className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
                 Password Akun
               </label>
               <div className="relative group">
@@ -528,6 +530,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
                   <KeyRound className="w-4 h-4" />
                 </div>
                 <input
+                  id="student-login-password"
                   type={showPassword ? 'text' : 'password'}
                   value={passwordInput}
                   onChange={e => {
@@ -535,7 +538,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
                     if (errorMessage) setErrorMessage(null);
                   }}
                   placeholder="Masukkan password Anda..."
-                  className="w-full pl-10 pr-10 py-3.5 bg-slate-950/60 backdrop-blur-xl border border-slate-700/80 focus:border-cyan-400 focus:bg-slate-900/90 rounded-2xl text-sm font-semibold text-white focus:outline-none focus:ring-4 focus:ring-cyan-500/20 transition-all placeholder:text-slate-500 placeholder:font-normal shadow-inner"
+                  className="ui-field w-full border-slate-700 bg-slate-950 pl-10 pr-10 py-3.5 text-sm font-semibold text-white placeholder:text-slate-500 placeholder:font-normal focus:border-cyan-400 focus:bg-slate-900 focus:ring-2 focus:ring-cyan-500/20"
                   autoFocus
                 />
                 <button

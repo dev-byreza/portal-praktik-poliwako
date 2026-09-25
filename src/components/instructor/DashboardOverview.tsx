@@ -17,7 +17,8 @@ import {
   BarChart3,
   Filter,
   CheckCircle2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  RefreshCw
 } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { formatPeriodRange } from '../../utils/dateUtils';
@@ -42,7 +43,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     attendance,
     remedials,
     learningUnits,
-    activeCourseId
+    activeCourseId,
+    isInitialDataLoaded,
+    initialDataError
   } = useApp();
 
   const [selectedPeriodFilter, setSelectedPeriodFilter] = useState<string>('ALL');
@@ -484,25 +487,46 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     ? `${insightLinePath} L ${insightChartPoints[insightChartPoints.length - 1].x} 184 L ${insightChartPoints[0].x} 184 Z`
     : '';
 
+  if (!isInitialDataLoaded) {
+    return (
+      <section aria-busy="true" aria-live="polite" className="space-y-4" role="status">
+        <span className="sr-only">Memuat data dashboard dari server…</span>
+        <div className="h-28 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+          {Array.from({ length: 5 }, (_, index) => <div key={index} className="h-24 animate-pulse rounded-xl border border-slate-200 bg-white" />)}
+        </div>
+        <div className="h-52 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+      </section>
+    );
+  }
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-6">
+      {initialDataError && (
+        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 sm:flex-row sm:items-center sm:justify-between">
+          <span>{initialDataError}</span>
+          <button type="button" onClick={() => window.location.reload()} className="inline-flex min-h-10 items-center justify-center gap-2 self-start rounded-lg border border-amber-400 bg-white px-3 font-semibold hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 sm:self-auto">
+            <RefreshCw className="h-4 w-4" /> Muat ulang
+          </button>
+        </div>
+      )}
       
       {/* Welcome & Command Center Header */}
-      <div className="relative flex flex-col items-start gap-6 overflow-hidden rounded-3xl border border-slate-800 bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 p-6 text-white shadow-xl sm:p-8 xl:flex-row xl:items-center xl:justify-between">
+      <div className="relative flex flex-col items-start gap-4 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 p-4 text-white sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="relative z-10 min-w-0 w-full xl:flex-1">
-          <div className="flex items-center gap-2 px-3 py-1 bg-cyan-500/20 text-cyan-300 rounded-full text-xs font-semibold w-fit border border-cyan-500/30 mb-3">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Command Center Instruktur</span>
+          <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold text-cyan-300">
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>Dashboard instruktur</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+          <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
             {activeCourse?.name || 'Portal Praktik Poliwako'}
           </h1>
-          <p className="mt-1 max-w-4xl break-words text-xs leading-relaxed text-blue-200 [overflow-wrap:anywhere]">
+          <p className="mt-1 line-clamp-2 max-w-4xl break-words text-xs leading-relaxed text-slate-300 [overflow-wrap:anywhere]">
             {activeCourse?.description || 'Kelola pembelajaran praktik, progres mahasiswa, kehadiran, rubrik OBE, dan rekap penilaian terintegrasi.'}
           </p>
 
           {dashboardPeriod ? (
-            <div className="mt-4 flex w-full max-w-full items-start gap-2 rounded-xl border border-white/10 bg-white/10 px-3 py-1.5 text-xs text-slate-300 backdrop-blur-md sm:w-fit">
+            <div className="mt-2 flex w-full max-w-full items-start gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-slate-300 sm:w-fit">
               <Calendar className="mt-px h-4 w-4 shrink-0 text-cyan-400" />
               <span className="min-w-0 break-words [overflow-wrap:anywhere]">{activePeriod ? 'Periode Berjalan:' : 'Periode Terakhir:'} <strong className="text-white">{dashboardPeriod.name}</strong> ({formatPeriodRange(dashboardPeriod.startDate, dashboardPeriod.endDate)})</span>
             </div>
@@ -514,30 +538,101 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         </div>
 
         {/* Quick Shortcut Buttons */}
-        <div className="relative z-10 flex w-full flex-wrap gap-2.5 xl:w-auto xl:shrink-0">
+        <div className="relative z-10 grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0">
           <button
             onClick={() => onNavigateTab('GRADING')}
-            className="flex min-w-[10rem] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-blue-600/30 transition-all hover:bg-blue-500 xl:flex-initial"
+            className="flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2.5 text-xs font-bold text-white transition-colors hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
           >
             <Award className="w-4 h-4" />
             <span>Grading Workspace</span>
           </button>
           <button
             onClick={() => onNavigateTab('ATTENDANCE')}
-            className="flex min-w-[8rem] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-xs font-bold text-slate-200 transition-all hover:bg-slate-700 xl:flex-initial"
+            className="flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-xs font-bold text-slate-200 transition-colors hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
           >
             <Clock className="w-4 h-4" />
             <span>Kehadiran</span>
           </button>
           <button
             onClick={() => onNavigateTab('RECAP')}
-            className="flex min-w-[9rem] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-emerald-600/30 transition-all hover:bg-emerald-500 xl:flex-initial"
+            className="col-span-2 flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-2.5 text-xs font-bold text-white transition-colors hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 sm:col-span-1"
           >
             <FileSpreadsheet className="w-4 h-4" />
             <span>Rekap & Export</span>
           </button>
         </div>
       </div>
+
+      {/* Prioritized operational queue */}
+      {activeCourse && (
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              <h2 className="text-base font-black text-slate-900">Perlu tindakan</h2>
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              Antrean operasional dari filter periode dan kelas yang sedang dipilih.
+            </p>
+          </div>
+          {actionQueue.length > 0 && (
+            <span className="w-fit rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+              {actionQueue.reduce((sum, item) => sum + item.count, 0)} item
+            </span>
+          )}
+        </div>
+
+        {actionQueue.length > 0 ? (
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {actionQueue.map(item => {
+              const containerClass = item.tone === 'rose'
+                ? 'border-rose-200 bg-rose-50/60 hover:bg-rose-50'
+                : item.tone === 'amber'
+                  ? 'border-amber-200 bg-amber-50/60 hover:bg-amber-50'
+                  : 'border-blue-200 bg-blue-50/50 hover:bg-blue-50';
+              const iconClass = item.tone === 'rose'
+                ? 'bg-rose-100 text-rose-700'
+                : item.tone === 'amber'
+                  ? 'bg-amber-100 text-amber-700'
+                  : 'bg-blue-100 text-blue-700';
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onNavigateTab(item.tab)}
+                  className={`rounded-2xl border p-4 text-left transition-colors ${containerClass}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconClass}`}>
+                      <item.icon className="h-5 w-5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-bold text-slate-900">{item.title}</span>
+                        <span className="text-xl font-black text-slate-900">{item.count}</span>
+                      </span>
+                      <span className="mt-1 block text-xs leading-relaxed text-slate-600">{item.description}</span>
+                      <span className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-slate-700">
+                        Tindak lanjuti <ArrowUpRight className="h-3.5 w-3.5" />
+                      </span>
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-4 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
+            <CheckCircle2 className="h-5 w-5 shrink-0" />
+            <div>
+              <p className="text-sm font-bold">Tidak ada antrean mendesak</p>
+              <p className="mt-1 text-xs">Semua aktivitas pada filter ini sudah tertangani.</p>
+            </div>
+          </div>
+        )}
+      </section>
+      )}
 
       {/* Zero State Onboarding Notice (Tanpa Dummy Data) */}
       {courses.length === 0 && (
@@ -570,11 +665,12 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           {/* Period Filter */}
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-500 font-medium">Periode:</span>
+              <label htmlFor="dashboard-period-filter" className="text-slate-500 font-medium">Periode:</label>
             <select
+              id="dashboard-period-filter"
               value={selectedPeriodFilter}
               onChange={e => setSelectedPeriodFilter(e.target.value)}
-              className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="ui-field max-w-full text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:w-auto"
             >
               <option value="ALL">Semua Periode ({coursePeriods.length})</option>
               {coursePeriods.map(p => (
@@ -587,11 +683,12 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
 
           {/* Class Filter */}
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-500 font-medium">Kelas:</span>
+              <label htmlFor="dashboard-class-filter" className="text-slate-500 font-medium">Kelas:</label>
             <select
+              id="dashboard-class-filter"
               value={selectedClassFilter}
               onChange={e => setSelectedClassFilter(e.target.value)}
-              className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="ui-field max-w-full text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:w-auto"
             >
               <option value="ALL">Semua Kelas</option>
               <option value="2A">Kelas 2A</option>
@@ -602,79 +699,24 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         </div>
       </div>
 
-      {/* KPI Cards Grid (PRD Section 13) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-        
-        {/* Total Peserta */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total Peserta</span>
-            <Users className="w-4 h-4 text-blue-600" />
-          </div>
-          <div className="text-2xl font-black text-slate-900">{kpiStats.totalParticipants}</div>
-          <span className="text-[10px] text-slate-400 mt-1">Mahasiswa terdaftar</span>
-        </div>
-
-        {/* Progress Pembelajaran */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Progress Rata2</span>
-            <TrendingUp className="w-4 h-4 text-teal-600" />
-          </div>
-          <div className="text-2xl font-black text-teal-600">{kpiStats.avgProgress}%</div>
-          <span className="text-[10px] text-slate-400 mt-1">Capaian unit materi</span>
-        </div>
-
-        {/* Project Dikumpulkan */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Project Masuk</span>
-            <FolderArchive className="w-4 h-4 text-indigo-600" />
-          </div>
-          <div className="text-2xl font-black text-indigo-600">{kpiStats.projectSubmittedCount}</div>
-          <span className="text-[10px] text-slate-400 mt-1">Folder Google Drive</span>
-        </div>
-
-        {/* Belum Selesai */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Belum Selesai</span>
-            <Clock className="w-4 h-4 text-amber-500" />
-          </div>
-          <div className="text-2xl font-black text-amber-600">{kpiStats.unfinishedCount}</div>
-          <span className="text-[10px] text-slate-400 mt-1">Masih proses unit</span>
-        </div>
-
-        {/* Sudah Dinilai */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Sudah Dinilai</span>
-            <CheckCircle className="w-4 h-4 text-emerald-600" />
-          </div>
-          <div className="text-2xl font-black text-emerald-600">{kpiStats.gradedCount}</div>
-          <span className="text-[10px] text-slate-400 mt-1">Evaluasi rubrik OBE</span>
-        </div>
-
-        {/* Belum Dinilai */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Belum Dinilai</span>
-            <AlertTriangle className="w-4 h-4 text-orange-500" />
-          </div>
-          <div className="text-2xl font-black text-orange-600">{kpiStats.ungradedCount}</div>
-          <span className="text-[10px] text-slate-400 mt-1">Perlu grading</span>
-        </div>
-
-        {/* Kehadiran <75% */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between col-span-2 md:col-span-1">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-rose-600">Hadir &lt;75%</span>
-            <AlertTriangle className="w-4 h-4 text-rose-600" />
-          </div>
-          <div className="text-2xl font-black text-rose-600">{kpiStats.ineligibleCount}</div>
-          <span className="text-[10px] text-slate-400 mt-1">Wajib remedial</span>
-        </div>
-
+      {/* Five operational metrics with explicit definitions */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+        {[
+          { label: 'Mahasiswa', value: kpiStats.totalParticipants, description: 'Terdaftar pada pilihan filter', icon: Users, color: 'text-slate-900' },
+          { label: 'Final project masuk', value: kpiStats.projectSubmittedCount, description: 'Sudah mengirim tautan final project', icon: FolderArchive, color: 'text-indigo-700' },
+          { label: 'Siap dinilai', value: actionQueue.find(item => item.id === 'pending-grading')?.count || 0, description: 'Ada kiriman tanpa nilai akhir tersimpan', icon: Clock, color: 'text-blue-700' },
+          { label: 'Sudah dinilai', value: kpiStats.gradedCount, description: 'Nilai akhir sudah tersimpan, termasuk 0', icon: CheckCircle, color: 'text-emerald-700' },
+          { label: 'Kehadiran <75%', value: kpiStats.ineligibleCount, description: 'Presensi melewati batas kelayakan', icon: AlertTriangle, color: 'text-rose-700' },
+        ].map(metric => (
+          <article key={metric.label} className="flex min-h-28 flex-col justify-between rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4">
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">{metric.label}</span>
+              <metric.icon className={`h-4 w-4 shrink-0 ${metric.color}`} aria-hidden="true" />
+            </div>
+            <strong className={`mt-2 text-2xl font-bold tabular-nums ${metric.color}`}>{metric.value}</strong>
+            <span className="mt-1 text-[10px] leading-snug text-slate-500">{metric.description}</span>
+          </article>
+        ))}
       </div>
 
       {/* Academic Insight: compact trend and operational distribution */}
@@ -780,75 +822,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
             </div>
           </div>
         </div>
-      </section>
-
-      {/* Prioritized operational queue */}
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              <h2 className="text-base font-black text-slate-900">Perlu tindakan</h2>
-            </div>
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">
-              Antrean operasional dari filter periode dan kelas yang sedang dipilih.
-            </p>
-          </div>
-          {actionQueue.length > 0 && (
-            <span className="w-fit rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
-              {actionQueue.reduce((sum, item) => sum + item.count, 0)} item
-            </span>
-          )}
-        </div>
-
-        {actionQueue.length > 0 ? (
-          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {actionQueue.map(item => {
-              const containerClass = item.tone === 'rose'
-                ? 'border-rose-200 bg-rose-50/60 hover:bg-rose-50'
-                : item.tone === 'amber'
-                  ? 'border-amber-200 bg-amber-50/60 hover:bg-amber-50'
-                  : 'border-blue-200 bg-blue-50/50 hover:bg-blue-50';
-              const iconClass = item.tone === 'rose'
-                ? 'bg-rose-100 text-rose-700'
-                : item.tone === 'amber'
-                  ? 'bg-amber-100 text-amber-700'
-                  : 'bg-blue-100 text-blue-700';
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => onNavigateTab(item.tab)}
-                  className={`rounded-2xl border p-4 text-left transition-colors ${containerClass}`}
-                >
-                  <div className="flex items-start gap-3">
-                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconClass}`}>
-                      <item.icon className="h-5 w-5" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-bold text-slate-900">{item.title}</span>
-                        <span className="text-xl font-black text-slate-900">{item.count}</span>
-                      </span>
-                      <span className="mt-1 block text-xs leading-relaxed text-slate-600">{item.description}</span>
-                      <span className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-slate-700">
-                        Tindak lanjuti <ArrowUpRight className="h-3.5 w-3.5" />
-                      </span>
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="mt-4 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
-            <CheckCircle2 className="h-5 w-5 shrink-0" />
-            <div>
-              <p className="text-sm font-bold">Tidak ada antrean mendesak</p>
-              <p className="mt-1 text-xs">Semua aktivitas pada filter ini sudah tertangani.</p>
-            </div>
-          </div>
-        )}
       </section>
 
       <AnnouncementManager />

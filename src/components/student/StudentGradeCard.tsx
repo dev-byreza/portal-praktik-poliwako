@@ -108,13 +108,13 @@ export const StudentGradeCard: React.FC = () => {
 
                         {(remedial.status === 'PENDING_SUBMISSION' || remedial.status === 'BELUM_LULUS') && (
                           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                            <label className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg cursor-pointer text-xs font-semibold">
+                            <label className="relative px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg cursor-pointer text-xs font-semibold focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-cyan-700">
                               {remedialFiles[remedial.id] ? remedialFiles[remedial.id]?.name : 'Pilih File PDF'}
                               <input
                                 type="file"
                                 accept=".pdf,application/pdf"
                                 onChange={e => setRemedialFiles(prev => ({...prev, [remedial.id]: e.target.files?.[0]}))}
-                                className="hidden"
+                                className="ui-file-input"
                               />
                             </label>
                             <button

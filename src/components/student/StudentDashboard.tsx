@@ -278,11 +278,11 @@ export const StudentDashboard: React.FC<Props> = ({ course, period, units, onLea
 
   return (
     <div className="min-w-0 space-y-5">
-      <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-blue-950 to-blue-800 p-5 sm:p-7 text-white">
+      <section className="overflow-hidden rounded-2xl border border-blue-950 bg-blue-900 p-4 text-white sm:p-5">
         <p className="text-xs uppercase tracking-widest text-cyan-200">Dashboard mahasiswa</p>
         <h1 className="text-2xl sm:text-3xl font-bold mt-2 break-words">Halo, {currentStudent?.name || 'Mahasiswa'}</h1>
         <p className="text-sm text-blue-100 mt-2">{course?.name || 'Mata kuliah belum tersedia'}</p>
-        <div className="mt-5 rounded-xl bg-white/10 p-4">
+        <div className="mt-4 rounded-xl border border-white/15 bg-white/5 p-4">
           <p className="font-semibold">
             {primaryAction?.title || (units.length ? 'Semua pekerjaan utama sudah selesai' : 'Materi belum tersedia')}
           </p>
@@ -292,7 +292,7 @@ export const StudentDashboard: React.FC<Props> = ({ course, period, units, onLea
           <button
             onClick={primaryAction?.action || (() => onLearn(nextUnit?.id))}
             disabled={!primaryAction && !units.length}
-            className="mt-4 min-h-11 px-4 bg-white text-blue-900 rounded-xl font-semibold inline-flex items-center gap-2 disabled:opacity-50"
+            className="ui-button ui-button-secondary mt-4 w-full text-blue-900 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {primaryAction ? 'Kerjakan sekarang' : units.length ? 'Lihat materi' : 'Belum ada aktivitas'}
             <ArrowRight size={17} />

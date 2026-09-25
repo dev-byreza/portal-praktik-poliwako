@@ -546,13 +546,13 @@ export const MasterStudentManager: React.FC = () => {
               <div className="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center bg-slate-50/60">
                 <UploadCloud className="w-8 h-8 text-slate-400 mx-auto mb-2" />
                 <p className="text-xs font-bold text-slate-700">Pilih file CSV dari komputer Anda</p>
-                <label className="inline-block mt-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded-xl cursor-pointer hover:bg-slate-50 transition-colors shadow-sm">
+                <label className="relative inline-block mt-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded-xl cursor-pointer hover:bg-slate-50 transition-colors shadow-sm focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-cyan-700">
                   Browse File .CSV
                   <input
                     type="file"
                     accept=".csv,text/csv"
                     onChange={handleFileUpload}
-                    className="hidden"
+                    className="ui-file-input"
                   />
                 </label>
               </div>

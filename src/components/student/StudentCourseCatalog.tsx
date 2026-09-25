@@ -31,6 +31,7 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
     learningUnits,
     submissions,
     isInitialDataLoaded,
+    initialDataError,
     clearStudentIdentity
   } = useApp();
 
@@ -174,7 +175,14 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
               </p>
             </div>
           )}
-          {isInitialDataLoaded && visibleCourses.length === 0 && (
+          {isInitialDataLoaded && initialDataError && (
+            <div role="alert" className="w-full max-w-xl rounded-2xl border border-amber-700 bg-slate-900 p-6 text-center text-white">
+              <h2 className="text-lg font-bold">Daftar mata kuliah belum dapat dimuat</h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-300">{initialDataError}</p>
+              <button type="button" onClick={() => window.location.reload()} className="ui-button ui-button-secondary mt-4">Muat ulang</button>
+            </div>
+          )}
+          {isInitialDataLoaded && !initialDataError && visibleCourses.length === 0 && (
             <div className="w-full max-w-xl rounded-2xl border border-slate-800 bg-slate-900/70 p-8 text-center shadow-xl">
               <BookOpen className="mx-auto mb-3 h-10 w-10 text-cyan-400" />
               <h2 className="text-lg font-bold text-white">Belum ada mata kuliah terdaftar</h2>
