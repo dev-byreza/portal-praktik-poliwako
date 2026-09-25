@@ -31,6 +31,7 @@ import { computePeriodEndDate, computePeriodStatus, getWitaDateString } from '..
 import { getRealtimeWitaDateString, fetchInternetNetworkTime } from '../services/networkTimeService';
 import { getUnitAssignments } from '../utils/learningAssignments';
 import { normalizeLearningUnitNumbers, orderLearningUnits } from '../utils/learningUnitOrdering';
+import { preparePeriodGradePublication, preparePeriodGradeUnpublication } from '../utils/gradePublication';
 
 const parseAssignmentDeadline = (value: string): number | null => {
   const raw = String(value || '').trim();
@@ -53,6 +54,11 @@ interface ToastInfo {
   title: string;
   message: string;
   type: 'success' | 'error' | 'info' | 'warning';
+}
+
+interface ServerSaveStatus {
+  state: 'IDLE' | 'SAVING' | 'SAVED' | 'ERROR';
+  label?: string;
 }
 
 interface AppContextType {
@@ -92,6 +98,8 @@ interface AppContextType {
   feedbackRules: FeedbackRule[];
   announcements: Announcement[];
   isInitialDataLoaded: boolean;
+  serverSaveStatus: ServerSaveStatus;
+  retryServerSave: () => Promise<void>;
 
   // Student Session & Authentication
   studentSession: StudentSession | null;
@@ -153,7 +161,7 @@ interface AppContextType {
   deleteLearningUnit: (unitId: string) => void;
   copyLearningUnits: (sourceUnitIds: string[], targetPeriodIds: string[], overwrite?: boolean) => Promise<{ copiedCount: number; targetCount: number }>;
 
-  updateAttendanceCell: (periodId: string, studentId: string, day: 'day1' | 'day2' | 'day3' | 'day4' | 'day5', status: AttendanceStatus) => void;
+  updateAttendanceCell: (periodId: string, studentId: string, day: 'day1' | 'day2' | 'day3' | 'day4' | 'day5', status: AttendanceStatus) => Promise<void>;
   autoInitializeAttendanceForPeriod: (periodId: string) => Promise<void>;
   setAllPeriodAttendanceStatus: (periodId: string, status?: AttendanceStatus) => Promise<void>;
   saveAssessment: (assessment: Assessment) => Promise<void>;
@@ -185,13 +193,22 @@ const newEntityId = (prefix: string): string => (
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const isLiveBackend = useMemo(() => isSupabaseConfigured(), []);
+  const [studentSession, setStudentSessionState] = useState<StudentSession | null>(() => {
+    const session = StorageService.getStudentSession();
+    if (isLiveBackend) {
+      StorageService.setCacheScope(session ? `student:${session.studentId}:${session.periodId}` : 'public');
+    }
+    return session;
+  });
   const [isInstructorLoggedIn, setIsInstructorLoggedIn] = useState<boolean>(() => (
     isLiveBackend ? false : StorageService.isInstructorLoggedIn()
   ));
   const [role, setRole] = useState<UserRole>(() => (
     isLiveBackend ? 'STUDENT' : (StorageService.isInstructorLoggedIn() ? 'INSTRUCTOR' : 'STUDENT')
   ));
-  const [instructor, setInstructor] = useState<InstructorProfile>(StorageService.getInstructor());
+  const [instructor, setInstructor] = useState<InstructorProfile>(() => (
+    isLiveBackend ? { id: '', email: '', name: '', department: '' } : StorageService.getInstructor()
+  ));
   const [instructorDirectory, setInstructorDirectory] = useState<Record<string, PublicInstructorProfile>>(() => {
     if (isLiveBackend) return {};
     const profile = StorageService.getInstructor();
@@ -204,22 +221,51 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [activeCourseId, setActiveCourseIdState] = useState<string>(() => (
     isLiveBackend ? '' : StorageService.getActiveCourseId()
   ));
-  const [students, setStudents] = useState<Student[]>(StorageService.getStudents());
-  const [periods, setPeriods] = useState<PracticePeriod[]>(StorageService.getPeriods());
+  const [students, setStudents] = useState<Student[]>(() => isLiveBackend ? [] : StorageService.getStudents());
+  const [periods, setPeriods] = useState<PracticePeriod[]>(() => isLiveBackend ? [] : StorageService.getPeriods());
   const [participants, setParticipants] = useState<PracticeParticipant[]>(() => (isLiveBackend ? [] : StorageService.getParticipants()));
   const [learningUnits, setLearningUnits] = useState<LearningUnit[]>(() => (
     isLiveBackend ? [] : normalizeLearningUnitNumbers(StorageService.getLearningUnits())
   ));
-  const [unitProgress, setUnitProgress] = useState<UnitProgress[]>(StorageService.getUnitProgress());
-  const [submissions, setSubmissions] = useState<Submission[]>(StorageService.getSubmissions());
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>(StorageService.getAttendance());
-  const [assessments, setAssessments] = useState<Assessment[]>(StorageService.getAssessments());
-  const [remedials, setRemedials] = useState<RemedialAssignment[]>(StorageService.getRemedials());
-  const [feedbackRules, setFeedbackRules] = useState<FeedbackRule[]>(StorageService.getFeedbackRules());
-  const [announcements, setAnnouncements] = useState<Announcement[]>(StorageService.getAnnouncements());
+  const [unitProgress, setUnitProgress] = useState<UnitProgress[]>(() => isLiveBackend ? [] : StorageService.getUnitProgress());
+  const [submissions, setSubmissions] = useState<Submission[]>(() => isLiveBackend ? [] : StorageService.getSubmissions());
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>(() => isLiveBackend ? [] : StorageService.getAttendance());
+  const [assessments, setAssessments] = useState<Assessment[]>(() => isLiveBackend ? [] : StorageService.getAssessments());
+  const [remedials, setRemedials] = useState<RemedialAssignment[]>(() => isLiveBackend ? [] : StorageService.getRemedials());
+  const [feedbackRules, setFeedbackRules] = useState<FeedbackRule[]>(() => isLiveBackend ? [] : StorageService.getFeedbackRules());
+  const [announcements, setAnnouncements] = useState<Announcement[]>(() => isLiveBackend ? [] : StorageService.getAnnouncements());
   const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(!isLiveBackend);
-  const [studentSession, setStudentSessionState] = useState(StorageService.getStudentSession());
+  const [serverSaveStatus, setServerSaveStatus] = useState<ServerSaveStatus>({ state: 'IDLE' });
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
+  const serverSaveSequenceRef = useRef(0);
+  const serverSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryServerSaveRef = useRef<{ label: string; action: () => Promise<unknown> } | null>(null);
+
+  const runServerSave = useCallback(async <T,>(label: string, action: () => Promise<T>): Promise<T> => {
+    if (!isLiveBackend) return action();
+    const sequence = ++serverSaveSequenceRef.current;
+    retryServerSaveRef.current = { label, action };
+    if (serverSaveTimerRef.current) clearTimeout(serverSaveTimerRef.current);
+    setServerSaveStatus({ state: 'SAVING', label });
+    try {
+      const result = await action();
+      if (sequence === serverSaveSequenceRef.current) {
+        retryServerSaveRef.current = null;
+        setServerSaveStatus({ state: 'SAVED', label });
+        serverSaveTimerRef.current = setTimeout(() => setServerSaveStatus({ state: 'IDLE' }), 3500);
+      }
+      return result;
+    } catch (error) {
+      if (sequence === serverSaveSequenceRef.current) setServerSaveStatus({ state: 'ERROR', label });
+      throw error;
+    }
+  }, [isLiveBackend]);
+
+  const retryServerSave = useCallback(async () => {
+    const retry = retryServerSaveRef.current;
+    if (!retry || serverSaveStatus.state === 'SAVING') return;
+    await runServerSave(retry.label, retry.action);
+  }, [runServerSave, serverSaveStatus.state]);
   // A background read can finish after an instructor has changed a unit but
   // before that edit reaches Supabase. Track local mutations so a stale read
   // cannot make an item briefly jump back to its old position.
@@ -263,11 +309,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // session inside the protected dashboard.
   const clearLiveInstructorSession = useCallback(() => {
     StorageService.setInstructorLoggedIn(false);
+    StorageService.setCacheScope(studentSession ? `student:${studentSession.studentId}:${studentSession.periodId}` : 'public');
     setIsInstructorLoggedIn(false);
     setRole('STUDENT');
     setCourses([]);
     setActiveCourseIdState('');
-  }, []);
+  }, [studentSession]);
 
   // Keep React state aligned with Supabase Auth across refresh, token expiry,
   // sign-in from another tab, and explicit sign-out.
@@ -280,6 +327,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return;
       }
 
+      StorageService.setCacheScope(`instructor:${session.user.id}`);
       StorageService.setInstructorLoggedIn(true);
       setIsInstructorLoggedIn(true);
       setRole('INSTRUCTOR');
@@ -298,15 +346,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         fetchInternetNetworkTime().catch(() => {});
 
         if (!isLiveBackend) return;
-        // Begin the student catalog reads immediately. They are protected by
-        // RLS and do not need to wait for the separate instructor identity
-        // verification request to finish first.
+        const authInstructorId = await ApiService.getCurrentInstructorId();
+        StorageService.setCacheScope(authInstructorId
+          ? `instructor:${authInstructorId}`
+          : studentSession
+            ? `student:${studentSession.studentId}:${studentSession.periodId}`
+            : 'public');
         const catalogDataPromise = Promise.allSettled([
           ApiService.getCourses(),
           ApiService.getPeriods(),
           ApiService.getParticipants(),
         ]);
-        const authInstructorId = await ApiService.getCurrentInstructorId();
         // A stale local login flag must not block the public scope or make the
         // protected instructor scope look like an empty database.
         if (authInstructorId) {
@@ -445,6 +495,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     isLiveBackend,
     isInstructorLoggedIn,
     studentSession?.studentId,
+    studentSession?.periodId,
     clearLiveInstructorSession,
     mergeLearningUnitsFromServer,
   ]);
@@ -541,6 +592,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const studentSessionRestoreRef = useRef<string | null>(null);
   useEffect(() => {
     if (!isLiveBackend || !studentSession || currentStudent || !studentSession.nim) return;
+    StorageService.setCacheScope(`student:${studentSession.studentId}:${studentSession.periodId}`);
     if (studentSessionRestoreRef.current === studentSessionRestoreKey) return;
     studentSessionRestoreRef.current = studentSessionRestoreKey;
 
@@ -631,6 +683,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       nip
     };
     if (authInstructorId) {
+      StorageService.setCacheScope(`instructor:${authInstructorId}`);
       const liveProfile = await ApiService.getInstructorProfile(authInstructorId);
       updated = { ...liveProfile, id: authInstructorId, email: cleanEmail };
       setCourses([]);
@@ -699,6 +752,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         showToast('Pendaftaran Berhasil', 'Akun dibuat. Silakan masuk setelah verifikasi email selesai.', 'success');
         return { success: true, message: 'Akun dibuat. Silakan masuk setelah verifikasi email.' };
       }
+      if (authInstructorId) StorageService.setCacheScope(`instructor:${authInstructorId}`);
 
       const newProfile: InstructorProfile = {
         id: authInstructorId || 'inst-' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '-'),
@@ -739,6 +793,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const logoutInstructor = () => {
     void ApiService.logout();
+    StorageService.setCacheScope(studentSession ? `student:${studentSession.studentId}:${studentSession.periodId}` : 'public');
     setIsInstructorLoggedIn(false);
     StorageService.setInstructorLoggedIn(false);
     setRole('STUDENT');
@@ -860,6 +915,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           return { success: false, message: 'Data NIM dari server tidak cocok. Password belum diaktifkan.' };
         }
         const updatedStudent = { ...remoteStudent, hasCreatedPassword: true };
+        const session = { studentId: updatedStudent.id, nim: updatedStudent.nim, courseSlug, periodId: result.periodId || periodId, sessionToken: result.sessionToken };
+        StorageService.setCacheScope(`student:${session.studentId}:${session.periodId}`);
         setStudents(previous => [
           ...previous.filter(student => student.id !== updatedStudent.id),
           updatedStudent,
@@ -868,7 +925,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ...StorageService.getStudents().filter(student => student.id !== updatedStudent.id),
           updatedStudent,
         ]);
-        const session = { studentId: updatedStudent.id, nim: updatedStudent.nim, courseSlug, periodId: result.periodId || periodId, sessionToken: result.sessionToken };
         setStudentSessionState(session);
         StorageService.setStudentSession(session);
         setRole('STUDENT');
@@ -913,6 +969,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           console.error('Student password login returned a different NIM than requested.');
           return { success: false, message: 'Data NIM dari server tidak cocok dengan NIM yang dimasukkan.' };
         }
+        const session = { studentId: remoteStudent.id, nim: remoteStudent.nim, courseSlug, periodId: result.periodId || periodId, sessionToken: result.sessionToken };
+        StorageService.setCacheScope(`student:${session.studentId}:${session.periodId}`);
         setStudents(previous => [
           ...previous.filter(student => student.id !== remoteStudent.id),
           remoteStudent,
@@ -921,7 +979,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ...StorageService.getStudents().filter(student => student.id !== remoteStudent.id),
           remoteStudent,
         ]);
-        const session = { studentId: remoteStudent.id, nim: remoteStudent.nim, courseSlug, periodId: result.periodId || periodId, sessionToken: result.sessionToken };
         setStudentSessionState(session);
         StorageService.setStudentSession(session);
         setRole('STUDENT');
@@ -992,6 +1049,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const setStudentIdentity = (studentId: string, courseSlug: string, periodId: string) => {
     const std = students.find(s => s.id === studentId);
     const session = { studentId, nim: std?.nim, courseSlug, periodId };
+    StorageService.setCacheScope(`student:${session.studentId}:${session.periodId}`);
     setStudentSessionState(session);
     StorageService.setStudentSession(session);
     setRole('STUDENT');
@@ -1008,6 +1066,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const clearStudentIdentity = () => {
+    StorageService.setCacheScope(isInstructorLoggedIn ? `instructor:${instructor.id}` : 'public');
     setStudentSessionState(null);
     StorageService.setStudentSession(null);
     showToast('Sesi Selesai', 'Anda telah keluar dari ruang praktik mahasiswa.', 'info');
@@ -1040,32 +1099,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return { success: false, message };
     }
 
-    const upload = await uploadSubmissionPDF(file, {
-      courseId: period.courseId,
-      periodId,
-      studentId,
-      assignmentId,
-      submissionType,
-      allowedFileType: allowedFileType as 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY',
-      replaceStoragePath: existing?.storagePath,
-      deferSignedUrl: true,
-    });
-    if (upload.error || !upload.storagePath) {
-      const message = upload.error?.message || 'File tidak dapat disimpan ke Supabase Storage.';
-      showToast('Unggah Gagal', message, 'error');
-      return { success: false, message };
-    }
-
-    const submission: Submission = {
-      id: existing?.id || crypto.randomUUID(), assignmentId, studentId, periodId,
-      fileName: file.name, fileUrl: upload.publicUrl || upload.storagePath, fileSize: (file.size / (1024 * 1024)).toFixed(2) + ' MB', submissionType,
-      storagePath: upload.storagePath, submittedAt: new Date().toISOString(), status: 'SUBMITTED',
-      reviewFeedback: undefined, reviewedAt: undefined, revisionNumber: (existing?.revisionNumber || 0) + 1,
-    };
-
     try {
-      const savedSubmission = await ApiService.saveSubmission(submission);
-      setSubmissions((previous) => [...previous.filter((item) => !(item.assignmentId === assignmentId && item.studentId === studentId && item.periodId === periodId)), savedSubmission]);
+      await runServerSave('pengumpulan tugas', async () => {
+        const upload = await uploadSubmissionPDF(file, {
+          courseId: period.courseId,
+          periodId,
+          studentId,
+          assignmentId,
+          submissionType,
+          allowedFileType: allowedFileType as 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY',
+          replaceStoragePath: existing?.storagePath,
+          deferSignedUrl: true,
+        });
+        if (upload.error || !upload.storagePath) throw upload.error || new Error('File tidak dapat disimpan ke Supabase Storage.');
+
+        const submission: Submission = {
+          id: existing?.id || crypto.randomUUID(), assignmentId, studentId, periodId,
+          fileName: file.name, fileUrl: upload.publicUrl || upload.storagePath, fileSize: (file.size / (1024 * 1024)).toFixed(2) + ' MB', submissionType,
+          storagePath: upload.storagePath, submittedAt: new Date().toISOString(), status: 'SUBMITTED',
+          reviewFeedback: undefined, reviewedAt: undefined, revisionNumber: (existing?.revisionNumber || 0) + 1,
+        };
+        const savedSubmission = await ApiService.saveSubmission(submission);
+        setSubmissions(previous => [...previous.filter(item => !(item.assignmentId === assignmentId && item.studentId === studentId && item.periodId === periodId)), savedSubmission]);
+      });
       showToast('Tugas Terkirim', 'File ' + file.name + ' tersimpan dan siap diperiksa instruktur.', 'success');
       return { success: true };
     } catch (error: any) {
@@ -1084,8 +1140,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!participant) throw new Error('Pendaftaran peserta tidak ditemukan.');
     if (participant.finalProjectReviewStatus === 'ACCEPTED') throw new Error('Proyek sudah diterima. Hubungi instruktur untuk perubahan.');
     const updated: PracticeParticipant = {...participant, finalProjectUrl: link.href, finalProjectConfirmed: true, finalProjectReviewStatus: 'SUBMITTED', finalProjectSubmittedAt: new Date().toISOString(), progressStatus: participant.progressStatus === 'PUBLISHED' || participant.progressStatus === 'ASSESSED' ? participant.progressStatus : 'PROJECT_SUBMITTED'};
-    await ApiService.saveFinalProject(updated);
-    setParticipants(prev => prev.map(p => p.id === updated.id ? updated : p));
+    await runServerSave('proyek akhir', async () => {
+      await ApiService.saveFinalProject(updated);
+      setParticipants(prev => prev.map(p => p.id === updated.id ? updated : p));
+    });
     showToast('Proyek disimpan', isLiveBackend ? 'Menunggu pemeriksaan instruktur.' : 'Tautan tersimpan lokal di perangkat ini.', 'success');
   };
 
@@ -1095,8 +1153,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!participant?.finalProjectUrl) throw new Error('Tautan proyek belum tersedia.');
     if (status === 'REVISION_REQUIRED' && !feedback.trim()) throw new Error('Tuliskan instruksi revisi.');
     const updated = {...participant, finalProjectReviewStatus: status, finalProjectFeedback: feedback.trim()};
-    await ApiService.saveFinalProject(updated);
-    setParticipants(prev => prev.map(p => p.id === updated.id ? updated : p));
+    await runServerSave('review proyek akhir', async () => {
+      await ApiService.saveFinalProject(updated);
+      setParticipants(prev => prev.map(p => p.id === updated.id ? updated : p));
+    });
   };
 
   // Student Remedial Submission
@@ -1106,11 +1166,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const period = periods.find(p => p.id === studentSession.periodId);
     if (!remedial || !period || !['PENDING_SUBMISSION', 'BELUM_LULUS'].includes(remedial.status)) throw new Error('Tugas tambahan tidak tersedia.');
     if (isSubmissionClosed(remedial.deadline)) throw new Error('Batas waktu remedial sudah lewat. Hubungi instruktur.');
-    const upload = await uploadSubmissionPDF(file, {courseId: period.courseId, periodId: period.id, studentId: studentSession.studentId, assignmentId: remedial.id, submissionType:'REMEDIAL', allowedFileType:'PDF', replaceStoragePath: remedial.submissionStoragePath, deferSignedUrl: true});
-    if (upload.error || !upload.storagePath) throw upload.error || new Error('Berkas gagal diunggah.');
-    const updated: RemedialAssignment = {...remedial, submissionFileName: file.name, submissionFileUrl: upload.storagePath, submissionStoragePath: upload.storagePath, submittedAt: new Date().toISOString(), status: 'SUBMITTED'};
-    const saved = await ApiService.saveRemedial(updated);
-    setRemedials(prev => prev.map(r => r.id === remedialId ? saved : r));
+    await runServerSave('pengumpulan remedial', async () => {
+      const upload = await uploadSubmissionPDF(file, {courseId: period.courseId, periodId: period.id, studentId: studentSession.studentId, assignmentId: remedial.id, submissionType:'REMEDIAL', allowedFileType:'PDF', replaceStoragePath: remedial.submissionStoragePath, deferSignedUrl: true});
+      if (upload.error || !upload.storagePath) throw upload.error || new Error('Berkas gagal diunggah.');
+      const updated: RemedialAssignment = {...remedial, submissionFileName: file.name, submissionFileUrl: upload.storagePath, submissionStoragePath: upload.storagePath, submittedAt: new Date().toISOString(), status: 'SUBMITTED'};
+      const saved = await ApiService.saveRemedial(updated);
+      setRemedials(prev => prev.map(r => r.id === remedialId ? saved : r));
+    });
     showToast('Tugas Tambahan Disimpan', isLiveBackend ? 'Menunggu verifikasi instruktur.' : 'Berkas tersimpan lokal di perangkat ini.', 'success');
   };
 
@@ -1140,7 +1202,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     try {
-      const saved = await ApiService.saveCourse(newCourse);
+      const saved = await runServerSave('mata kuliah', () => ApiService.saveCourse(newCourse));
       setCourses(prev => [saved, ...prev.filter(course => course.id !== saved.id)]);
       setActiveCourseId(saved.id);
       showToast(
@@ -1178,7 +1240,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setCourses(prev => [newCourse, ...prev]);
     setActiveCourseId(newCourse.id);
-    void ApiService.saveCourse(newCourse).then(saved => {
+    void runServerSave('salin mata kuliah', () => ApiService.saveCourse(newCourse)).then(saved => {
       setCourses(prev => prev.map(course => course.id === newCourse.id ? saved : course));
       setActiveCourseId(saved.id);
     }).catch(error => {
@@ -1189,7 +1251,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateCourse = async (updated: Course) => {
-    const saved = await ApiService.saveCourse(updated);
+    const saved = await runServerSave('mata kuliah', () => ApiService.saveCourse(updated));
     const idMap = new Map([
       ...updated.subCpmks.map((s, i) => [s.id, saved.subCpmks[i].id] as const),
       ...updated.qualityRubrics.map((r, i) => [r.id, saved.qualityRubrics[i].id] as const),
@@ -1212,7 +1274,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const deletedUnitIds = new Set(learningUnits.filter(unit => deletedPeriodIds.has(unit.periodId)).map(unit => unit.id));
     const remainingCourses = courses.filter(course => course.id !== courseId);
 
-    await ApiService.deleteCourse(courseId);
+    await runServerSave('hapus mata kuliah', () => ApiService.deleteCourse(courseId));
 
     setCourses(remainingCourses);
     setPeriods(prev => prev.filter(period => !deletedPeriodIds.has(period.id)));
@@ -1260,7 +1322,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setPeriods(prev => {
       const next = [...prev, newPeriod];
-      void ApiService.savePeriod(newPeriod).catch(error => {
+      void runServerSave('periode praktik', () => ApiService.savePeriod(newPeriod)).catch(error => {
         showToast('Sinkronisasi Gagal', `Periode belum tersimpan ke Supabase: ${error.message}`, 'error');
       });
       return next;
@@ -1312,7 +1374,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setPeriods(prev => {
       const next = [...prev, newPeriod];
-      void ApiService.savePeriod(newPeriod).catch(error => {
+      void runServerSave('periode praktik', () => ApiService.savePeriod(newPeriod)).catch(error => {
         showToast('Sinkronisasi Gagal', `Periode belum tersimpan ke Supabase: ${error.message}`, 'error');
       });
       return next;
@@ -1342,7 +1404,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } else {
         nextList = prev.map(p => p.id === finalUpdated.id ? finalUpdated : p);
       }
-      void ApiService.savePeriodsBulk(nextList).catch(error => {
+      void runServerSave('periode praktik', () => ApiService.savePeriodsBulk(nextList)).catch(error => {
         showToast('Sinkronisasi Gagal', `Perubahan periode belum tersimpan ke Supabase: ${error.message}`, 'error');
       });
       return nextList;
@@ -1366,7 +1428,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     if (changedCount > 0) {
       setPeriods(nextPeriods);
-      await ApiService.savePeriodsBulk(nextPeriods);
+      await runServerSave('sinkronisasi periode', () => ApiService.savePeriodsBulk(nextPeriods));
       showToast(
         'Sinkronisasi Realtime Internet Berhasil',
         `${changedCount} status gelombang otomatis diperbarui sesuai tanggal hari ini (${todayStr} WITA).`,
@@ -1387,7 +1449,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setPeriods(prev => prev.filter(p => p.id !== periodId));
     setParticipants(prev => prev.filter(p => p.periodId !== periodId));
     setLearningUnits(prev => prev.filter(u => u.periodId !== periodId));
-    void ApiService.deletePeriod(periodId).catch(error => {
+    void runServerSave('hapus periode', () => ApiService.deletePeriod(periodId)).catch(error => {
       showToast('Sinkronisasi Gagal', `Periode hanya terhapus di layar: ${error.message}`, 'error');
     });
     showToast('Periode Dihapus', 'Periode praktik dan relasi terkait berhasil dihapus.', 'info');
@@ -1450,8 +1512,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (newParticipants.length > 0) {
       setParticipants(prev => [...prev, ...newParticipants]);
       setAttendance(prev => [...prev, ...newAttendances]);
-      void Promise.all(newParticipants.map(participant => ApiService.saveParticipant(participant)))
-        .then(() => Promise.all(newAttendances.map(record => ApiService.saveAttendanceRecord(record))))
+      void runServerSave('peserta dan presensi', async () => {
+        await Promise.all(newParticipants.map(participant => ApiService.saveParticipant(participant)));
+        await Promise.all(newAttendances.map(record => ApiService.saveAttendanceRecord(record)));
+      })
         .catch(error => {
           showToast('Sinkronisasi Gagal', `Peserta ditambahkan di layar, tetapi gagal dikirim ke Supabase: ${error.message}`, 'error');
         });
@@ -1463,7 +1527,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateParticipant = (updatedParticipant: PracticeParticipant) => {
     setParticipants(prev => prev.map(p => p.id === updatedParticipant.id ? updatedParticipant : p));
-    void ApiService.saveParticipant(updatedParticipant).catch(error => {
+    void runServerSave('data peserta', () => ApiService.saveParticipant(updatedParticipant)).catch(error => {
       showToast('Sinkronisasi Gagal', `Perubahan peserta belum tersimpan ke Supabase: ${error.message}`, 'error');
     });
   };
@@ -1471,12 +1535,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const removeParticipant = (participantId: string) => {
     const participant = participants.find(p => p.id === participantId);
     setParticipants(prev => prev.filter(p => p.id !== participantId));
-    void ApiService.deleteParticipant(participantId).catch(error => {
+    void runServerSave('hapus peserta', () => ApiService.deleteParticipant(participantId)).catch(error => {
       showToast('Sinkronisasi Gagal', `Peserta hanya terhapus di layar: ${error.message}`, 'error');
     });
     if (participant) {
       setAttendance(prev => prev.filter(a => !(a.periodId === participant.periodId && a.studentId === participant.studentId)));
-      void ApiService.deleteAttendanceRecord(participant.periodId, participant.studentId).catch(error => {
+      void runServerSave('hapus presensi peserta', () => ApiService.deleteAttendanceRecord(participant.periodId, participant.studentId)).catch(error => {
         showToast('Sinkronisasi Gagal', `Presensi peserta belum terhapus dari Supabase: ${error.message}`, 'error');
       });
     }
@@ -1492,7 +1556,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     const newStudent = StorageService.addStudent(studentData);
     setStudents(StorageService.getStudents());
-    void ApiService.saveStudent(newStudent, instructor.id).catch(error => {
+    void runServerSave('data mahasiswa', () => ApiService.saveStudent(newStudent, instructor.id)).catch(error => {
       showToast('Sinkronisasi Gagal', `Mahasiswa tersimpan lokal, tetapi gagal dikirim ke Supabase: ${error.message}`, 'error');
     });
     showToast('Mahasiswa Ditambahkan', `${newStudent.name} (${newStudent.nim}) berhasil disimpan.`, 'success');
@@ -1502,7 +1566,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateStudent = (updated: Student) => {
     const list = students.map(s => s.id === updated.id ? updated : s);
     setStudents(list);
-    void ApiService.saveStudent(updated, instructor.id).catch(error => {
+    void runServerSave('data mahasiswa', () => ApiService.saveStudent(updated, instructor.id)).catch(error => {
       showToast('Sinkronisasi Gagal', `Perubahan mahasiswa tersimpan lokal, tetapi gagal dikirim ke Supabase: ${error.message}`, 'error');
     });
     showToast('Data Mahasiswa Diperbarui', `Data ${updated.name} berhasil diperbarui.`, 'success');
@@ -1511,7 +1575,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteStudent = (studentId: string) => {
     const list = students.filter(s => s.id !== studentId);
     setStudents(list);
-    void ApiService.deleteStudent(studentId).catch(error => {
+    void runServerSave('hapus mahasiswa', () => ApiService.deleteStudent(studentId)).catch(error => {
       showToast('Sinkronisasi Gagal', `Penghapusan lokal berhasil, tetapi gagal diperbarui di Supabase: ${error.message}`, 'error');
     });
     showToast('Mahasiswa Dihapus', 'Data mahasiswa telah dihapus dari Master.', 'info');
@@ -1541,7 +1605,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (newItems.length > 0) {
       const updated = [...newItems, ...students];
       setStudents(updated);
-      void Promise.all(newItems.map(student => ApiService.saveStudent(student, instructor.id))).catch(error => {
+      void runServerSave('import mahasiswa', () => Promise.all(newItems.map(student => ApiService.saveStudent(student, instructor.id)))).catch(error => {
         showToast('Sinkronisasi Gagal', `Sebagian mahasiswa tersimpan lokal, tetapi gagal dikirim ke Supabase: ${error.message}`, 'error');
       });
     }
@@ -1595,7 +1659,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const nextUnits = normalizeLearningUnitNumbers([...normalizedUnits, newUnit]);
     setLearningUnits(nextUnits);
     persistChangedUnitNumbers(nextUnits, learningUnits);
-    ApiService.saveLearningUnit(newUnit).then(savedUnit => {
+    runServerSave('unit pembelajaran', () => ApiService.saveLearningUnit(newUnit)).then(savedUnit => {
       const syncState = learningUnitSyncRef.current.get(newUnit.id);
       if (!syncState || syncState.revision !== revision) return;
       if (savedUnit.id !== newUnit.id) learningUnitSyncRef.current.delete(newUnit.id);
@@ -1617,7 +1681,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const revision = ++learningUnitRevisionRef.current;
     learningUnitSyncRef.current.set(updated.id, { revision, pending: true });
     setLearningUnits(prev => prev.map(u => u.id === updated.id ? updated : u));
-    ApiService.saveLearningUnit(updated).then(savedUnit => {
+    runServerSave('unit pembelajaran', () => ApiService.saveLearningUnit(updated)).then(savedUnit => {
       const syncState = learningUnitSyncRef.current.get(updated.id);
       // A newer local edit has already taken ownership of this unit. Do not
       // let an older response briefly replace its current material order.
@@ -1666,7 +1730,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const nextUnits = normalizeLearningUnitNumbers(previousUnits.filter(unit => unit.id !== unitId));
     learningUnitSyncRef.current.delete(unitId);
     setLearningUnits(nextUnits);
-    ApiService.deleteLearningUnit(unitId).then(() => {
+    runServerSave('hapus unit pembelajaran', () => ApiService.deleteLearningUnit(unitId)).then(() => {
       persistChangedUnitNumbers(nextUnits, previousUnits);
     }).catch(error => {
       console.error('Error deleting learning unit:', error);
@@ -1771,35 +1835,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Attendance Matrix Update & Realtime Sync
-  const updateAttendanceCell = (periodId: string, studentId: string, day: 'day1' | 'day2' | 'day3' | 'day4' | 'day5', status: AttendanceStatus) => {
-    setAttendance(prev => {
-      const existing = prev.find(a => a.periodId === periodId && a.studentId === studentId);
-      const base = existing || {
-        id: `att-${Date.now()}`,
-        periodId,
-        studentId,
-        day1: 'HADIR',
-        day2: 'HADIR',
-        day3: 'HADIR',
-        day4: 'HADIR',
-        day5: 'HADIR',
-        percentage: 100,
-        isEligible: true,
-        updatedAt: getRealtimeWitaDateString()
-      };
+  const updateAttendanceCell = async (periodId: string, studentId: string, day: 'day1' | 'day2' | 'day3' | 'day4' | 'day5', status: AttendanceStatus) => {
+    const existing = attendance.find(a => a.periodId === periodId && a.studentId === studentId);
+    const base = existing || {
+      id: `att-${Date.now()}`,
+      periodId,
+      studentId,
+      day1: 'HADIR' as AttendanceStatus,
+      day2: 'HADIR' as AttendanceStatus,
+      day3: 'HADIR' as AttendanceStatus,
+      day4: 'HADIR' as AttendanceStatus,
+      day5: 'HADIR' as AttendanceStatus,
+      percentage: 100,
+      isEligible: true,
+      updatedAt: getRealtimeWitaDateString()
+    };
+    const updatedRecord = { ...base, [day]: status };
+    const stats = computeAttendanceStats(updatedRecord);
+    const finalRecord: AttendanceRecord = {
+      ...updatedRecord,
+      percentage: stats.percentage,
+      isEligible: stats.isEligible,
+      updatedAt: getRealtimeWitaDateString()
+    };
 
-      const updatedRecord = { ...base, [day]: status };
-      const stats = computeAttendanceStats(updatedRecord);
-      const finalRecord: AttendanceRecord = {
-        ...updatedRecord,
-        percentage: stats.percentage,
-        isEligible: stats.isEligible,
-        updatedAt: getRealtimeWitaDateString()
-      };
-
-      ApiService.saveAttendanceRecord(finalRecord);
-      const filtered = prev.filter(a => !(a.periodId === periodId && a.studentId === studentId));
-      return [...filtered, finalRecord];
+    await runServerSave('presensi', async () => {
+      await ApiService.saveAttendanceRecord(finalRecord);
+      setAttendance(prev => [
+        ...prev.filter(a => !(a.periodId === periodId && a.studentId === studentId)),
+        finalRecord,
+      ]);
     });
   };
 
@@ -1809,37 +1874,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (periodParts.length === 0) return;
 
     const todayStr = getRealtimeWitaDateString();
-    let addedCount = 0;
-    const newRecords: AttendanceRecord[] = [];
-
-    setAttendance(prev => {
-      const currentList = [...prev];
-      for (const part of periodParts) {
-        const exists = currentList.find(a => a.periodId === periodId && a.studentId === part.studentId);
-        if (!exists) {
-          const rec: AttendanceRecord = {
-            id: `att-${Date.now()}-${Math.random()}`,
-            periodId,
-            studentId: part.studentId,
-            day1: 'HADIR',
-            day2: 'HADIR',
-            day3: 'HADIR',
-            day4: 'HADIR',
-            day5: 'HADIR',
-            percentage: 100,
-            isEligible: true,
-            updatedAt: todayStr
-          };
-          currentList.push(rec);
-          newRecords.push(rec);
-          addedCount++;
-        }
-      }
-      return currentList;
-    });
+    const newRecords: AttendanceRecord[] = periodParts
+      .filter(part => !attendance.some(record => record.periodId === periodId && record.studentId === part.studentId))
+      .map(part => ({
+        id: `att-${Date.now()}-${Math.random()}`,
+        periodId,
+        studentId: part.studentId,
+        day1: 'HADIR', day2: 'HADIR', day3: 'HADIR', day4: 'HADIR', day5: 'HADIR',
+        percentage: 100,
+        isEligible: true,
+        updatedAt: todayStr,
+      }));
 
     if (newRecords.length > 0) {
-      await ApiService.saveAttendanceBulk(newRecords);
+      await runServerSave('presensi awal', async () => {
+        await ApiService.saveAttendanceBulk(newRecords);
+        setAttendance(prev => [...prev, ...newRecords]);
+      });
     }
   };
 
@@ -1882,12 +1933,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       };
     });
 
-    setAttendance(prev => {
-      const filtered = prev.filter(a => a.periodId !== periodId);
-      return [...filtered, ...updatedRecords];
+    await runServerSave('presensi periode', async () => {
+      await ApiService.saveAttendanceBulk(updatedRecords);
+      setAttendance(prev => [...prev.filter(a => a.periodId !== periodId), ...updatedRecords]);
     });
-
-    await ApiService.saveAttendanceBulk(updatedRecords);
     showToast(
       'Presensi Berhasil Direset',
       `Presensi seluruh peserta (${periodParts.length} mahasiswa) disetel ke 100% Hadir secara otomatis.`,
@@ -1898,86 +1947,50 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Assessment & Grading
   const saveAssessment = async (assessment: Assessment) => {
     try {
-      await ApiService.saveAssessment(assessment);
+      await runServerSave('nilai', async () => {
+        await ApiService.saveAssessment(assessment);
+        setAssessments(prev => [
+          ...prev.filter(a => !(a.periodId === assessment.periodId && a.studentId === assessment.studentId)),
+          assessment,
+        ]);
+        setParticipants(prev => prev.map(p => p.periodId === assessment.periodId && p.studentId === assessment.studentId
+          ? { ...p, progressStatus: p.progressStatus === 'PUBLISHED' ? 'PUBLISHED' : 'ASSESSED' }
+          : p));
+      });
     } catch (error) {
       console.error('Error syncing assessment:', error);
       showToast('Penyimpanan Nilai Gagal', 'Nilai belum dikonfirmasi tersimpan di server. Periksa koneksi lalu coba lagi.', 'error');
       throw error;
     }
 
-    setAssessments(prev => {
-      const filtered = prev.filter(a => !(a.periodId === assessment.periodId && a.studentId === assessment.studentId));
-      return [...filtered, assessment];
-    });
-
-    // Update participant progress status to ASSESSED if not already PUBLISHED
-    setParticipants(prev => prev.map(p => {
-      if (p.periodId === assessment.periodId && p.studentId === assessment.studentId) {
-        return {
-          ...p,
-          progressStatus: p.progressStatus === 'PUBLISHED' ? 'PUBLISHED' : 'ASSESSED'
-        };
-      }
-      return p;
-    }));
-
   };
 
   // Publish Grade with Attendance Blockage Check (PRD Section 56 & 58)
   const publishPeriodGrades = async (periodId: string) => {
-    let publishedCount = 0;
-    let blockedCount = 0;
-
-    const updatedAssessments = assessments.map(a => {
-      if (a.periodId !== periodId) return a;
-
-      // Check attendance
-      const att = attendance.find(at => at.periodId === periodId && at.studentId === a.studentId);
-      const isEligible = att ? att.isEligible : true;
-
-      // If attendance is <75%, check if all remedials are LULUS
-      let canPublish = isEligible;
-      if (!isEligible) {
-        const studentRemedials = remedials.filter(r => r.periodId === periodId && r.studentId === a.studentId);
-        if (studentRemedials.length > 0 && studentRemedials.every(r => r.status === 'LULUS')) {
-          canPublish = true;
-        }
-      }
-
-      if (canPublish) {
-        publishedCount++;
-        return { ...a, isPublished: true, publishedAt: new Date().toISOString() };
-      } else {
-        blockedCount++;
-        return { ...a, isPublished: false };
-      }
-    });
+    const { assessments: updatedAssessments, publishedCount, blockedCount } = preparePeriodGradePublication(
+      assessments, periodId, attendance, remedials,
+    );
 
     const periodAssessments = updatedAssessments.filter(assessment => assessment.periodId === periodId);
-    if (periodAssessments.length > 0) {
-      try {
-        // One PostgREST upsert keeps this period's publish/unpublish changes in
-        // a single database statement and commits local state only on success.
-        await ApiService.saveAssessmentsBulk(periodAssessments);
-      } catch (error) {
-        console.error('Error publishing period assessments:', error);
-        showToast('Publikasi Nilai Gagal', 'Server menolak penyimpanan publikasi. Status di halaman belum diperbarui; muat ulang sebelum mencoba lagi.', 'error');
-        throw error;
-      }
+    try {
+      await runServerSave('publikasi nilai', async () => {
+        // One PostgREST upsert commits this period's publish/unpublish changes
+        // before local state is changed.
+        if (periodAssessments.length > 0) await ApiService.saveAssessmentsBulk(periodAssessments);
+        setAssessments(updatedAssessments);
+        setParticipants(prev => prev.map(p => {
+          if (p.periodId === periodId) {
+            const ass = updatedAssessments.find(a => a.studentId === p.studentId);
+            if (ass?.isPublished) return { ...p, progressStatus: 'PUBLISHED' };
+          }
+          return p;
+        }));
+      });
+    } catch (error) {
+      console.error('Error publishing period assessments:', error);
+      showToast('Publikasi Nilai Gagal', 'Server menolak penyimpanan publikasi. Status di halaman belum diperbarui; coba ulangi dari status penyimpanan.', 'error');
+      throw error;
     }
-
-    setAssessments(updatedAssessments);
-
-    // Update participant statuses
-    setParticipants(prev => prev.map(p => {
-      if (p.periodId === periodId) {
-        const ass = updatedAssessments.find(a => a.studentId === p.studentId);
-        if (ass?.isPublished) {
-          return { ...p, progressStatus: 'PUBLISHED' };
-        }
-      }
-      return p;
-    }));
 
     if (publishedCount === 0 && blockedCount === 0) {
       showToast('Belum Ada Nilai Tersimpan', 'Tidak ada assessment pada periode ini yang siap dipublikasikan. Simpan penilaian mahasiswa terlebih dahulu.', 'warning');
@@ -1991,21 +2004,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const unpublishPeriodGrades = async (periodId: string) => {
-    const updatedAssessments = assessments.map(a => a.periodId === periodId ? { ...a, isPublished: false } : a);
+    const updatedAssessments = preparePeriodGradeUnpublication(assessments, periodId);
     try {
-      await ApiService.saveAssessmentsBulk(updatedAssessments.filter(a => a.periodId === periodId));
+      await runServerSave('penarikan publikasi nilai', async () => {
+        await ApiService.saveAssessmentsBulk(updatedAssessments.filter(a => a.periodId === periodId));
+        setAssessments(updatedAssessments);
+        setParticipants(prev => prev.map(p => {
+          if (p.periodId === periodId && p.progressStatus === 'PUBLISHED') return { ...p, progressStatus: 'ASSESSED' };
+          return p;
+        }));
+      });
     } catch (error) {
       console.error('Error syncing unpublished assessments:', error);
       showToast('Penarikan Publikasi Gagal', 'Status nilai belum berhasil diperbarui di server.', 'error');
       throw error;
     }
-    setAssessments(updatedAssessments);
-    setParticipants(prev => prev.map(p => {
-      if (p.periodId === periodId && p.progressStatus === 'PUBLISHED') {
-        return { ...p, progressStatus: 'ASSESSED' };
-      }
-      return p;
-    }));
     showToast('Publikasi Ditarik', 'Nilai periode ini disembunyikan kembali dari mahasiswa.', 'info');
   };
 
@@ -2153,14 +2166,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       id: newEntityId('announcement'),
       publishedAt: new Date().toISOString(),
     };
-    const saved = await ApiService.saveAnnouncement(announcement);
+    const saved = await runServerSave('pengumuman', () => ApiService.saveAnnouncement(announcement));
     setAnnouncements(prev => [saved, ...prev.filter(item => item.id !== announcement.id && item.id !== saved.id)]);
     showToast('Pengumuman Diterbitkan', 'Pengumuman sudah tampil pada dashboard mahasiswa.', 'success');
     return saved;
   };
 
   const deleteAnnouncement = async (announcementId: string): Promise<void> => {
-    await ApiService.deleteAnnouncement(announcementId);
+    await runServerSave('hapus pengumuman', () => ApiService.deleteAnnouncement(announcementId));
     setAnnouncements(prev => prev.filter(item => item.id !== announcementId));
     showToast('Pengumuman Dihapus', 'Pengumuman tidak lagi tampil pada dashboard mahasiswa.', 'info');
   };
@@ -2203,6 +2216,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         isInstructorLoggedIn,
         isLiveBackend,
         isInitialDataLoaded,
+        serverSaveStatus,
+        retryServerSave,
         loginInstructor,
         signUpInstructor,
         logoutInstructor,

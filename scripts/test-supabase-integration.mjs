@@ -1,0 +1,37 @@
+import fs from 'node:fs';
+import { createClient } from '@supabase/supabase-js';
+
+const env = { ...process.env };
+if (fs.existsSync('.env')) {
+  for (const line of fs.readFileSync('.env', 'utf8').split(/\r?\n/)) {
+    const match = line.match(/^\s*(VITE_SUPABASE_URL|VITE_SUPABASE_ANON_KEY)\s*=\s*(.*?)\s*$/);
+    if (match && !env[match[1]]) env[match[1]] = match[2].replace(/^['"]|['"]$/g, '');
+  }
+}
+
+const url = env.VITE_SUPABASE_URL;
+const publicKey = env.VITE_SUPABASE_ANON_KEY;
+if (!url || !publicKey) {
+  console.log('SKIP: Supabase schema smoke test (public URL/key are not configured).');
+  process.exit(0);
+}
+
+const client = createClient(url, publicKey, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+const schemaChecks = [
+  ['assessments', 'id,period_id,student_id,is_published'],
+  ['attendance_records', 'id,period_id,student_id'],
+  ['submissions', 'id,period_id,student_id,storage_path,status'],
+  ['remedial_assignments', 'id,period_id,student_id,submission_storage_path,deadline,status'],
+];
+
+for (const [table, columns] of schemaChecks) {
+  const { error } = await client.from(table).select(columns).limit(0);
+  if (error) {
+    console.error(`FAIL: Supabase schema smoke test for ${table} (${error.code || 'request error'}).`);
+    process.exit(1);
+  }
+}
+
+console.log(`PASS: Supabase Data API schema smoke test (${schemaChecks.length} tables; zero data rows requested).`);

@@ -1,5 +1,4 @@
 // Export Utilities for Rekap Nilai (CSV & Excel XLSX)
-import * as XLSX from 'xlsx';
 
 export interface RecapRow {
   nim: string;
@@ -64,7 +63,8 @@ export function exportRecapToCSV(data: RecapRow[], filename: string = 'Rekap_Nil
   document.body.removeChild(link);
 }
 
-export function exportRecapToXLSX(data: RecapRow[], courseName: string = 'Praktik', filename: string = 'Rekap_Nilai_Praktik_Poliwako.xlsx') {
+export async function exportRecapToXLSX(data: RecapRow[], courseName: string = 'Praktik', filename: string = 'Rekap_Nilai_Praktik_Poliwako.xlsx') {
+  const XLSX = await import('xlsx');
   const formattedData = data.map(row => ({
     'NIM': row.nim,
     'Nama Mahasiswa': row.nama,

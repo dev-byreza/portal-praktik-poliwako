@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { useApp } from './context/AppContext';
 import { Navbar } from './components/common/Navbar';
 import { FooterBranding } from './components/common/FooterBranding';
 import { Lock, ArrowLeft, Home } from 'lucide-react';
 import { ToastContainer } from './components/common/ToastContainer';
-import { AuthLoginModal } from './components/instructor/AuthLoginModal';
-import { InstructorCommandCenter } from './components/instructor/InstructorCommandCenter';
-import { StudentPortal } from './components/student/StudentPortal';
 import { PortalSelectorGate } from './components/portal/PortalSelectorGate';
-import { InteractiveNotFoundPage } from './components/portal/InteractiveNotFoundPage';
+
+const AuthLoginModal = lazy(() => import('./components/instructor/AuthLoginModal').then(module => ({ default: module.AuthLoginModal })));
+const InstructorCommandCenter = lazy(() => import('./components/instructor/InstructorCommandCenter').then(module => ({ default: module.InstructorCommandCenter })));
+const StudentPortal = lazy(() => import('./components/student/StudentPortal').then(module => ({ default: module.StudentPortal })));
+const InteractiveNotFoundPage = lazy(() => import('./components/portal/InteractiveNotFoundPage').then(module => ({ default: module.InteractiveNotFoundPage })));
 
 type ActiveRoute = 'ROOT_SELECTOR' | 'STUDENT' | 'INSTRUCTOR' | 'NOT_FOUND';
 
@@ -22,7 +23,9 @@ export const App: React.FC = () => {
     studentSession,
     currentStudent,
     isInstructorLoggedIn,
-    clearStudentIdentity
+    clearStudentIdentity,
+    serverSaveStatus,
+    retryServerSave,
   } = useApp();
 
   const [activeRoute, setActiveRoute] = useState<ActiveRoute>('ROOT_SELECTOR');
@@ -210,6 +213,7 @@ export const App: React.FC = () => {
         )}
 
         {/* 404: INTERACTIVE 404 PAGE JIKA SLUG SALAH */}
+        <Suspense fallback={<div className="flex min-h-40 items-center justify-center text-sm text-slate-400">Memuat portal…</div>}>
         {activeRoute === 'NOT_FOUND' && (
           <InteractiveNotFoundPage
             invalidPath={invalidSlug}
@@ -230,16 +234,44 @@ export const App: React.FC = () => {
             setIsCourseWizardOpen={setIsCourseWizardOpen}
           />
         )}
+        </Suspense>
       </div>
 
       {/* Floating System Toasts */}
       <ToastContainer />
 
+      {serverSaveStatus.state !== 'IDLE' && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`fixed bottom-4 left-4 z-[60] flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-xl border px-4 py-3 text-xs font-semibold shadow-xl backdrop-blur-md ${
+            serverSaveStatus.state === 'ERROR'
+              ? 'border-rose-400/40 bg-rose-950/95 text-rose-100'
+              : serverSaveStatus.state === 'SAVED'
+                ? 'border-emerald-400/40 bg-emerald-950/95 text-emerald-100'
+                : 'border-cyan-400/40 bg-slate-950/95 text-cyan-100'
+          }`}
+        >
+          <span>
+            {serverSaveStatus.state === 'SAVING'
+              ? `Menyimpan${serverSaveStatus.label ? ` ${serverSaveStatus.label}` : ''}…`
+              : serverSaveStatus.state === 'SAVED'
+                ? 'Tersimpan di server'
+                : 'Gagal—coba lagi'}
+          </span>
+          {serverSaveStatus.state === 'ERROR' && (
+            <button type="button" onClick={() => void retryServerSave().catch(() => {})} className="rounded-lg bg-white/10 px-2.5 py-1.5 font-bold hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+              Coba lagi
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Google OAuth Login Modal */}
-      <AuthLoginModal
+      <Suspense fallback={null}><AuthLoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
-      />
+      /></Suspense>
 
       {/* Shared View Footer - Product by dev-byreza (Aktif di halaman login & gate) */}
       {(activeRoute === 'NOT_FOUND' ||

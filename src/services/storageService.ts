@@ -54,6 +54,29 @@ const STORAGE_KEYS = {
   INSTRUCTOR_LOGGED_IN: 'poliwako_instructor_logged_in'
 };
 
+const ACCOUNT_SCOPED_KEYS = new Set([
+  STORAGE_KEYS.INSTRUCTOR,
+  STORAGE_KEYS.STUDENTS,
+  STORAGE_KEYS.COURSES,
+  STORAGE_KEYS.PERIODS,
+  STORAGE_KEYS.LEARNING_UNITS,
+  STORAGE_KEYS.PARTICIPANTS,
+  STORAGE_KEYS.UNIT_PROGRESS,
+  STORAGE_KEYS.SUBMISSIONS,
+  STORAGE_KEYS.ATTENDANCE,
+  STORAGE_KEYS.ASSESSMENTS,
+  STORAGE_KEYS.REMEDIALS,
+  STORAGE_KEYS.FEEDBACK_RULES,
+  STORAGE_KEYS.ANNOUNCEMENTS,
+]);
+
+let activeCacheScope = 'local';
+const resolveStorageKey = (key: string): string => (
+  activeCacheScope === 'local' || !ACCOUNT_SCOPED_KEYS.has(key)
+    ? key
+    : `poliwako_cache_v1:${encodeURIComponent(activeCacheScope)}:${key}`
+);
+
 const CLEAN_VERSION_KEY = 'poliwako_security_v7_auto_attendance';
 
 // Auto-seed real CAD 1.1 course and students if new version flag is missing
@@ -79,8 +102,13 @@ if (typeof window !== 'undefined' && !localStorage.getItem(CLEAN_VERSION_KEY)) {
 
 function getItem<T>(key: string, fallback: T): T {
   try {
-    const item = localStorage.getItem(key);
-    return item ? JSON.parse(item) : fallback;
+    const item = localStorage.getItem(resolveStorageKey(key));
+    if (item) return JSON.parse(item);
+    if (activeCacheScope !== 'local' && ACCOUNT_SCOPED_KEYS.has(key)) {
+      if (key === STORAGE_KEYS.INSTRUCTOR) return { id: '', email: '', name: '', department: '' } as T;
+      return [] as T;
+    }
+    return fallback;
   } catch (e) {
     console.warn(`Error reading localStorage key ${key}:`, e);
     return fallback;
@@ -89,13 +117,18 @@ function getItem<T>(key: string, fallback: T): T {
 
 function setItem<T>(key: string, value: T): void {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    localStorage.setItem(resolveStorageKey(key), JSON.stringify(value));
   } catch (e) {
     console.warn(`Error saving to localStorage key ${key}:`, e);
   }
 }
 
 export class StorageService {
+  /** Isolate live-mode UI caches by the authenticated account and student period. */
+  static setCacheScope(scope: string | null): void {
+    activeCacheScope = scope?.trim() || 'local';
+  }
+
   // Reset all to clean real initial state without dummy data
   static resetToDefault(): void {
     localStorage.clear();
@@ -211,7 +244,7 @@ export class StorageService {
     });
     // Ensure DPP 2 is available
     const dppCourseId = 'c3d4e5f6-d002-4000-8000-000000000001';
-    if (!courses.some(c => c.id === dppCourseId)) {
+    if (activeCacheScope === 'local' && !courses.some(c => c.id === dppCourseId)) {
       const dppInitial = INITIAL_COURSES.find(c => c.id === dppCourseId);
       if (dppInitial) {
         courses.push(dppInitial);
@@ -251,7 +284,7 @@ export class StorageService {
     // Check if DPP 2 periods are missing
     const dppCourseId = 'c3d4e5f6-d002-4000-8000-000000000001';
     const hasDpp = periods.some(p => p.courseId === dppCourseId);
-    if (!hasDpp) {
+    if (activeCacheScope === 'local' && !hasDpp) {
       const dppInitials = INITIAL_PERIODS.filter(p => p.courseId === dppCourseId);
       periods = [...periods, ...dppInitials];
       changed = true;

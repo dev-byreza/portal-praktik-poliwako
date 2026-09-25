@@ -1,22 +1,22 @@
 // Instructor Command Center Main Layout with Vertical Collapsible Sidebar
 
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Menu } from 'lucide-react';
 import { InstructorSidebar } from './InstructorSidebar';
 import { InstructorHeader } from './InstructorHeader';
-import { DashboardOverview } from './DashboardOverview';
-import { MasterStudentManager } from './MasterStudentManager';
-import { PracticePeriodManager } from './PracticePeriodManager';
-import { LearningContentStudio } from './LearningContentStudio';
-import { AttendanceMatrix } from './AttendanceMatrix';
-import { GradingWorkspace } from './GradingWorkspace';
-import { RekapNilaiExport } from './RekapNilaiExport';
-import { AnalyticsView } from './AnalyticsView';
-import { CourseSettings } from './CourseSettings';
-import { CourseWizardModal } from './CourseWizardModal';
-import { CopyCourseModal } from './CopyCourseModal';
-import { AIAssistantPanel } from '../common/AIAssistantPanel';
+const DashboardOverview = lazy(() => import('./DashboardOverview').then(module => ({ default: module.DashboardOverview })));
+const MasterStudentManager = lazy(() => import('./MasterStudentManager').then(module => ({ default: module.MasterStudentManager })));
+const PracticePeriodManager = lazy(() => import('./PracticePeriodManager').then(module => ({ default: module.PracticePeriodManager })));
+const LearningContentStudio = lazy(() => import('./LearningContentStudio').then(module => ({ default: module.LearningContentStudio })));
+const AttendanceMatrix = lazy(() => import('./AttendanceMatrix').then(module => ({ default: module.AttendanceMatrix })));
+const GradingWorkspace = lazy(() => import('./GradingWorkspace').then(module => ({ default: module.GradingWorkspace })));
+const RekapNilaiExport = lazy(() => import('./RekapNilaiExport').then(module => ({ default: module.RekapNilaiExport })));
+const AnalyticsView = lazy(() => import('./AnalyticsView').then(module => ({ default: module.AnalyticsView })));
+const CourseSettings = lazy(() => import('./CourseSettings').then(module => ({ default: module.CourseSettings })));
+const CourseWizardModal = lazy(() => import('./CourseWizardModal').then(module => ({ default: module.CourseWizardModal })));
+const CopyCourseModal = lazy(() => import('./CopyCourseModal').then(module => ({ default: module.CopyCourseModal })));
+const AIAssistantPanel = lazy(() => import('../common/AIAssistantPanel').then(module => ({ default: module.AIAssistantPanel })));
 
 import { InstructorLoginGate } from './InstructorLoginGate';
 
@@ -105,6 +105,7 @@ export const InstructorCommandCenter: React.FC<InstructorCommandCenterProps> = (
 
         {/* Tab Pages */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 animate-fadeIn w-full">
+          <Suspense fallback={<div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500">Memuat fitur…</div>}>
           {activeTab === 'DASHBOARD' && <DashboardOverview onNavigateTab={tab => setActiveTab(tab)} />}
           {activeTab === 'STUDENTS' && <MasterStudentManager />}
           {activeTab === 'PERIODS' && <PracticePeriodManager />}
@@ -114,30 +115,31 @@ export const InstructorCommandCenter: React.FC<InstructorCommandCenterProps> = (
           {activeTab === 'RECAP' && <RekapNilaiExport />}
           {activeTab === 'ANALYTICS' && <AnalyticsView />}
           {activeTab === 'SETTINGS' && <CourseSettings />}
+          </Suspense>
         </main>
       </div>
 
       {/* Course Setup Wizard Modal */}
-      <CourseWizardModal
+      {isCourseWizardOpen && <Suspense fallback={null}><CourseWizardModal
         isOpen={isCourseWizardOpen}
         onClose={() => setIsCourseWizardOpen(false)}
-      />
+      /></Suspense>}
 
       {/* Copy Course Modal */}
-      {activeCourse && (
-        <CopyCourseModal
+      {activeCourse && isCopyCourseOpen && (
+        <Suspense fallback={null}><CopyCourseModal
           isOpen={isCopyCourseOpen}
           onClose={() => setIsCopyCourseOpen(false)}
           sourceCourseId={activeCourse.id}
-        />
+        /></Suspense>
       )}
 
-      <AIAssistantPanel
+      {isAiAssistantOpen && <Suspense fallback={null}><AIAssistantPanel
         isOpen={isAiAssistantOpen}
         onClose={() => setIsAiAssistantOpen(false)}
         title="Asisten AI Portal Praktik"
         context={`Anda membantu instruktur menyiapkan konten untuk mata kuliah ${activeCourse?.name || 'praktik'}. Gunakan bahasa Indonesia yang jelas, formal, dan ramah mahasiswa.`}
-      />
+      /></Suspense>}
 
     </div>
   );

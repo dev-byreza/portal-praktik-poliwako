@@ -49,6 +49,8 @@ let calls = [];
 let cached = [];
 let failTable;
 let failOperation;
+let cachedAssessments = [];
+let cachedAttendance = [];
 const oldSubId = '10000000-0000-4000-8000-000000000001';
 const oldRubricId = '20000000-0000-4000-8000-000000000001';
 const fakeClient = {
@@ -75,7 +77,16 @@ const fakeClient = {
 };
 const { ApiService } = loadSource('src/services/apiService.ts', {
   './supabaseClient': { supabase: fakeClient, isSupabaseConfigured: () => live },
-  './storageService': { StorageService: { getCourses: () => cached, saveCourses: courses => { cached = courses; } } },
+  './storageService': { StorageService: {
+    getCourses: () => cached,
+    saveCourses: courses => { cached = courses; },
+    getAssessments: () => cachedAssessments,
+    saveAssessments: assessments => { cachedAssessments = assessments; },
+    getAttendance: () => cachedAttendance,
+    saveAttendance: attendance => { cachedAttendance = attendance; },
+  } },
+  '../utils/learningAssignments': { getUnitAssignments: () => [] },
+  '../utils/learningUnitOrdering': { normalizeLearningUnitNumbers: units => units },
 });
 const course = {
   id: '30000000-0000-4000-8000-000000000001', instructorId: 'owner', name: 'CAD',
@@ -112,6 +123,21 @@ const course = {
     assert.equal(cached.length, 0, 'Failed saves must not be cached as successful');
     if (operation !== 'delete') assert.equal(calls.some(c => c.operation === 'delete'), false);
   }
+  calls = []; failTable = null; failOperation = null;
+  const grade = { id: 'grade-1', periodId: 'period-1', studentId: 'student-1', finalScore: 0, isPublished: false };
+  await ApiService.saveAssessment(grade);
+  assert.equal(cachedAssessments[0], grade, 'A zero-point assessment is still persisted as a grade record');
+  failTable = 'assessments'; failOperation = 'upsert';
+  await assert.rejects(ApiService.saveAssessment({ ...grade, isPublished: true }), /Save denied/);
+  assert.equal(cachedAssessments[0].isPublished, false, 'Failed server saves must not replace the confirmed cache');
+
+  failTable = null; failOperation = null;
+  const attendance = { id: 'attendance-1', periodId: 'period-1', studentId: 'student-1', day1: 'ALPA', percentage: 0, isEligible: false };
+  await ApiService.saveAttendanceRecord(attendance);
+  assert.equal(cachedAttendance[0], attendance);
+  failTable = 'attendance_records'; failOperation = 'upsert';
+  await assert.rejects(ApiService.saveAttendanceRecord({ ...attendance, percentage: 100, isEligible: true }), /Save denied/);
+  assert.equal(cachedAttendance[0].percentage, 0, 'Failed attendance writes must leave the last server-confirmed cache intact');
   calls = []; live = false;
   const local = await ApiService.saveCourse(course);
   assert.equal(local, course);

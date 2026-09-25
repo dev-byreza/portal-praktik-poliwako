@@ -95,7 +95,7 @@ export const AttendanceMatrix: React.FC = () => {
   // Automatically initialize 100% attendance for all participants in the active/selected period
   useEffect(() => {
     if (activeSelectedPeriod && periodParticipants.length > 0) {
-      autoInitializeAttendanceForPeriod(activeSelectedPeriod.id);
+      void autoInitializeAttendanceForPeriod(activeSelectedPeriod.id).catch(() => {});
     }
   }, [activeSelectedPeriod?.id, periodParticipants.length]);
 
@@ -138,7 +138,7 @@ export const AttendanceMatrix: React.FC = () => {
       ALPA: 'HADIR'
     };
     const nextStatus = cycle[currentStatus] || 'HADIR';
-    updateAttendanceCell(activeSelectedPeriod.id, studentId, day, nextStatus);
+    void updateAttendanceCell(activeSelectedPeriod.id, studentId, day, nextStatus).catch(() => {});
   };
 
   const handleOpenCreateRemedial = (student: { id: string; name: string }) => {
@@ -248,7 +248,7 @@ export const AttendanceMatrix: React.FC = () => {
               type="button"
               onClick={() => {
                 if (activeSelectedPeriod) {
-                  setAllPeriodAttendanceStatus(activeSelectedPeriod.id, 'HADIR');
+                  void setAllPeriodAttendanceStatus(activeSelectedPeriod.id, 'HADIR').catch(() => {});
                 }
               }}
               className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"

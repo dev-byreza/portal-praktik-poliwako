@@ -114,7 +114,7 @@ export const RekapNilaiExport: React.FC = () => {
     showToast('Export CSV Selesai', 'File CSV berhasil diunduh.', 'success');
   };
 
-  const handleExportXLSX = () => {
+  const handleExportXLSX = async () => {
     const exportRows: RecapRow[] = recapData.map(r => ({
       nim: r.nim,
       nama: r.nama,
@@ -132,8 +132,13 @@ export const RekapNilaiExport: React.FC = () => {
       status: r.status
     }));
 
-    exportRecapToXLSX(exportRows, activeCourse?.name || 'Praktik', `Rekap_Nilai_${activeCourse?.slug || 'Poliwako'}.xlsx`);
-    showToast('Export Excel Selesai', 'File Excel (.xlsx) berhasil diunduh.', 'success');
+    try {
+      await exportRecapToXLSX(exportRows, activeCourse?.name || 'Praktik', `Rekap_Nilai_${activeCourse?.slug || 'Poliwako'}.xlsx`);
+      showToast('Export Excel Selesai', 'File Excel (.xlsx) berhasil diunduh.', 'success');
+    } catch (error) {
+      console.error('Gagal menyiapkan ekspor Excel:', error);
+      showToast('Export Excel Gagal', 'Berkas Excel belum dapat dibuat. Silakan coba lagi.', 'error');
+    }
   };
 
   return (
