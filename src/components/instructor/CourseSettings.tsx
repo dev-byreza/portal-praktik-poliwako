@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { FeedbackRule, RubricCriterion, SubCPMK } from '../../types';
+import { FeedbackRule, QualityComponent, QualityComponentType, RubricCriterion, SubCPMK } from '../../types';
 import { getCourseRubrics } from '../../utils/courseRubrics';
+import { getCourseQualityComponents, QUALITY_COMPONENT_TYPES } from '../../utils/qualityAssessment';
 import { validateFeedbackRulesOverlap } from '../../utils/gradeCalculators';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import {
@@ -135,6 +136,7 @@ export const CourseSettings: React.FC = () => {
 
   const [localFeedbackRules, setLocalFeedbackRules] = useState<FeedbackRule[]>(feedbackRules);
   const [localSubCpmks, setLocalSubCpmks] = useState<SubCPMK[]>(activeCourse?.subCpmks || []);
+  const [localQualityComponents, setLocalQualityComponents] = useState<QualityComponent[]>([]);
   const [courseName, setCourseName] = useState<string>(activeCourse?.name || '');
   const [courseCode, setCourseCode] = useState<string>(activeCourse?.code || '');
   const [courseSlug, setCourseSlug] = useState<string>(activeCourse?.slug || '');
@@ -160,6 +162,13 @@ export const CourseSettings: React.FC = () => {
       setAcademicYear(activeCourse.academicYear || '2026/2027');
       setSemester(activeCourse.semester || 'Ganjil');
       setLocalSubCpmks(activeCourse.subCpmks || []);
+      const configuredComponents = getCourseQualityComponents(activeCourse);
+      const subCpmkIds = new Set((activeCourse.subCpmks || []).map(item => item.id));
+      const configuredComponentIds = new Set(configuredComponents.map(component => component.id));
+      const legacyQualityRubrics = (activeCourse.qualityRubrics || [])
+        .filter(r => r.category === 'QUALITY' && !r.subCpmkId && !subCpmkIds.has(r.id) && !configuredComponentIds.has(r.id))
+        .map(r => ({ id: r.id, type: 'CUSTOM' as const, name: r.name, description: r.description, weightPercent: 0 }));
+      setLocalQualityComponents([...configuredComponents, ...legacyQualityRubrics]);
       setCourseDesc(activeCourse.description || '');
 
       setLocalAttitudeRubrics(getCourseRubrics(activeCourse, 'ATTITUDE'));
@@ -229,6 +238,43 @@ export const CourseSettings: React.FC = () => {
   const handleCreativityChange = makeChangeHandler(setLocalCreativityRubrics);
   const handleReportChange = makeChangeHandler(setLocalReportRubrics);
 
+  const handleQualityComponentChange = (id: string, field: keyof QualityComponent, value: string | number) => {
+    setLocalQualityComponents(prev => prev.map(component => component.id === id
+      ? { ...component, [field]: value }
+      : component));
+  };
+
+  const totalQualityWeight = React.useMemo(() =>
+    Math.round(localQualityComponents.reduce((total, component) => total + (Number(component.weightPercent) || 0), 0) * 100) / 100,
+  [localQualityComponents]);
+  const zeroWeightQualityComponents = localQualityComponents.filter(component => Number(component.weightPercent) <= 0);
+  const hasValidQualityWeights = localQualityComponents.length > 0 && totalQualityWeight === 100 && zeroWeightQualityComponents.length === 0;
+
+  const handleQualityComponentAdd = () => {
+    const nextNumber = localQualityComponents.filter(component => component.type === 'CUSTOM').length + 1;
+    setLocalQualityComponents(prev => [...prev, {
+      id: crypto.randomUUID(),
+      type: 'CUSTOM',
+      name: `Kualitas Lainnya ${nextNumber}`,
+      description: 'Tuliskan indikator atau sumber nilai untuk komponen ini.',
+      weightPercent: 10,
+    }]);
+  };
+
+  const handleQualityComponentRemove = (id: string) => {
+    setLocalQualityComponents(prev => prev.filter(component => component.id !== id));
+  };
+
+  const handleDistributeQualityWeights = () => {
+    if (localQualityComponents.length === 0) return;
+    const share = Math.floor((100 / localQualityComponents.length) * 100) / 100;
+    const remainder = Math.round((100 - share * localQualityComponents.length) * 100) / 100;
+    setLocalQualityComponents(prev => prev.map((component, index) => ({
+      ...component,
+      weightPercent: index === 0 ? share + remainder : share,
+    })));
+  };
+
   const handleAttitudeAdd = () => {
     const nextNum = localAttitudeRubrics.length + 1;
     setLocalAttitudeRubrics(prev => [...prev, { id: crypto.randomUUID(), name: `Kriteria Sikap ${nextNum}`, description: 'Deskripsikan indikator penilaian sikap.' }]);
@@ -284,6 +330,19 @@ export const CourseSettings: React.FC = () => {
   const handleSaveAll = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSaving || !activeCourse) return;
+
+    if (localQualityComponents.length === 0 || totalQualityWeight !== 100) {
+      showToast('Bobot Kualitas Belum 100%', `Atur total bobot seluruh komponen Kualitas menjadi tepat 100%. Total saat ini ${totalQualityWeight}%.`, 'error');
+      return;
+    }
+    if (zeroWeightQualityComponents.length > 0) {
+      showToast('Komponen Belum Memiliki Bobot', `Atur bobot di atas 0% atau hapus komponen: ${zeroWeightQualityComponents.map(component => component.name).join(', ')}.`, 'error');
+      return;
+    }
+    if (localQualityComponents.some(component => !component.name.trim() || !component.description.trim())) {
+      showToast('Komponen Kualitas Belum Lengkap', 'Isi nama dan deskripsi setiap komponen Kualitas.', 'error');
+      return;
+    }
 
     if (!courseName.trim()) {
       showToast('Nama Mata Kuliah Kosong', 'Nama mata kuliah tidak boleh kosong.', 'error');
@@ -357,6 +416,12 @@ export const CourseSettings: React.FC = () => {
         semester,
         description: courseDesc.trim(),
         subCpmks: localSubCpmks,
+        qualityComponents: localQualityComponents.map(component => ({
+          ...component,
+          name: component.name.trim(),
+          description: component.description.trim(),
+          weightPercent: Number(component.weightPercent),
+        })),
         qualityRubrics: [
           ...updatedQualityRubrics,
           ...toRubricCriteria(localAttitudeRubrics, 'ATTITUDE'),
@@ -417,7 +482,7 @@ export const CourseSettings: React.FC = () => {
         </div>
         <button
           onClick={handleSaveAll}
-          disabled={isSaving || !activeCourse}
+          disabled={isSaving || !activeCourse || !hasValidQualityWeights}
           className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-600/30 transition-all flex items-center gap-2 shrink-0"
         >
           <Save className="w-4 h-4" />
@@ -543,7 +608,7 @@ export const CourseSettings: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed max-w-2xl">
-                Setiap mata kuliah praktik memiliki Sub-CPMK spesifik yang menjadi rujukan penilaian kualitas benda kerja (Bobot 70%). Atur kode, uraian kompetensi, dan persentase bobot per Sub-CPMK.
+                Atur capaian Sub-CPMK dan bobot internalnya di dalam cabang Sub-CPMK. Bobot cabang Sub-CPMK terhadap Kualitas diatur pada Komponen Nilai Kualitas di bawah.
               </p>
             </div>
             <div className="flex items-center gap-2 self-start sm:self-auto">
@@ -641,6 +706,78 @@ export const CourseSettings: React.FC = () => {
             </div>
           </div>
         </div>
+
+        <section className="space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+          <div className="flex flex-col gap-4 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Target className="h-5 w-5 text-blue-600" />
+                <h3 className="text-base font-bold text-slate-900">Komponen Nilai Kualitas</h3>
+                <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${hasValidQualityWeights ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                  Total bobot {totalQualityWeight}% / 100%
+                </span>
+              </div>
+              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500">
+                Atur cabang nilai Kualitas yang tampil di Grading Workspace. Bobot semua cabang wajib berjumlah 100%; nilai Kualitas ini menyumbang 70% pada nilai akhir mahasiswa.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+              <button type="button" onClick={handleDistributeQualityWeights} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100">
+                <Scale className="h-3.5 w-3.5" /> Bagi rata
+              </button>
+              <button type="button" onClick={handleQualityComponentAdd} className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100">
+                <Plus className="h-4 w-4" /> Tambah komponen
+              </button>
+            </div>
+          </div>
+
+          {!hasValidQualityWeights && (
+            <div role="alert" className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                {totalQualityWeight !== 100
+                  ? `Total bobot harus tepat 100%. Saat ini ${totalQualityWeight}% (${totalQualityWeight < 100 ? `kurang ${Math.round((100 - totalQualityWeight) * 100) / 100}%` : `lebih ${Math.round((totalQualityWeight - 100) * 100) / 100}%`}); sesuaikan sebelum menyimpan.`
+                  : `Masih ada komponen berbobot 0%: ${zeroWeightQualityComponents.map(component => component.name).join(', ')}. Atur bobot di atas 0% atau hapus komponen tersebut.`}
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {localQualityComponents.map((component, index) => {
+              const typeLabel = QUALITY_COMPONENT_TYPES.find(option => option.value === component.type)?.label || 'Komponen Kualitas';
+              return (
+                <div key={component.id} className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+                  <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px_auto] sm:items-center">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-blue-700 text-xs font-black text-white">{index + 1}</span>
+                      <input aria-label={`Nama komponen Kualitas ${index + 1}`} maxLength={100} value={component.name} onChange={e => handleQualityComponentChange(component.id, 'name', e.target.value)} className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                    </div>
+                    <select aria-label={`Jenis komponen Kualitas ${index + 1}`} value={component.type} onChange={e => handleQualityComponentChange(component.id, 'type', e.target.value as QualityComponentType)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                      {QUALITY_COMPONENT_TYPES.map(option => {
+                        const optionRepeatable = option.value === 'QUIZ' || option.value === 'CUSTOM';
+                        const alreadyConfigured = !optionRepeatable && option.value !== component.type && localQualityComponents.some(item => item.type === option.value);
+                        return <option key={option.value} value={option.value} disabled={alreadyConfigured}>{option.label}</option>;
+                      })}
+                    </select>
+                    <button type="button" onClick={() => handleQualityComponentRemove(component.id)} aria-label={`Hapus komponen ${component.name}`} className="justify-self-end rounded-lg p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600" title="Hapus komponen">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px] sm:items-end">
+                    <div>
+                      <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Deskripsi / sumber nilai • {typeLabel}</label>
+                      <textarea rows={2} aria-label={`Deskripsi komponen Kualitas ${index + 1}`} value={component.description} onChange={e => handleQualityComponentChange(component.id, 'description', e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs leading-relaxed text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                    </div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Bobot Kualitas (%)
+                      <input type="number" inputMode="decimal" min={0} max={100} step={0.01} value={component.weightPercent} onChange={e => handleQualityComponentChange(component.id, 'weightPercent', Math.max(0, Math.min(100, Number(e.target.value) || 0)))} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-center font-mono text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                    </label>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
 
         {/* Section 3: Rubrik Sikap */}
         <RubricSection

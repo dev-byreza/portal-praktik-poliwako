@@ -58,6 +58,16 @@ export interface RubricCriterion {
   description: string;
 }
 
+export type QualityComponentType = 'ENTRY_BEHAVIOR' | 'SUB_CPMK' | 'ASSIGNMENT' | 'QUIZ' | 'POST_TEST' | 'CUSTOM';
+
+export interface QualityComponent {
+  id: string;
+  type: QualityComponentType;
+  name: string;
+  description: string;
+  weightPercent: number;
+}
+
 export interface Course {
   id: string;
   instructorId: string;
@@ -72,6 +82,7 @@ export interface Course {
   createdAt: string;
   subCpmks: SubCPMK[];
   qualityRubrics: RubricCriterion[];
+  qualityComponents?: QualityComponent[];
 }
 
 export type PeriodStatus = 'UPCOMING' | 'ACTIVE' | 'COMPLETED';

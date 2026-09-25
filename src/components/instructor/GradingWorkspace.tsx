@@ -5,7 +5,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Assessment, CriterionScore, Submission } from '../../types';
 import {
-  calculateQualityCompositeScore,
   calculateWeightedFinalScore,
   getFeedbackForScore,
   getGradePredicate,
@@ -39,6 +38,12 @@ import {
 } from 'lucide-react';
 import { formatDeadline, formatWitaDateTime } from '../../utils/dateUtils';
 import { getCourseRubrics, reconcileRubricScores } from '../../utils/courseRubrics';
+import {
+  buildCourseQualityItems,
+  calculateQualityPracticeScore,
+  calculateWeightedQualityScore,
+  getCourseQualityComponents,
+} from '../../utils/qualityAssessment';
 import { Badge } from '../common/Badge';
 import { getUnitAssignments } from '../../utils/learningAssignments';
 import { parseGradingScore } from '../../utils/gradingScoreInput';
@@ -54,7 +59,7 @@ const toPdfFitUrl = (url: string): string =>
 
 type AllowedFileType = 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' | 'AUTOCAD_LINK';
 type StudentQueueFilter = 'ALL' | 'READY' | 'REVISION' | 'UNPUBLISHED';
-type QualitySection = 'ENTRY' | 'SUB_CPMK' | 'ASSIGNMENT' | 'POST_TEST';
+type QualitySection = string;
 
 const fileTypeLabel = (fileName?: string, configuredType?: AllowedFileType): string => {
   if (configuredType) {
@@ -311,36 +316,9 @@ export const GradingWorkspace: React.FC = () => {
     setSubmissionReviewFeedback(activeDocumentSubmission?.reviewFeedback || '');
   }, [activeDocumentSubmission?.id, activeDocumentSubmission?.reviewFeedback]);
 
-  // Active Course Sub-CPMKs & Rubrics (OBE Quality Component - PRD Section 45, 46)
-  const qualityItems = useMemo(() => {
-    if (!activeCourse) return [];
-    const subCpmks = activeCourse.subCpmks || [];
-    const qualityRubrics = activeCourse.qualityRubrics.filter(r => r.category === 'QUALITY') || [];
-
-    if (subCpmks.length === 0) {
-      // Fallback if course has no subCpmks defined
-      return qualityRubrics.map(r => ({
-        id: r.id,
-        rubricId: r.id,
-        code: 'Kriteria Mutu',
-        title: r.name,
-        description: r.description,
-        weightPercent: undefined as number | undefined
-      }));
-    }
-
-    return subCpmks.map(cpmk => {
-      const matchedRubric = qualityRubrics.find(r => r.subCpmkId === cpmk.id || r.id === cpmk.id);
-      return {
-        id: cpmk.id,
-        rubricId: matchedRubric?.id || cpmk.id,
-        code: cpmk.code,
-        title: matchedRubric && matchedRubric.name !== cpmk.code ? matchedRubric.name : cpmk.code,
-        description: cpmk.description || matchedRubric?.description || '',
-        weightPercent: cpmk.weightPercent
-      };
-    });
-  }, [activeCourse]);
+  // Sub-CPMK and extra QUALITY criteria are both graded within course quality.
+  const qualityItems = useMemo(() => buildCourseQualityItems(activeCourse), [activeCourse]);
+  const qualityComponents = useMemo(() => getCourseQualityComponents(activeCourse), [activeCourse]);
 
   const attitudeRubrics = useMemo(() => getCourseRubrics(activeCourse, 'ATTITUDE'), [activeCourse]);
   const creativityRubrics = useMemo(() => getCourseRubrics(activeCourse, 'CREATIVITY'), [activeCourse]);
@@ -385,7 +363,12 @@ export const GradingWorkspace: React.FC = () => {
       setCustomFeedback(existingAssessment.feedback || '');
     } else {
       // Default: set initial 75 for each course Sub-CPMK
-      const defaultQ = qualityItems.map(item => ({ criterionId: item.id, score: 0, level: 'Belum dinilai' }));
+      const defaultQ = [
+        ...qualityItems.map(item => ({ criterionId: item.id, score: 0, level: 'Belum dinilai' })),
+        ...qualityComponents
+          .filter(component => component.type === 'QUIZ' || component.type === 'CUSTOM')
+          .map(component => ({ criterionId: component.id, score: 0, level: 'Belum dinilai' })),
+      ];
 
       setQualityScores(defaultQ);
       setEntryBehaviorScore(0);
@@ -404,49 +387,39 @@ export const GradingWorkspace: React.FC = () => {
       setReportScores(defaultR);
       setCustomFeedback('');
     }
-  }, [currentParticipant, existingAssessment, activeCourse, qualityItems, tasksToGrade, attitudeRubrics, creativityRubrics, reportRubrics]);
+  }, [currentParticipant, existingAssessment, activeCourse, qualityItems, qualityComponents, tasksToGrade, attitudeRubrics, creativityRubrics, reportRubrics]);
 
   // Compute Sub-CPMK Practice Average (Ketercapaian Praktik - 50% dari Kualitas)
   const subCpmkPracticeScore = useMemo(() => {
-    if (qualityItems.length === 0) return 0;
-
-    // Check if all Sub-CPMKs have weighted percentages defined that sum to 100
-    const hasValidWeights = qualityItems.every(item => typeof item.weightPercent === 'number' && item.weightPercent > 0);
-    const totalWeight = qualityItems.reduce((acc, item) => acc + (item.weightPercent || 0), 0);
-
-    if (hasValidWeights && totalWeight === 100) {
-      let weightedSum = 0;
-      qualityItems.forEach(item => {
-        const scoreObj = qualityScores.find(q => q.criterionId === item.id || q.criterionId === item.rubricId);
-        const score = scoreObj?.score ?? 75;
-        weightedSum += score * ((item.weightPercent || 0) / 100);
-      });
-      return Math.round(weightedSum * 100) / 100;
-    }
-
-    // Default simple average across all course Sub-CPMKs
-    let sum = 0;
-    qualityItems.forEach(item => {
-      const scoreObj = qualityScores.find(q => q.criterionId === item.id || q.criterionId === item.rubricId);
-      const score = scoreObj?.score ?? 75;
-      sum += score;
-    });
-    return Math.round((sum / qualityItems.length) * 100) / 100;
+    return calculateQualityPracticeScore(qualityItems, qualityScores);
   }, [qualityItems, qualityScores]);
 
   // Alias for backward compatibility
   const qualityAvg = subCpmkPracticeScore;
 
-  // Compute Total Nilai Kualitas (70%) via 4 Turunan Formula:
-  // Entry Behavior (10%) + Ketercapaian Praktik Sub-CPMK (50%) + Tugas (15%) + Post-Test (25%) = 100%
+  const qualityComponentScores = useMemo(() => Object.fromEntries(qualityComponents.map(component => {
+    switch (component.type) {
+      case 'ENTRY_BEHAVIOR': return [component.id, entryBehaviorScore];
+      case 'SUB_CPMK': return [component.id, subCpmkPracticeScore];
+      case 'ASSIGNMENT': return [component.id, assignmentScore];
+      case 'POST_TEST': return [component.id, postTestScore];
+      case 'QUIZ':
+      case 'CUSTOM':
+        return [component.id, qualityScores.find(score => score.criterionId === component.id)?.score ?? 0];
+    }
+  })), [qualityComponents, entryBehaviorScore, subCpmkPracticeScore, assignmentScore, postTestScore, qualityScores]);
+
+  const totalQualityWeight = useMemo(() =>
+    Math.round(qualityComponents.reduce((total, component) => total + component.weightPercent, 0) * 100) / 100,
+  [qualityComponents]);
+  const zeroWeightQualityComponents = qualityComponents.filter(component => component.weightPercent <= 0);
+  const hasValidQualityWeights = qualityComponents.length > 0 && totalQualityWeight === 100 && zeroWeightQualityComponents.length === 0;
+  const getQualityComponent = (type: string) => qualityComponents.find(component => component.type === type);
+
+  // Configured Quality branches total 100%; Quality contributes 70% to the final grade.
   const compositeQualityScore = useMemo(() => {
-    return calculateQualityCompositeScore(
-      entryBehaviorScore,
-      subCpmkPracticeScore,
-      assignmentScore,
-      postTestScore
-    );
-  }, [entryBehaviorScore, subCpmkPracticeScore, assignmentScore, postTestScore]);
+    return calculateWeightedQualityScore(qualityComponents, qualityComponentScores);
+  }, [qualityComponents, qualityComponentScores]);
 
   const attitudeAvg = useMemo(() => {
     if (attitudeScores.length === 0) return 0;
@@ -612,6 +585,10 @@ export const GradingWorkspace: React.FC = () => {
   // Save current assessment
   const handleSaveAssessment = async (navigateNext: boolean = false) => {
     if (!activeSelectedPeriod || !currentParticipant) return;
+    if (!hasValidQualityWeights) {
+      showToast('Bobot Kualitas Tidak Valid', `Total bobot Kualitas harus tepat 100%. Total saat ini ${totalQualityWeight}%.`, 'error');
+      return;
+    }
 
     const newAssessment: Assessment = {
       id: existingAssessment?.id || (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -1195,7 +1172,7 @@ export const GradingWorkspace: React.FC = () => {
 
             {/* ========================================================================= */}
             {/* COMPONENT 1: NILAI KUALITAS (70%) */}
-            {/* Turunan: Entry Behavior (10%) + Ketercapaian Praktik Sub-CPMK (50%) + Tugas (15%) + Post-Test (25%) */}
+            {/* Komponen Kualitas yang bobot totalnya wajib 100%. */}
             {/* ========================================================================= */}
             {(activeCategoryTab === 'QUALITY' || activeCategoryTab === 'ALL') && (
             <div className="space-y-3">
@@ -1206,17 +1183,24 @@ export const GradingWorkspace: React.FC = () => {
                 <h4 className="text-sm font-bold uppercase tracking-wider text-blue-900">
                   Nilai Kualitas (Bobot 70%)
                 </h4>
-                <p className="mt-0.5 text-[10px] text-slate-400">Buka satu bagian untuk menilai dengan lebih fokus.</p>
+                <p className="mt-0.5 text-[10px] text-slate-400">Bobot cabang: {totalQualityWeight}% dari 100%. Kontribusi nilai akhir tetap 70%.</p>
                 </div>
                 <span className="text-xs font-black text-blue-700 font-mono">
                   Rata2: {compositeQualityScore}
                 </span>
               </div>
+              {!hasValidQualityWeights && (
+                <div role="alert" className="rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs font-semibold text-rose-800">
+                  {totalQualityWeight !== 100
+                    ? `Total bobot Kualitas harus 100% sebelum penilaian dapat disimpan. Saat ini ${totalQualityWeight}%.`
+                    : `Komponen berbobot 0% belum ikut dihitung: ${zeroWeightQualityComponents.map(component => component.name).join(', ')}. Atur bobot atau hapus komponen di Pengaturan Mata Kuliah.`}
+                </div>
+              )}
 
               {/* ----------------------------------------------------------------- */}
               {/* TURUNAN 1: ENTRY BEHAVIOR (10%) - INPUT NILAI */}
               {/* ----------------------------------------------------------------- */}
-              <div className={`min-h-[92px] border bg-white rounded-2xl transition-colors ${openQualitySection === 'ENTRY' ? 'border-blue-300 ring-1 ring-blue-100' : 'border-slate-200 hover:border-slate-300'}`}>
+              {getQualityComponent('ENTRY_BEHAVIOR') && <div className={`min-h-[92px] border bg-white rounded-2xl transition-colors ${openQualitySection === 'ENTRY' ? 'border-blue-300 ring-1 ring-blue-100' : 'border-slate-200 hover:border-slate-300'}`}>
                 <button
                   type="button"
                   aria-expanded={openQualitySection === 'ENTRY'}
@@ -1230,10 +1214,10 @@ export const GradingWorkspace: React.FC = () => {
                     <div>
                       <h5 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                         <Compass className="w-3.5 h-3.5 text-blue-700" />
-                        <span>Entry Behavior (Bobot 10%)</span>
+                        <span>{getQualityComponent('ENTRY_BEHAVIOR')?.name} (Bobot {getQualityComponent('ENTRY_BEHAVIOR')?.weightPercent}%)</span>
                       </h5>
                       <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-                        Kesiapan awal mahasiswa, pemahaman prasyarat materi, dan kepatuhan SOP dasar bengkel.
+                        {getQualityComponent('ENTRY_BEHAVIOR')?.description}
                       </p>
                     </div>
                   </div>
@@ -1242,7 +1226,7 @@ export const GradingWorkspace: React.FC = () => {
                     <div className="min-w-[84px] rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-right">
                       <span className="block text-[9px] font-bold uppercase tracking-wide text-slate-500">Kontribusi</span>
                       <span className="block text-xs font-mono font-bold text-blue-800">
-                      {(entryBehaviorScore * 0.10).toFixed(1)} Poin
+                      {(entryBehaviorScore * ((getQualityComponent('ENTRY_BEHAVIOR')?.weightPercent || 0) / 100)).toFixed(1)} Poin
                       </span>
                     </div>
                     <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${openQualitySection === 'ENTRY' ? 'rotate-180' : ''}`} />
@@ -1283,12 +1267,12 @@ export const GradingWorkspace: React.FC = () => {
                     ))}
                   </div>
                 </div>}
-              </div>
+              </div>}
 
               {/* ----------------------------------------------------------------- */}
               {/* TURUNAN 2: KETERCAPAIAN PRAKTIK (50%) - MERUPAKAN SUB-CPMK */}
               {/* ----------------------------------------------------------------- */}
-              <div className={`min-h-[92px] border bg-white rounded-2xl transition-colors ${openQualitySection === 'SUB_CPMK' ? 'border-blue-300 ring-1 ring-blue-100' : 'border-slate-200 hover:border-slate-300'}`}>
+              {getQualityComponent('SUB_CPMK') && <div className={`min-h-[92px] border bg-white rounded-2xl transition-colors ${openQualitySection === 'SUB_CPMK' ? 'border-blue-300 ring-1 ring-blue-100' : 'border-slate-200 hover:border-slate-300'}`}>
                 <button
                   type="button"
                   aria-expanded={openQualitySection === 'SUB_CPMK'}
@@ -1303,14 +1287,14 @@ export const GradingWorkspace: React.FC = () => {
                       <div className="flex items-center gap-1.5">
                         <Target className="w-3.5 h-3.5 text-blue-700" />
                         <h5 className="text-sm font-bold text-slate-900">
-                          Ketercapaian Praktik (Bobot 50%)
+                          {getQualityComponent('SUB_CPMK')?.name} (Bobot {getQualityComponent('SUB_CPMK')?.weightPercent}%)
                         </h5>
                         <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700">
                           Sub-CPMK
                         </span>
                       </div>
                       <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-                        Penilaian langsung pada mutu proses dan benda kerja berdasarkan Sub-CPMK ({qualityItems.length} Sub-CPMK Terkonfigurasi).
+                        {getQualityComponent('SUB_CPMK')?.description} ({qualityItems.length} Sub-CPMK).
                       </p>
                     </div>
                   </div>
@@ -1319,7 +1303,7 @@ export const GradingWorkspace: React.FC = () => {
                     <div className="min-w-[108px] rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-right">
                       <span className="block text-[9px] font-bold uppercase tracking-wide text-slate-500">Rata2 {subCpmkPracticeScore}</span>
                       <span className="block text-xs font-mono font-bold text-blue-800">
-                      {(subCpmkPracticeScore * 0.50).toFixed(1)} Poin
+                      {(subCpmkPracticeScore * ((getQualityComponent('SUB_CPMK')?.weightPercent || 0) / 100)).toFixed(1)} Poin
                       </span>
                     </div>
                     <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${openQualitySection === 'SUB_CPMK' ? 'rotate-180' : ''}`} />
@@ -1337,7 +1321,7 @@ export const GradingWorkspace: React.FC = () => {
                         <div className="flex items-start justify-between gap-2">
                           <div className="space-y-0.5">
                             <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 font-mono">
+                              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold font-mono ${item.isSubCpmk ? 'bg-slate-100 text-slate-700' : 'bg-blue-50 text-blue-700'}`}>
                                 {item.code}
                               </span>
                               {item.weightPercent !== undefined && item.weightPercent > 0 && (
@@ -1376,12 +1360,12 @@ export const GradingWorkspace: React.FC = () => {
                     );
                   })}
                 </div>}
-              </div>
+              </div>}
 
               {/* ----------------------------------------------------------------- */}
               {/* TURUNAN 3: TUGAS PRAKTIK (15%) - DIHUBUNGKAN KE MATERI TUGAS */}
               {/* ----------------------------------------------------------------- */}
-              <div className={`min-h-[92px] border bg-white rounded-2xl transition-colors ${openQualitySection === 'ASSIGNMENT' ? 'border-blue-300 ring-1 ring-blue-100' : 'border-slate-200 hover:border-slate-300'}`}>
+              {getQualityComponent('ASSIGNMENT') && <div className={`min-h-[92px] border bg-white rounded-2xl transition-colors ${openQualitySection === 'ASSIGNMENT' ? 'border-blue-300 ring-1 ring-blue-100' : 'border-slate-200 hover:border-slate-300'}`}>
                 <button
                   type="button"
                   aria-expanded={openQualitySection === 'ASSIGNMENT'}
@@ -1396,7 +1380,7 @@ export const GradingWorkspace: React.FC = () => {
                       <div className="flex items-center gap-1.5">
                         <BookOpen className="w-3.5 h-3.5 text-blue-700" />
                         <h5 className="text-sm font-bold text-slate-900">
-                          Tugas Praktik / Worksheet (Bobot 15%)
+                          {getQualityComponent('ASSIGNMENT')?.name} (Bobot {getQualityComponent('ASSIGNMENT')?.weightPercent}%)
                         </h5>
                         <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700">
                           {tasksToGrade.length} Tugas Materi
@@ -1406,7 +1390,7 @@ export const GradingWorkspace: React.FC = () => {
                         </span>
                       </div>
                       <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-                        Dihubungkan langsung dari tugas materi praktik dengan format file yang ditentukan instruktur.
+                        {getQualityComponent('ASSIGNMENT')?.description}
                       </p>
                     </div>
                   </div>
@@ -1415,7 +1399,7 @@ export const GradingWorkspace: React.FC = () => {
                     <div className="min-w-[108px] rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-right">
                       <span className="block text-[9px] font-bold uppercase tracking-wide text-slate-500">Rata2 {assignmentScore}</span>
                       <span className="block text-xs font-mono font-bold text-blue-800">
-                      {(assignmentScore * 0.15).toFixed(1)} Poin
+                      {(assignmentScore * ((getQualityComponent('ASSIGNMENT')?.weightPercent || 0) / 100)).toFixed(1)} Poin
                       </span>
                     </div>
                     <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${openQualitySection === 'ASSIGNMENT' ? 'rotate-180' : ''}`} />
@@ -1544,12 +1528,12 @@ export const GradingWorkspace: React.FC = () => {
                     );
                   })}
                 </div>}
-              </div>
+              </div>}
 
               {/* ----------------------------------------------------------------- */}
               {/* TURUNAN 4: POST-TEST (25%) - FILE & NILAI */}
               {/* ----------------------------------------------------------------- */}
-              <div className={`min-h-[92px] border bg-white rounded-2xl transition-colors ${openQualitySection === 'POST_TEST' ? 'border-blue-300 ring-1 ring-blue-100' : 'border-slate-200 hover:border-slate-300'}`}>
+              {getQualityComponent('POST_TEST') && <div className={`min-h-[92px] border bg-white rounded-2xl transition-colors ${openQualitySection === 'POST_TEST' ? 'border-blue-300 ring-1 ring-blue-100' : 'border-slate-200 hover:border-slate-300'}`}>
                 <button
                   type="button"
                   aria-expanded={openQualitySection === 'POST_TEST'}
@@ -1564,7 +1548,7 @@ export const GradingWorkspace: React.FC = () => {
                       <div className="flex items-center gap-1.5">
                         <FileCheck className="w-3.5 h-3.5 text-blue-700" />
                         <h5 className="text-sm font-bold text-slate-900">
-                          Post-Test Praktik (Bobot 25%)
+                          {getQualityComponent('POST_TEST')?.name} (Bobot {getQualityComponent('POST_TEST')?.weightPercent}%)
                         </h5>
                         <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">
                           {fileTypeLabel(postTestSubmission?.fileName)}
@@ -1580,7 +1564,7 @@ export const GradingWorkspace: React.FC = () => {
                     <div className="min-w-[84px] rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-right">
                       <span className="block text-[9px] font-bold uppercase tracking-wide text-slate-500">Kontribusi</span>
                       <span className="block text-xs font-mono font-bold text-blue-800">
-                      {(postTestScore * 0.25).toFixed(1)} Poin
+                      {(postTestScore * ((getQualityComponent('POST_TEST')?.weightPercent || 0) / 100)).toFixed(1)} Poin
                       </span>
                     </div>
                     <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${openQualitySection === 'POST_TEST' ? 'rotate-180' : ''}`} />
@@ -1624,7 +1608,7 @@ export const GradingWorkspace: React.FC = () => {
                 {/* Score Input Controls */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
                   <div className="flex items-center gap-2">
-                    <label className="text-[11px] font-bold text-slate-700">Skor Post-Test (0-100):</label>
+                    <label className="text-[11px] font-bold text-slate-700">Skor {getQualityComponent('POST_TEST')?.name} (0-100):</label>
                     <input
                       type="number"
                       inputMode="decimal"
@@ -1656,7 +1640,40 @@ export const GradingWorkspace: React.FC = () => {
                   </div>
                 </div>
                 </div>}
-              </div>
+              </div>}
+
+              {qualityComponents.filter(component => component.type === 'QUIZ' || component.type === 'CUSTOM').map((component, index) => {
+                const componentScore = qualityComponentScores[component.id] ?? 0;
+                const isOpen = openQualitySection === component.id;
+                return (
+                  <div key={component.id} className={`min-h-[92px] rounded-2xl border bg-white transition-colors ${isOpen ? 'border-blue-300 ring-1 ring-blue-100' : 'border-slate-200 hover:border-slate-300'}`}>
+                    <button type="button" aria-expanded={isOpen} onClick={() => setOpenQualitySection(current => current === component.id ? null : component.id)} className="flex w-full flex-col justify-between gap-4 p-4 text-left sm:flex-row sm:items-center sm:p-5">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-black text-slate-700">{qualityComponents.findIndex(item => item.id === component.id) + 1}</span>
+                        <div>
+                          <h5 className="text-sm font-bold text-slate-900">{component.name} (Bobot {component.weightPercent}%)</h5>
+                          <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{component.description}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 self-end sm:self-auto">
+                        <div className="min-w-[108px] rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-right">
+                          <span className="block text-[9px] font-bold uppercase tracking-wide text-slate-500">Skor {componentScore}</span>
+                          <span className="block font-mono text-xs font-bold text-blue-800">{(componentScore * component.weightPercent / 100).toFixed(1)} Poin</span>
+                        </div>
+                        <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                      </div>
+                    </button>
+                    {isOpen && <div className="flex flex-col items-start justify-between gap-3 px-4 pb-4 pt-1 sm:flex-row sm:items-center">
+                      <label className="flex items-center gap-2 text-[11px] font-bold text-slate-700">Skor (0-100):
+                        <input type="number" inputMode="decimal" min={0} max={100} step={0.01} value={componentScore} onChange={e => handleScoreChange('QUALITY', component.id, parseGradingScore(e.target.value), componentScore >= 85 ? 'Sangat Baik' : componentScore >= 75 ? 'Baik' : componentScore >= 50 ? 'Cukup' : 'Kurang')} className="w-24 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-center font-mono text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                      </label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[100, 85, 75, 50, 0].map(value => <button key={value} type="button" onClick={() => handleScoreChange('QUALITY', component.id, value, value >= 85 ? 'Sangat Baik' : value >= 75 ? 'Baik' : value >= 50 ? 'Cukup' : value === 0 ? 'Tidak Mengerjakan' : 'Kurang')} className={`rounded-lg border px-2.5 py-1 text-[10px] font-bold ${componentScore === value ? 'border-blue-700 bg-blue-700 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}>{value}</button>)}
+                      </div>
+                    </div>}
+                  </div>
+                );
+              })}
 
                 {activeCategoryTab === 'QUALITY' && (
                   <div className="pt-2 flex justify-end">

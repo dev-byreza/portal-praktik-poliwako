@@ -66,9 +66,9 @@ assert.match(finalProjectCardSource, /periods\.find\(item => item\.id === studen
 assert.match(finalProjectCardSource, /await confirmFinalProject\(\)/, 'Final project confirmation must not accept a student-provided replacement URL');
 assert.doesNotMatch(finalProjectCardSource, /type="url"/, 'Students must not submit a different Drive link');
 const gradingWorkspaceSource = fs.readFileSync(path.join(root, 'src/components/instructor/GradingWorkspace.tsx'), 'utf8');
-assert.equal((gradingWorkspaceSource.match(/step=\{0\.01\}/g) || []).length, 4, 'All four numeric grading fields must accept hundredths');
-assert.equal((gradingWorkspaceSource.match(/inputMode="decimal"/g) || []).length, 4, 'All numeric grading fields must offer a decimal keypad on mobile');
-assert.equal((gradingWorkspaceSource.match(/parseGradingScore\(e\.target\.value\)/g) || []).length, 4, 'All numeric grading fields must use the decimal-safe parser');
+assert.equal((gradingWorkspaceSource.match(/step=\{0\.01\}/g) || []).length, 5, 'All fixed and configurable numeric grading fields must accept hundredths');
+assert.equal((gradingWorkspaceSource.match(/inputMode="decimal"/g) || []).length, 5, 'All fixed and configurable grading fields must offer a decimal keypad on mobile');
+assert.equal((gradingWorkspaceSource.match(/parseGradingScore\(e\.target\.value\)/g) || []).length, 5, 'All fixed and configurable grading fields must use the decimal-safe parser');
 const assessmentSchema = fs.readFileSync(path.join(root, 'supabase/migrations/0000_initial_schema.sql'), 'utf8');
 assert.match(assessmentSchema, /entry_behavior_score NUMERIC\(5,2\)/, 'Supabase assessment fields must persist decimal grades');
 

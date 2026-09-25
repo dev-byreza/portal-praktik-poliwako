@@ -35,6 +35,7 @@ import {
 } from '../types';
 import { getUnitAssignments } from '../utils/learningAssignments';
 import { normalizeLearningUnitNumbers } from '../utils/learningUnitOrdering';
+import { getCourseQualityComponents } from '../utils/qualityAssessment';
 
 const isUuid = (value: string): boolean => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 const databaseId = async (id: string, kind: string): Promise<string> => {
@@ -247,6 +248,7 @@ export class ApiService {
           category: rc.category,
           description: rc.description || '',
         })),
+        qualityComponents: Array.isArray(c.quality_components) ? c.quality_components : undefined,
       }));
     } catch (err) {
       // Never fall back to the shared local cache in live mode: it may belong to a different instructor account.
@@ -289,6 +291,7 @@ export class ApiService {
         description: course.description,
         department: course.department,
         status: course.status,
+        quality_components: getCourseQualityComponents(course),
         updated_at: new Date().toISOString(),
       }).select('id').single();
       if (courseError) throw courseError;

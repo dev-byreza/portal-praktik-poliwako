@@ -83,6 +83,7 @@ export const courses = pgTable('courses', {
   description: text('description'),
   department: varchar('department', { length: 100 }).notNull().default('Teknik Mesin'),
   status: varchar('status', { length: 30 }).notNull().default('PUBLISHED'), // 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
+  qualityComponents: jsonb('quality_components').notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
