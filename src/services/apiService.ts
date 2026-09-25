@@ -56,26 +56,25 @@ const normalizeDeadline = (value: string): string => {
   return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
 };
 
-// Quiz content stays compatible with the existing learning_materials table
-// during the local-first phase. No schema migration is required: the quiz
-// definition is serialized into the existing content_text column and decoded
-// back into the richer local type when learning units are loaded.
-const QUIZ_CONTENT_PREFIX = '__POLIWAKO_QUIZ_V1__';
-const serializeMaterialContent = (material: LearningMaterial): string | null => (
-  material.type === 'QUIZ' && material.quiz
-    ? `${QUIZ_CONTENT_PREFIX}${JSON.stringify(material.quiz)}`
-    : material.contentText || null
-);
-const deserializeQuiz = (type: string, contentText?: string | null): QuizDefinition | undefined => {
-  if (type !== 'QUIZ' || !contentText?.startsWith(QUIZ_CONTENT_PREFIX)) return undefined;
-  try {
-    const parsed = JSON.parse(contentText.slice(QUIZ_CONTENT_PREFIX.length));
-    return parsed && Array.isArray(parsed.questions) ? parsed as QuizDefinition : undefined;
-  } catch {
-    return undefined;
+const mapAttendancePercentage = (row: Record<string, any>): number => {
+  const value = row.percentage;
+  if (value !== null && value !== undefined && value !== '') {
+    const percentage = Number(value);
+    if (Number.isFinite(percentage) && percentage >= 0 && percentage <= 100) return percentage;
   }
+  const attendanceDays = [row.day1, row.day2, row.day3, row.day4, row.day5];
+  const presentDays = attendanceDays.filter(day => day === 'HADIR' || day === 'IZIN' || day === 'SAKIT').length;
+  return Math.round((presentDays / attendanceDays.length) * 100);
 };
 
+// Student-readable material text must never contain answer keys. Quiz content
+// is stored only in the normalized quiz tables, which expose a public view
+// without correct_option_id.
+const serializeMaterialContent = (material: LearningMaterial): string | null => (
+  material.type === 'QUIZ'
+    ? material.quiz?.description?.trim() || null
+    : material.contentText || null
+);
 const mapQuizQuestion = (row: any, optionsByQuestion: Map<string, any[]>): QuizQuestion => ({
   id: row.id,
   prompt: row.prompt || '',
@@ -383,10 +382,11 @@ export class ApiService {
     courseSlug?: string;
     hasCreatedPassword: boolean;
     student?: Student;
+    requiresActivationCode: boolean;
     message?: string;
   }> {
     if (!this.isLiveBackend() || !supabase) {
-      return { exists: false, isEnrolled: false, hasCreatedPassword: false, message: 'Backend Supabase belum terhubung.' };
+      return { exists: false, isEnrolled: false, hasCreatedPassword: false, requiresActivationCode: false, message: 'Backend Supabase belum terhubung.' };
     }
     const { data, error } = await supabase.rpc('student_auth_lookup', {
       p_nim: nim,
@@ -402,6 +402,7 @@ export class ApiService {
       periodId: result.periodId || undefined,
       courseSlug: result.courseSlug || undefined,
       hasCreatedPassword: Boolean(result.hasCreatedPassword),
+      requiresActivationCode: true,
       student: rawStudent ? {
         id: rawStudent.id,
         nim: rawStudent.nim,
@@ -414,7 +415,7 @@ export class ApiService {
     };
   }
 
-  static async studentAuthSetPassword(studentId: string, nim: string, password: string, courseSlug: string, periodId: string): Promise<{
+  static async studentAuthSetPassword(nim: string, password: string, activationCode: string, courseSlug: string, periodId: string): Promise<{
     success: boolean;
     message: string;
     periodId?: string;
@@ -425,9 +426,9 @@ export class ApiService {
       return { success: false, message: 'Backend Supabase belum terhubung.' };
     }
     const { data, error } = await supabase.rpc('student_auth_set_password', {
-      p_student_id: studentId,
       p_nim: nim,
       p_password: password,
+      p_activation_code: activationCode,
       p_course_slug: courseSlug,
       p_period_id: periodId,
     });
@@ -448,6 +449,20 @@ export class ApiService {
         createdAt: rawStudent.createdAt || new Date().toISOString(),
       } : undefined,
     };
+  }
+
+  static async issueStudentActivationCode(studentId: string, resetExistingPassword: boolean): Promise<string> {
+    if (!this.isLiveBackend() || !supabase) {
+      throw new Error('Penerbitan kode aktivasi memerlukan koneksi Supabase dan sesi instruktur.');
+    }
+    const { data, error } = await supabase.rpc('student_auth_issue_activation_code', {
+      p_student_id: studentId,
+      p_reset_existing_password: resetExistingPassword,
+    });
+    if (error) throw error;
+    const code = typeof data === 'string' ? data : data?.code;
+    if (!code) throw new Error('Server tidak mengembalikan kode aktivasi.');
+    return code;
   }
 
   static async studentAuthLogin(nim: string, password: string, courseSlug: string, periodId: string): Promise<{
@@ -946,9 +961,9 @@ export class ApiService {
           type: m.type,
           contentUrl: m.content_url || undefined,
           contentText: m.type === 'QUIZ'
-            ? (normalizedQuizByMaterial.get(m.id)?.description || deserializeQuiz(m.type, m.content_text)?.description || undefined)
+            ? (normalizedQuizByMaterial.get(m.id)?.description || undefined)
             : (m.content_text || undefined),
-          quiz: normalizedQuizByMaterial.get(m.id) || deserializeQuiz(m.type, m.content_text),
+          quiz: normalizedQuizByMaterial.get(m.id),
           fileSize: m.file_size || undefined,
           countdownEnabled: Boolean(m.countdown_enabled),
           countdownMinutes: Number(m.countdown_minutes) || undefined,
@@ -1013,6 +1028,15 @@ export class ApiService {
         id: await databaseId(assignment.id, `assignment:${unit.id}`),
         unitId,
       })));
+      if (savedMaterials.some(material => material.type === 'QUIZ' && material.quiz)) {
+        const { error: quizArchitectureError } = await supabase.from('quiz_definitions').select('id').limit(1);
+        if (quizArchitectureError) {
+          if (isMissingQuizArchitecture(quizArchitectureError)) {
+            throw new Error('Kuis belum dapat disimpan dengan aman. Aktifkan migrasi quiz_architecture di Supabase terlebih dahulu.');
+          }
+          throw quizArchitectureError;
+        }
+      }
       const usesUnitCountdown = unit.countdownEnabled !== undefined
         || unit.countdownMinutes !== undefined
         || unit.countdownStartedAt !== undefined;
@@ -1108,15 +1132,7 @@ export class ApiService {
 
       }
 
-      try {
-        await this.syncNormalizedQuizzes(savedMaterials);
-      } catch (error) {
-        if (isMissingQuizArchitecture(error)) {
-          console.warn('Quiz architecture migration 0022 belum diterapkan; quiz tetap disimpan dalam format kompatibilitas lama.', error);
-        } else {
-          throw error;
-        }
-      }
+      await this.syncNormalizedQuizzes(savedMaterials);
 
       const assignmentRows = savedAssignments.map(savedAssignment => ({
           id: savedAssignment.id,
@@ -1329,7 +1345,7 @@ export class ApiService {
 
   static async getRemedials(): Promise<RemedialAssignment[]> {
     if (!supabase) return StorageService.getRemedials();
-    const {data,error} = await supabase.from('remedial_assignments').select('*');
+      const {data,error} = await supabase.from('remedial_assignments').select('*');
     if (error) throw error;
     return Promise.all((data || []).map(async row => ({
       id: row.id, periodId:row.period_id, studentId:row.student_id, title:row.title, description:row.description,
@@ -1339,15 +1355,20 @@ export class ApiService {
     })));
   }
 
-  static async saveRemedial(remedial: RemedialAssignment): Promise<void> {
+  static async saveRemedial(remedial: RemedialAssignment): Promise<RemedialAssignment> {
     if (supabase) {
       const {error} = await supabase.from('remedial_assignments').update({
-        submission_file_name: remedial.submissionFileName, submission_file_url: remedial.submissionFileUrl,
+        submission_file_name: remedial.submissionFileName, submission_file_url: remedial.submissionStoragePath || remedial.submissionFileUrl,
         submission_storage_path: remedial.submissionStoragePath || null, submitted_at: remedial.submittedAt, status: remedial.status,
       }).eq('id', remedial.id).select('id').single();
       if (error) throw new Error(`Bukti remedial gagal disimpan: ${error.message}`);
     }
-    StorageService.saveRemedials(StorageService.getRemedials().map(r => r.id === remedial.id ? remedial : r));
+    const signedUrl = remedial.submissionStoragePath
+      ? await getSubmissionSignedUrl(remedial.submissionStoragePath)
+      : null;
+    const savedRemedial = signedUrl ? { ...remedial, submissionFileUrl: signedUrl } : remedial;
+    StorageService.saveRemedials(StorageService.getRemedials().map(r => r.id === remedial.id ? savedRemedial : r));
+    return savedRemedial;
   }
 
   static async saveRemedialDefinition(remedial: RemedialAssignment): Promise<void> {
@@ -1355,7 +1376,7 @@ export class ApiService {
       const {error} = await supabase.from('remedial_assignments').upsert({
         id: remedial.id, period_id: remedial.periodId, student_id: remedial.studentId,
         title: remedial.title, description: remedial.description, deadline: remedial.deadline,
-        submission_file_name: remedial.submissionFileName || null, submission_file_url: remedial.submissionFileUrl || null,
+        submission_file_name: remedial.submissionFileName || null, submission_file_url: remedial.submissionStoragePath || remedial.submissionFileUrl || null,
         submission_storage_path: remedial.submissionStoragePath || null, submitted_at: remedial.submittedAt || null, status: remedial.status, reviewed_at: remedial.reviewedAt || null,
       });
       if (error) throw new Error(`Remedial gagal disimpan: ${error.message}`);
@@ -1397,6 +1418,9 @@ export class ApiService {
       }
       if (error) throw error;
       if (data?.submitted_at) persistedSubmission.submittedAt = data.submitted_at;
+      if (persistedSubmission.storagePath) {
+        persistedSubmission.fileUrl = await getSubmissionSignedUrl(persistedSubmission.storagePath) || '';
+      }
     }
     const stored = StorageService.getSubmissions().filter((item) => !(item.assignmentId === persistedSubmission.assignmentId && item.studentId === persistedSubmission.studentId && item.periodId === persistedSubmission.periodId));
     StorageService.saveSubmissions([...stored, persistedSubmission]);
@@ -1435,14 +1459,14 @@ export class ApiService {
   }
 
   static async saveAssessment(assessment: Assessment): Promise<void> {
-    const all = StorageService.getAssessments().filter(
-      (a) => !(a.periodId === assessment.periodId && a.studentId === assessment.studentId)
-    );
-    StorageService.saveAssessments([...all, assessment]);
+    await this.saveAssessmentsBulk([assessment]);
+  }
 
+  static async saveAssessmentsBulk(assessments: Assessment[]): Promise<void> {
+    if (assessments.length === 0) return;
     if (this.isLiveBackend() && supabase) {
       try {
-        await supabase.from('assessments').upsert({
+        const { error } = await supabase.from('assessments').upsert(assessments.map(assessment => ({
           id: assessment.id,
           period_id: assessment.periodId,
           student_id: assessment.studentId,
@@ -1465,11 +1489,20 @@ export class ApiService {
           published_at: assessment.publishedAt,
           graded_at: assessment.gradedAt,
           updated_at: new Date().toISOString(),
-        });
+        })));
+        if (error) throw error;
       } catch (err) {
         console.error('Error syncing assessment to Supabase:', err);
+        throw err;
       }
     }
+
+    const saved = StorageService.getAssessments();
+    const updatedKeys = new Set(assessments.map(assessment => `${assessment.periodId}:${assessment.studentId}`));
+    StorageService.saveAssessments([
+      ...saved.filter(assessment => !updatedKeys.has(`${assessment.periodId}:${assessment.studentId}`)),
+      ...assessments,
+    ]);
   }
 
   // ====================================================================
@@ -1496,7 +1529,7 @@ export class ApiService {
         day3: a.day3,
         day4: a.day4,
         day5: a.day5,
-        percentage: Number(a.percentage || 100),
+        percentage: mapAttendancePercentage(a),
         isEligible: Boolean(a.is_eligible ?? true),
         updatedAt: a.updated_at,
       }));

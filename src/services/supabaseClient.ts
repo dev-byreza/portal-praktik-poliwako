@@ -22,6 +22,40 @@ export const isSupabaseConfigured = (): boolean => {
 
 export const supabase: SupabaseClient | null = isSupabaseConfigured()
   ? createClient(supabaseUrl, supabasePublishableKey, {
+      global: {
+        // Student access uses the server-issued opaque session token. Attach it
+        // only to this project's PostgREST/Storage requests so database RLS can
+        // scope private student rows without trusting client-supplied IDs.
+        fetch: (input, init) => {
+          const requestUrl = input instanceof Request
+            ? new URL(input.url)
+            : new URL(input instanceof URL ? input.toString() : input);
+          const projectOrigin = new URL(supabaseUrl).origin;
+          const usesScopedApi = requestUrl.origin === projectOrigin
+            && (requestUrl.pathname.startsWith('/rest/v1/')
+              || requestUrl.pathname.startsWith('/storage/v1/'));
+          if (!usesScopedApi || typeof window === 'undefined') {
+            return fetch(input, init);
+          }
+
+          try {
+            const session = JSON.parse(
+              window.localStorage.getItem('poliwako_student_session') || 'null',
+            ) as { sessionToken?: unknown } | null;
+            if (typeof session?.sessionToken !== 'string' || !session.sessionToken) {
+              return fetch(input, init);
+            }
+            const headers = new Headers(input instanceof Request ? input.headers : undefined);
+            new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
+            headers.set('x-poliwako-student-session', session.sessionToken);
+            return fetch(input, { ...init, headers });
+          } catch {
+            // A corrupt/expired local session receives only public access; RLS
+            // will deny private student rows until the student signs in again.
+            return fetch(input, init);
+          }
+        },
+      },
       auth: {
         autoRefreshToken: true,
         persistSession: true,
@@ -175,6 +209,7 @@ export async function uploadSubmissionPDF(
     submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST' | 'REMEDIAL';
     allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY';
     replaceStoragePath?: string;
+    deferSignedUrl?: boolean;
   }
 ): Promise<{ storagePath: string | null; publicUrl: string | null; error: Error | null }> {
   // Validate file type
@@ -257,11 +292,12 @@ export async function uploadSubmissionPDF(
     if (uploadError) throw uploadError;
 
     // Submissions bucket is private; create a signed URL (valid for 2 hours)
-    const { data: signedData, error: signError } = await supabase.storage
-      .from('submissions')
-      .createSignedUrl(filePath, 7200);
-
-    if (signError) throw signError;
+    const signedData = path.deferSignedUrl
+      ? null
+      : await supabase.storage.from('submissions').createSignedUrl(filePath, 7200).then(({ data, error }) => {
+          if (error) throw error;
+          return data;
+        });
 
     return {
       storagePath: filePath,

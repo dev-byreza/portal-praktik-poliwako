@@ -92,6 +92,8 @@ export const GradingWorkspace: React.FC = () => {
   const [studentSearch, setStudentSearch] = useState<string>('');
   const [submissionReviewFeedback, setSubmissionReviewFeedback] = useState<string>('');
   const [isReviewSaving, setIsReviewSaving] = useState<boolean>(false);
+  const [isAssessmentSaving, setIsAssessmentSaving] = useState<boolean>(false);
+  const [isPublishingGrades, setIsPublishingGrades] = useState<boolean>(false);
 
   // Top Category Tabs Navigation & file preview visibility
   const [activeCategoryTab, setActiveCategoryTab] = useState<'QUALITY' | 'ATTITUDE' | 'CREATIVITY' | 'REPORT' | 'ALL'>('QUALITY');
@@ -570,7 +572,7 @@ export const GradingWorkspace: React.FC = () => {
   };
 
   // Save current assessment
-  const handleSaveAssessment = (navigateNext: boolean = false) => {
+  const handleSaveAssessment = async (navigateNext: boolean = false) => {
     if (!activeSelectedPeriod || !currentParticipant) return;
 
     const newAssessment: Assessment = {
@@ -599,11 +601,18 @@ export const GradingWorkspace: React.FC = () => {
       updatedAt: new Date().toISOString()
     };
 
-    saveAssessment(newAssessment);
-    showToast('Penilaian Tersimpan', `Nilai ${currentParticipant.student.name}: ${computedFinalScore} poin berhasil disimpan.`, 'success');
+    setIsAssessmentSaving(true);
+    try {
+      await saveAssessment(newAssessment);
+      showToast('Penilaian Tersimpan', `Nilai ${currentParticipant.student.name}: ${computedFinalScore} poin berhasil disimpan.`, 'success');
 
-    if (navigateNext && currentStudentIndex < gradingParticipants.length - 1) {
-      setCurrentStudentIndex(prev => prev + 1);
+      if (navigateNext && currentStudentIndex < gradingParticipants.length - 1) {
+        setCurrentStudentIndex(prev => prev + 1);
+      }
+    } catch {
+      // AppContext reports the server error; keep the current student in view.
+    } finally {
+      setIsAssessmentSaving(false);
     }
   };
 
@@ -638,15 +647,22 @@ export const GradingWorkspace: React.FC = () => {
           </select>
 
           <button
-            onClick={() => {
-              if (activeSelectedPeriod) {
-                publishPeriodGrades(activeSelectedPeriod.id);
+            disabled={!activeSelectedPeriod || isPublishingGrades}
+            onClick={async () => {
+              if (!activeSelectedPeriod) return;
+              setIsPublishingGrades(true);
+              try {
+                await publishPeriodGrades(activeSelectedPeriod.id);
+              } catch {
+                // AppContext displays the failure and leaves the current view unchanged.
+              } finally {
+                setIsPublishingGrades(false);
               }
             }}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-600/30 transition-all flex items-center gap-1.5 shrink-0"
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-600/30 transition-all flex items-center gap-1.5 shrink-0 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Send className="w-3.5 h-3.5" />
-            <span>Publikasikan Nilai</span>
+            <span>{isPublishingGrades ? 'Menyimpan publikasi...' : 'Publikasikan Nilai'}</span>
           </button>
         </div>
       </div>
@@ -1927,18 +1943,20 @@ export const GradingWorkspace: React.FC = () => {
             {/* Action Buttons: Save & Next Student */}
             <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
               <button
-                onClick={() => handleSaveAssessment(false)}
-                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5 border border-slate-300"
+                onClick={() => void handleSaveAssessment(false)}
+                disabled={isAssessmentSaving}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5 border border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Save className="w-4 h-4" />
-                <span>Simpan Penilaian</span>
+                <span>{isAssessmentSaving ? 'Menyimpan...' : 'Simpan Penilaian'}</span>
               </button>
 
               <button
-                onClick={() => handleSaveAssessment(true)}
-                className="flex-1 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-600/30 transition-all flex items-center justify-center gap-2"
+                onClick={() => void handleSaveAssessment(true)}
+                disabled={isAssessmentSaving}
+                className="flex-1 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-600/30 transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <span>Simpan & Nilai Mahasiswa Berikutnya</span>
+                <span>{isAssessmentSaving ? 'Menyimpan...' : 'Simpan & Nilai Mahasiswa Berikutnya'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

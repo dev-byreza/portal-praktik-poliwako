@@ -103,9 +103,10 @@ interface AppContextType {
     periodId?: string;
     courseSlug?: string;
     hasCreatedPassword: boolean;
+    requiresActivationCode: boolean;
     message?: string;
   }>;
-  createStudentPassword: (studentId: string, password: string, courseSlug: string, periodId: string, nim?: string) => Promise<{
+  createStudentPassword: (nim: string, password: string, activationCode: string, courseSlug: string, periodId: string) => Promise<{
     success: boolean;
     message: string;
   }>;
@@ -113,7 +114,7 @@ interface AppContextType {
     success: boolean;
     message: string;
   }>;
-  resetStudentPassword: (studentId: string) => void;
+  resetStudentPassword: (studentId: string) => Promise<string | null>;
   setStudentIdentity: (studentId: string, courseSlug: string, periodId: string) => void;
   clearStudentIdentity: () => void;
 
@@ -155,9 +156,9 @@ interface AppContextType {
   updateAttendanceCell: (periodId: string, studentId: string, day: 'day1' | 'day2' | 'day3' | 'day4' | 'day5', status: AttendanceStatus) => void;
   autoInitializeAttendanceForPeriod: (periodId: string) => Promise<void>;
   setAllPeriodAttendanceStatus: (periodId: string, status?: AttendanceStatus) => Promise<void>;
-  saveAssessment: (assessment: Assessment) => void;
-  publishPeriodGrades: (periodId: string) => { publishedCount: number; blockedCount: number };
-  unpublishPeriodGrades: (periodId: string) => void;
+  saveAssessment: (assessment: Assessment) => Promise<void>;
+  publishPeriodGrades: (periodId: string) => Promise<{ publishedCount: number; blockedCount: number }>;
+  unpublishPeriodGrades: (periodId: string) => Promise<void>;
 
   createRemedialTask: (remedial: Partial<RemedialAssignment>) => Promise<RemedialAssignment>;
   gradeRemedialTask: (remedialId: string, status: 'LULUS' | 'BELUM_LULUS') => Promise<void>;
@@ -578,26 +579,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     studentSessionRestoreKey,
   ]);
 
-  // Migrate passwords created by older builds from the legacy browser cache
-  // exactly once per session. This lets an already-logged-in student carry
-  // their existing password to Supabase without asking them to activate again.
-  const legacyPasswordSyncKey = `${studentSession?.studentId || ''}:${studentSession?.courseSlug || ''}:${studentSession?.periodId || ''}`;
-  const legacyPasswordSyncRef = React.useRef<string | null>(null);
-  useEffect(() => {
-    if (!isLiveBackend || !studentSession || !currentStudent?.password || !legacyPasswordSyncKey) return;
-    if (legacyPasswordSyncRef.current === legacyPasswordSyncKey) return;
-    legacyPasswordSyncRef.current = legacyPasswordSyncKey;
-    ApiService.studentAuthSetPassword(
-      currentStudent.id,
-      currentStudent.nim,
-      currentStudent.password,
-      studentSession.courseSlug,
-      studentSession.periodId,
-    ).catch(error => {
-      console.warn('Legacy student password migration notice:', error);
-    });
-  }, [isLiveBackend, currentStudent?.id, currentStudent?.nim, currentStudent?.password, legacyPasswordSyncKey, studentSession?.courseSlug, studentSession?.periodId]);
-
   // Auth
   const loginInstructor = async (email: string, password?: string): Promise<{ success: boolean; message: string }> => {
     const cleanEmail = email.trim().toLowerCase();
@@ -776,6 +757,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         isEnrolled: false,
         periodId: undefined,
         hasCreatedPassword: false,
+        requiresActivationCode: false,
         message: 'Silakan masukkan NIM Anda.'
       };
     }
@@ -791,6 +773,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             isEnrolled: false,
             periodId: undefined,
             hasCreatedPassword: false,
+            requiresActivationCode: false,
             message: 'Data NIM dari server tidak cocok dengan NIM yang dimasukkan. Silakan coba lagi.'
           };
         }
@@ -813,6 +796,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           isEnrolled: false,
           periodId: undefined,
           hasCreatedPassword: false,
+          requiresActivationCode: false,
           message: 'Data mahasiswa belum dapat diverifikasi ke Supabase. Coba lagi.'
         };
       }
@@ -825,6 +809,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         isEnrolled: false,
         periodId: undefined,
         hasCreatedPassword: false,
+        requiresActivationCode: false,
         message: `NIM "${nim.trim()}" tidak terdaftar dalam pangkalan data mahasiswa Politeknik Sorowako.`
       };
     }
@@ -849,25 +834,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       isEnrolled,
       periodId: preferredPeriod?.id,
       hasCreatedPassword,
+      requiresActivationCode: false,
       message: isEnrolled ? undefined : 'Mahasiswa belum terdaftar pada mata kuliah atau periode praktik ini.'
     };
   };
 
-  const createStudentPassword = async (studentId: string, password: string, courseSlug: string, periodId: string, nim?: string) => {
-    const std = students.find(s => s.id === studentId);
-    if (!std) {
+  const createStudentPassword = async (nim: string, password: string, activationCode: string, courseSlug: string, periodId: string) => {
+    const std = students.find(s => normalizeStudentNim(s.nim) === normalizeStudentNim(nim));
+    if (!std && !isLiveBackend) {
       return { success: false, message: 'Data mahasiswa tidak ditemukan.' };
     }
-    if (!password || password.trim().length < 4) {
-      return { success: false, message: 'Password harus minimal 4 karakter.' };
+    if (!password || password.trim().length < 8) {
+      return { success: false, message: 'Password harus minimal 8 karakter.' };
     }
 
     if (isLiveBackend) {
       try {
-        const result = await ApiService.studentAuthSetPassword(studentId, nim || std.nim, password, courseSlug, periodId);
+        const result = await ApiService.studentAuthSetPassword(nim, password, activationCode, courseSlug, periodId);
         if (!result.success) return { success: false, message: result.message };
-        const remoteStudent = result.student || std;
-        const requestedNim = normalizeStudentNim(nim || std.nim);
+        const remoteStudent = result.student;
+        if (!remoteStudent) return { success: false, message: 'Data mahasiswa tidak diterima dari server.' };
+        const requestedNim = normalizeStudentNim(nim);
         if (normalizeStudentNim(remoteStudent.nim) !== requestedNim) {
           console.error('Student password activation returned a different NIM than requested.');
           return { success: false, message: 'Data NIM dari server tidak cocok. Password belum diaktifkan.' };
@@ -895,7 +882,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const trimmedPassword = password.trim();
     const updatedStudents = students.map(s => {
-      if (s.id === studentId) {
+      if (normalizeStudentNim(s.nim) === normalizeStudentNim(nim)) {
         return { ...s, password: trimmedPassword, hasCreatedPassword: true };
       }
       return s;
@@ -905,12 +892,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     StorageService.saveStudents(updatedStudents);
 
     // Establish session
-    const session = { studentId, nim: std.nim, courseSlug, periodId };
+    const session = { studentId: std!.id, nim: std!.nim, courseSlug, periodId };
     setStudentSessionState(session);
     StorageService.setStudentSession(session);
     setRole('STUDENT');
 
-    showToast('Aktivasi Berhasil', `Password berhasil dibuat! Selamat datang, ${std.name}.`, 'success');
+    showToast('Aktivasi Berhasil', `Password berhasil dibuat! Selamat datang, ${std!.name}.`, 'success');
     return { success: true, message: 'Password berhasil dibuat dan sesi aktif.' };
   };
 
@@ -970,7 +957,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { success: true, message: 'Login berhasil.' };
   };
 
-  const resetStudentPassword = (studentId: string) => {
+  const resetStudentPassword = async (studentId: string): Promise<string | null> => {
+    const student = students.find(item => item.id === studentId);
+    if (!student) throw new Error('Mahasiswa tidak ditemukan di daftar lokal.');
+    if (isLiveBackend) {
+      const activationCode = await ApiService.issueStudentActivationCode(
+        studentId,
+        Boolean(student.hasCreatedPassword || student.password),
+      );
+      setStudents(previous => previous.map(item => item.id === studentId
+        ? { ...item, password: undefined, hasCreatedPassword: false }
+        : item));
+      StorageService.saveStudents(StorageService.getStudents().map(item => item.id === studentId
+        ? { ...item, password: undefined, hasCreatedPassword: false }
+        : item));
+      showToast('Kode Aktivasi Terbit', `Kode sekali pakai untuk ${student.name} berlaku 24 jam. Sampaikan melalui kanal institusi tepercaya.`, 'success');
+      return activationCode;
+    }
+
     const updatedStudents = students.map(s => {
       if (s.id === studentId) {
         return { ...s, password: '', hasCreatedPassword: false };
@@ -980,8 +984,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setStudents(updatedStudents);
     StorageService.saveStudents(updatedStudents);
 
-    const std = students.find(s => s.id === studentId);
-    showToast('Password Direset', `Akun ${std?.name || 'Mahasiswa'} berhasil direset. Mahasiswa dapat membuat password baru saat login berikutnya.`, 'info');
+    showToast('Password Direset', `Akun ${student.name} di mode lokal telah direset.`, 'info');
+    return null;
   };
 
   // Student Identity
@@ -1044,8 +1048,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       submissionType,
       allowedFileType: allowedFileType as 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY',
       replaceStoragePath: existing?.storagePath,
+      deferSignedUrl: true,
     });
-    if (upload.error || !upload.storagePath || !upload.publicUrl) {
+    if (upload.error || !upload.storagePath) {
       const message = upload.error?.message || 'File tidak dapat disimpan ke Supabase Storage.';
       showToast('Unggah Gagal', message, 'error');
       return { success: false, message };
@@ -1053,7 +1058,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const submission: Submission = {
       id: existing?.id || crypto.randomUUID(), assignmentId, studentId, periodId,
-      fileName: file.name, fileUrl: upload.publicUrl, fileSize: (file.size / (1024 * 1024)).toFixed(2) + ' MB', submissionType,
+      fileName: file.name, fileUrl: upload.publicUrl || upload.storagePath, fileSize: (file.size / (1024 * 1024)).toFixed(2) + ' MB', submissionType,
       storagePath: upload.storagePath, submittedAt: new Date().toISOString(), status: 'SUBMITTED',
       reviewFeedback: undefined, reviewedAt: undefined, revisionNumber: (existing?.revisionNumber || 0) + 1,
     };
@@ -1101,12 +1106,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const period = periods.find(p => p.id === studentSession.periodId);
     if (!remedial || !period || !['PENDING_SUBMISSION', 'BELUM_LULUS'].includes(remedial.status)) throw new Error('Tugas tambahan tidak tersedia.');
     if (isSubmissionClosed(remedial.deadline)) throw new Error('Batas waktu remedial sudah lewat. Hubungi instruktur.');
-    const upload = await uploadSubmissionPDF(file, {courseId: period.courseId, periodId: period.id, studentId: studentSession.studentId, assignmentId: remedial.id, submissionType:'REMEDIAL', allowedFileType:'PDF'});
-    if (upload.error || !upload.publicUrl) throw upload.error || new Error('Berkas gagal diunggah.');
-    const fileUrl = upload.publicUrl;
-    const updated: RemedialAssignment = {...remedial, submissionFileName: file.name, submissionFileUrl: fileUrl, submissionStoragePath: upload.storagePath || undefined, submittedAt: new Date().toISOString(), status: 'SUBMITTED'};
-    await ApiService.saveRemedial(updated);
-    setRemedials(prev => prev.map(r => r.id === remedialId ? updated : r));
+    const upload = await uploadSubmissionPDF(file, {courseId: period.courseId, periodId: period.id, studentId: studentSession.studentId, assignmentId: remedial.id, submissionType:'REMEDIAL', allowedFileType:'PDF', replaceStoragePath: remedial.submissionStoragePath, deferSignedUrl: true});
+    if (upload.error || !upload.storagePath) throw upload.error || new Error('Berkas gagal diunggah.');
+    const updated: RemedialAssignment = {...remedial, submissionFileName: file.name, submissionFileUrl: upload.storagePath, submissionStoragePath: upload.storagePath, submittedAt: new Date().toISOString(), status: 'SUBMITTED'};
+    const saved = await ApiService.saveRemedial(updated);
+    setRemedials(prev => prev.map(r => r.id === remedialId ? saved : r));
     showToast('Tugas Tambahan Disimpan', isLiveBackend ? 'Menunggu verifikasi instruktur.' : 'Berkas tersimpan lokal di perangkat ini.', 'success');
   };
 
@@ -1892,7 +1896,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Assessment & Grading
-  const saveAssessment = (assessment: Assessment) => {
+  const saveAssessment = async (assessment: Assessment) => {
+    try {
+      await ApiService.saveAssessment(assessment);
+    } catch (error) {
+      console.error('Error syncing assessment:', error);
+      showToast('Penyimpanan Nilai Gagal', 'Nilai belum dikonfirmasi tersimpan di server. Periksa koneksi lalu coba lagi.', 'error');
+      throw error;
+    }
+
     setAssessments(prev => {
       const filtered = prev.filter(a => !(a.periodId === assessment.periodId && a.studentId === assessment.studentId));
       return [...filtered, assessment];
@@ -1909,15 +1921,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return p;
     }));
 
-    ApiService.saveAssessment(assessment).catch(error => {
-      console.error('Error syncing assessment:', error);
-      showToast('Sinkronisasi Nilai Gagal', 'Nilai tersimpan sementara di halaman ini, tetapi belum masuk Supabase.', 'error');
-    });
   };
 
   // Publish Grade with Attendance Blockage Check (PRD Section 56 & 58)
-  const publishPeriodGrades = (periodId: string) => {
-    const periodParticipants = participants.filter(p => p.periodId === periodId);
+  const publishPeriodGrades = async (periodId: string) => {
     let publishedCount = 0;
     let blockedCount = 0;
 
@@ -1939,25 +1946,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (canPublish) {
         publishedCount++;
-        return { ...a, isPublished: true, publishedAt: `${getWitaDateString()} WITA` };
+        return { ...a, isPublished: true, publishedAt: new Date().toISOString() };
       } else {
         blockedCount++;
         return { ...a, isPublished: false };
       }
     });
 
-    setAssessments(updatedAssessments);
+    const periodAssessments = updatedAssessments.filter(assessment => assessment.periodId === periodId);
+    if (periodAssessments.length > 0) {
+      try {
+        // One PostgREST upsert keeps this period's publish/unpublish changes in
+        // a single database statement and commits local state only on success.
+        await ApiService.saveAssessmentsBulk(periodAssessments);
+      } catch (error) {
+        console.error('Error publishing period assessments:', error);
+        showToast('Publikasi Nilai Gagal', 'Server menolak penyimpanan publikasi. Status di halaman belum diperbarui; muat ulang sebelum mencoba lagi.', 'error');
+        throw error;
+      }
+    }
 
-    // Persist the published flag and timestamp for every assessment that was
-    // actually published, so the student portal sees the same state.
-    updatedAssessments
-      .filter(assessment => assessment.periodId === periodId && assessment.isPublished)
-      .forEach(assessment => {
-        ApiService.saveAssessment(assessment).catch(error => {
-          console.error('Error syncing published assessment:', error);
-          showToast('Sinkronisasi Publikasi Gagal', 'Sebagian status publikasi belum tersimpan ke Supabase.', 'error');
-        });
-      });
+    setAssessments(updatedAssessments);
 
     // Update participant statuses
     setParticipants(prev => prev.map(p => {
@@ -1981,12 +1990,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { publishedCount, blockedCount };
   };
 
-  const unpublishPeriodGrades = (periodId: string) => {
+  const unpublishPeriodGrades = async (periodId: string) => {
     const updatedAssessments = assessments.map(a => a.periodId === periodId ? { ...a, isPublished: false } : a);
+    try {
+      await ApiService.saveAssessmentsBulk(updatedAssessments.filter(a => a.periodId === periodId));
+    } catch (error) {
+      console.error('Error syncing unpublished assessments:', error);
+      showToast('Penarikan Publikasi Gagal', 'Status nilai belum berhasil diperbarui di server.', 'error');
+      throw error;
+    }
     setAssessments(updatedAssessments);
-    updatedAssessments.filter(a => a.periodId === periodId).forEach(assessment => {
-      ApiService.saveAssessment(assessment).catch(error => console.error('Error syncing unpublished assessment:', error));
-    });
     setParticipants(prev => prev.map(p => {
       if (p.periodId === periodId && p.progressStatus === 'PUBLISHED') {
         return { ...p, progressStatus: 'ASSESSED' };

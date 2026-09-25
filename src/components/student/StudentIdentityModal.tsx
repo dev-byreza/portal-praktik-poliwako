@@ -51,6 +51,8 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   // Form states for password
   const [passwordInput, setPasswordInput] = useState('');
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
+  const [activationCodeInput, setActivationCodeInput] = useState('');
+  const [requiresActivationCode, setRequiresActivationCode] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -86,17 +88,24 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
       const verification = await verifyStudentNim(nim, courseSlug, activePeriod?.id);
       if (requestId !== verificationRequestRef.current) return;
 
-      if (!verification.exists || !verification.student || !verification.isEnrolled) {
+      if (!verification.exists || !verification.isEnrolled) {
         setErrorMessage(verification.message || `NIM "${nim}" tidak terdaftar dalam pangkalan data mahasiswa Politeknik Sorowako.`);
         return;
       }
 
-      if (verification.student.nim.trim().toLowerCase() !== nim.toLowerCase()) {
+      if (verification.student && verification.student.nim.trim().toLowerCase() !== nim.toLowerCase()) {
         setErrorMessage('NIM yang dikembalikan server tidak cocok dengan NIM yang dimasukkan. Silakan coba lagi.');
         return;
       }
 
-      setTargetStudent(verification.student);
+      setTargetStudent(verification.student || {
+        id: '',
+        nim: nim.trim(),
+        name: '',
+        className: '',
+        createdAt: new Date().toISOString(),
+      });
+      setRequiresActivationCode(Boolean(verification.requiresActivationCode));
       setTargetPeriodId(verification.periodId || activePeriod?.id || '');
       setTargetCourseSlug(
         verification.courseSlug ||
@@ -106,6 +115,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
       );
       setPasswordInput('');
       setConfirmPasswordInput('');
+      setActivationCodeInput('');
       setErrorMessage(null);
 
       if (verification.hasCreatedPassword) {
@@ -125,8 +135,13 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
 
     setErrorMessage(null);
 
-    if (passwordInput.length < 4) {
-      setErrorMessage('Password baru minimal harus 4 karakter.');
+    if (passwordInput.trim().length < 8) {
+      setErrorMessage('Password baru minimal harus 8 karakter.');
+      return;
+    }
+
+    if (requiresActivationCode && activationCodeInput.trim().length < 24) {
+      setErrorMessage('Masukkan kode aktivasi sekali pakai dari instruktur.');
       return;
     }
 
@@ -138,11 +153,11 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
     setIsSubmitting(true);
     try {
       const result = await createStudentPassword(
-        targetStudent.id,
+        targetStudent.nim,
         passwordInput,
+        activationCodeInput.trim().toUpperCase(),
         targetCourseSlug || courseSlug || '',
-        targetPeriodId || activePeriod?.id || '',
-        targetStudent.nim
+        targetPeriodId || activePeriod?.id || ''
       );
 
       if (result.success) {
@@ -196,6 +211,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
     setStep('NIM');
     setPasswordInput('');
     setConfirmPasswordInput('');
+    setActivationCodeInput('');
     setErrorMessage(null);
   };
 
@@ -305,11 +321,9 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
                 <div>
                   <h4 className="text-sm font-bold text-white">{targetStudent.name}</h4>
                   <p className="text-xs text-slate-400 font-mono">
-                    NIM: {targetStudent.nim} • Kelas {targetStudent.className}
+                    NIM: {targetStudent.nim}{targetStudent.className ? ` • Kelas ${targetStudent.className}` : ''}
                   </p>
-                  <p className="text-[11px] text-amber-300 font-sans mt-0.5">
-                    Prodi: {getProdiFromClass(targetStudent.className).name}
-                  </p>
+                  {targetStudent.className && <p className="text-[11px] text-amber-300 font-sans mt-0.5">Prodi: {getProdiFromClass(targetStudent.className).name}</p>}
                 </div>
                 <button
                   type="button"
@@ -323,8 +337,23 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
             </div>
 
             <p className="text-xs text-slate-300 mb-4 leading-relaxed">
-              Halo <strong className="text-white">{targetStudent.name}</strong>, akun Anda belum memiliki password. Buat password baru untuk melindungi progres dan penilaian praktik Anda:
+              Akun ini belum memiliki password. Masukkan kode aktivasi dari instruktur, lalu buat password minimal 8 karakter:
             </p>
+
+            {requiresActivationCode && <div className="mb-3">
+              <label htmlFor="student-activation-code" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300">Kode Aktivasi</label>
+              <input
+                id="student-activation-code"
+                type="text"
+                value={activationCodeInput}
+                onChange={event => setActivationCodeInput(event.target.value.replace(/[^a-f0-9]/gi, '').slice(0, 24))}
+                autoComplete="one-time-code"
+                autoCapitalize="characters"
+                maxLength={24}
+                placeholder="Tempel kode 24 karakter dari instruktur"
+                className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-3 font-mono text-sm tracking-widest text-white outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20"
+              />
+            </div>}
 
             {/* Input Password Baru */}
             <div className="mb-3">
@@ -339,7 +368,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
                   type={showPassword ? 'text' : 'password'}
                   value={passwordInput}
                   onChange={e => setPasswordInput(e.target.value)}
-                  placeholder="Buat password (min. 4 karakter)..."
+                  placeholder="Buat password (min. 8 karakter)..."
                   className="w-full pl-10 pr-10 py-3 bg-slate-950/60 backdrop-blur-xl border border-slate-700/80 focus:border-cyan-400 focus:bg-slate-900/90 rounded-2xl text-sm font-semibold text-white focus:outline-none focus:ring-4 focus:ring-cyan-500/20 transition-all placeholder:text-slate-500 placeholder:font-normal shadow-inner"
                   autoFocus
                 />
