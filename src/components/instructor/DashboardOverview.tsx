@@ -54,7 +54,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     return periods.filter(p => p.courseId === activeCourseId);
   }, [periods, activeCourseId]);
 
-  const activePeriod = coursePeriods.find(p => p.status === 'ACTIVE') || coursePeriods[0];
+  const activePeriod = coursePeriods.find(p => p.status === 'ACTIVE');
+  const latestPeriod = [...coursePeriods].sort((a, b) => (
+    (new Date(b.startDate).getTime() || 0) - (new Date(a.startDate).getTime() || 0)
+  ))[0];
+  const dashboardPeriod = activePeriod || latestPeriod;
 
   // Participants of active course
   const courseParticipants = useMemo(() => {
@@ -97,7 +101,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     const unfinishedCount = filteredParticipants.filter(p => !p.finalProjectConfirmed).length;
 
     // Assessment stats
-    const gradedStudentIds = new Set(assessments.filter(a => a.finalScore > 0).map(a => `${a.periodId}_${a.studentId}`));
+    const gradedStudentIds = new Set(assessments
+      .filter(a => Number.isFinite(a.finalScore))
+      .map(a => `${a.periodId}_${a.studentId}`));
     const gradedCount = filteredParticipants.filter(p => gradedStudentIds.has(`${p.periodId}_${p.studentId}`)).length;
     const ungradedCount = totalParticipants - gradedCount;
 
@@ -132,13 +138,13 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
 
     const assessedParticipantKeys = new Set(
       assessments
-        .filter(a => a.finalScore > 0 && participantKeys.has(`${a.periodId}_${a.studentId}`))
+        .filter(a => Number.isFinite(a.finalScore) && participantKeys.has(`${a.periodId}_${a.studentId}`))
         .map(a => `${a.periodId}_${a.studentId}`)
     );
     const pendingGrading = [...submittedParticipantKeys].filter(key => !assessedParticipantKeys.has(key)).length;
     const remedialReviews = remedials.filter(r => participantKeys.has(`${r.periodId}_${r.studentId}`) && r.status === 'SUBMITTED').length;
     const unpublishedGrades = assessments.filter(a => (
-      participantKeys.has(`${a.periodId}_${a.studentId}`) && a.finalScore > 0 && !a.isPublished
+      participantKeys.has(`${a.periodId}_${a.studentId}`) && Number.isFinite(a.finalScore) && !a.isPublished
     )).length;
     const projectRevisions = filteredParticipants.filter(p => p.finalProjectReviewStatus === 'REVISION_REQUIRED').length;
     const assignmentRevisions = relevantSubmissions.filter(submission => submission.status === 'REVISION_REQUIRED').length;
@@ -278,19 +284,21 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
   // Top 3 Rankings (PRD Section 15)
   const topRankings = useMemo(() => {
     // 1. Top 3 for Active Period
-    const activePeriodParticipants = activePeriod
-      ? participants.filter(p => p.periodId === activePeriod.id)
+    const activePeriodParticipants = dashboardPeriod
+      ? participants.filter(p => p.periodId === dashboardPeriod.id)
       : [];
 
     const activePeriodScores = activePeriodParticipants
       .map(p => {
         const ass = assessments.find(a => a.periodId === p.periodId && a.studentId === p.studentId);
+        if (!ass || !Number.isFinite(ass.finalScore)) return null;
         return {
           participant: p,
-          finalScore: ass?.finalScore || 0,
-          isPublished: ass?.isPublished || false
+          finalScore: ass.finalScore,
+          isPublished: ass.isPublished
         };
       })
+      .filter((item): item is NonNullable<typeof item> => item !== null)
       .sort((a, b) => b.finalScore - a.finalScore)
       .slice(0, 3);
 
@@ -298,26 +306,28 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     const overallScores = courseParticipants
       .map(p => {
         const ass = assessments.find(a => a.periodId === p.periodId && a.studentId === p.studentId);
+        if (!ass || !Number.isFinite(ass.finalScore)) return null;
         const periodObj = periods.find(per => per.id === p.periodId);
         return {
           participant: p,
           periodName: periodObj?.name || 'Periode',
-          finalScore: ass?.finalScore || 0,
-          isPublished: ass?.isPublished || false
+          finalScore: ass.finalScore,
+          isPublished: ass.isPublished
         };
       })
+      .filter((item): item is NonNullable<typeof item> => item !== null)
       .sort((a, b) => b.finalScore - a.finalScore)
       .slice(0, 3);
 
     return { activePeriodScores, overallScores };
-  }, [activePeriod, participants, courseParticipants, assessments, periods]);
+  }, [dashboardPeriod, participants, courseParticipants, assessments, periods]);
 
   // Real Rekap Nilai & Daily Student Performance Calculation
   const rekapPerformance = useMemo(() => {
     // Collect all valid assessments for the currently filtered participants
     const studentAssessments = filteredParticipants
       .map(p => assessments.find(a => a.periodId === p.periodId && a.studentId === p.studentId))
-      .filter((a): a is NonNullable<typeof a> => !!a && typeof a.finalScore === 'number' && a.finalScore > 0);
+      .filter((a): a is NonNullable<typeof a> => !!a && Number.isFinite(a.finalScore));
 
     const totalAssessed = studentAssessments.length;
 
@@ -357,7 +367,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     const postTestAvg = Math.round((postTestSum / totalAssessed) * 10) / 10;
 
     // Look up learning unit titles if available for the active period
-    const targetPeriodId = selectedPeriodFilter !== 'ALL' ? selectedPeriodFilter : activePeriod?.id;
+    const targetPeriodId = selectedPeriodFilter !== 'ALL' ? selectedPeriodFilter : dashboardPeriod?.id;
     const periodUnits = learningUnits.filter(u => u.periodId === targetPeriodId);
     const u1 = periodUnits.find(u => u.unitNumber === 1);
     const u2 = periodUnits.find(u => u.unitNumber === 2);
@@ -461,7 +471,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       dailyItems,
       categoryItems
     };
-  }, [filteredParticipants, assessments, submissions, learningUnits, activePeriod, selectedPeriodFilter]);
+  }, [filteredParticipants, assessments, submissions, learningUnits, dashboardPeriod, selectedPeriodFilter]);
 
   const insightChartPoints = insightStats.progressByUnit.map((item, index) => ({
     x: 40 + (index * 130),
@@ -491,10 +501,14 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
             {activeCourse?.description || 'Kelola pembelajaran praktik, progres mahasiswa, kehadiran, rubrik OBE, dan rekap penilaian terintegrasi.'}
           </p>
 
-          {activePeriod && (
+          {dashboardPeriod ? (
             <div className="mt-4 flex w-full max-w-full items-start gap-2 rounded-xl border border-white/10 bg-white/10 px-3 py-1.5 text-xs text-slate-300 backdrop-blur-md sm:w-fit">
               <Calendar className="mt-px h-4 w-4 shrink-0 text-cyan-400" />
-              <span className="min-w-0 break-words [overflow-wrap:anywhere]">Periode Berjalan: <strong className="text-white">{activePeriod.name}</strong> ({formatPeriodRange(activePeriod.startDate, activePeriod.endDate)})</span>
+              <span className="min-w-0 break-words [overflow-wrap:anywhere]">{activePeriod ? 'Periode Berjalan:' : 'Periode Terakhir:'} <strong className="text-white">{dashboardPeriod.name}</strong> ({formatPeriodRange(dashboardPeriod.startDate, dashboardPeriod.endDate)})</span>
+            </div>
+          ) : (
+            <div className="mt-4 w-fit rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold text-amber-100">
+              Tidak ada periode aktif untuk mata kuliah ini.
             </div>
           )}
         </div>
@@ -855,13 +869,13 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                 </div>
                 <h3 className="text-base font-bold text-slate-900 mt-1 flex items-center gap-2">
                   <Award className="w-5 h-5 text-amber-500" />
-                  <span>Top 3 Mahasiswa Periode Berjalan</span>
+                  <span>Top 3 Mahasiswa {activePeriod ? 'Periode Berjalan' : dashboardPeriod ? 'Periode Terakhir' : 'Periode'}</span>
                 </h3>
               </div>
 
-              {activePeriod && (
+              {dashboardPeriod && (
                 <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold border border-slate-200 w-fit">
-                  {activePeriod.name}
+                  {dashboardPeriod.name}
                 </span>
               )}
             </div>

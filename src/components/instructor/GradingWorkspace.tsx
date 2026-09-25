@@ -135,9 +135,10 @@ export const GradingWorkspace: React.FC = () => {
     return periodParticipants.reduce((counts, participant) => {
       const studentFiles = submissions.filter(item => item.periodId === activeSelectedPeriod.id && item.studentId === participant.studentId);
       const assessment = assessments.find(item => item.periodId === activeSelectedPeriod.id && item.studentId === participant.studentId);
-      if (studentFiles.some(item => item.status === 'SUBMITTED' || item.status === 'ACCEPTED') && !(assessment && assessment.finalScore > 0)) counts.ready += 1;
+      const hasAssessment = Boolean(assessment && Number.isFinite(assessment.finalScore));
+      if (studentFiles.some(item => item.status === 'SUBMITTED' || item.status === 'ACCEPTED') && !hasAssessment) counts.ready += 1;
       if (studentFiles.some(item => item.status === 'REVISION_REQUIRED')) counts.revision += 1;
-      if (assessment && assessment.finalScore > 0 && !assessment.isPublished) counts.unpublished += 1;
+      if (hasAssessment && assessment && !assessment.isPublished) counts.unpublished += 1;
       return counts;
     }, { ready: 0, revision: 0, unpublished: 0 });
   }, [activeSelectedPeriod, assessments, periodParticipants, submissions]);
@@ -149,9 +150,10 @@ export const GradingWorkspace: React.FC = () => {
       if (query && !`${participant.student.name} ${participant.student.nim} ${participant.student.className}`.toLowerCase().includes(query)) return false;
       const studentFiles = submissions.filter(item => item.periodId === activeSelectedPeriod.id && item.studentId === participant.studentId);
       const assessment = assessments.find(item => item.periodId === activeSelectedPeriod.id && item.studentId === participant.studentId);
-      if (studentQueueFilter === 'READY') return studentFiles.some(item => item.status === 'SUBMITTED' || item.status === 'ACCEPTED') && !(assessment && assessment.finalScore > 0);
+      const hasAssessment = Boolean(assessment && Number.isFinite(assessment.finalScore));
+      if (studentQueueFilter === 'READY') return studentFiles.some(item => item.status === 'SUBMITTED' || item.status === 'ACCEPTED') && !hasAssessment;
       if (studentQueueFilter === 'REVISION') return studentFiles.some(item => item.status === 'REVISION_REQUIRED');
-      if (studentQueueFilter === 'UNPUBLISHED') return Boolean(assessment && assessment.finalScore > 0 && !assessment.isPublished);
+      if (studentQueueFilter === 'UNPUBLISHED') return Boolean(hasAssessment && assessment && !assessment.isPublished);
       return true;
     });
   }, [activeSelectedPeriod, assessments, periodParticipants, studentQueueFilter, studentSearch, submissions]);

@@ -1,6 +1,6 @@
 // Student Authentication Gate & Identity Modal (NIM Login & First-time Password Activation)
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Student } from '../../types';
 import {
@@ -60,12 +60,53 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const verificationRequestRef = useRef(0);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const activeCourse = courseSlug ? courses.find(c => c.slug === courseSlug) : undefined;
   const activePeriod = activeCourse
     ? periods.find(p => p.courseId === activeCourse.id && p.status === 'ACTIVE') ||
       periods.find(p => p.courseId === activeCourse.id)
     : undefined;
+
+  useEffect(() => {
+    if (isEmbedded || !isOpen) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusFrame = window.requestAnimationFrame(() => {
+      const dialog = dialogRef.current;
+      const firstFocusable = dialog?.querySelector<HTMLElement>('[autofocus], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])');
+      firstFocusable?.focus();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
+  }, [isEmbedded, isOpen]);
+
+  const handleDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape' && onClose) {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+
+    const focusableElements = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+    ) || []).filter(element => element.getClientRects().length > 0);
+    const first = focusableElements[0];
+    const last = focusableElements[focusableElements.length - 1];
+    if (!first || !last) {
+      event.preventDefault();
+      dialogRef.current?.focus();
+    } else if (event.shiftKey && (document.activeElement === first || !dialogRef.current?.contains(document.activeElement))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && (document.activeElement === last || !dialogRef.current?.contains(document.activeElement))) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   if (!isOpen && !isEmbedded) return null;
 
@@ -229,6 +270,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
         {onClose && !isEmbedded && (
           <button
             onClick={onClose}
+            aria-label="Tutup dialog login mahasiswa"
             className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors border border-slate-700/60 shadow-xs cursor-pointer"
           >
             <X className="w-4 h-4" />
@@ -239,7 +281,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
           <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md p-2 flex items-center justify-center mx-auto mb-3.5 shadow-xl shadow-cyan-500/15 ring-2 ring-white/20">
             <img src="/logo-poliwako.webp" alt="Logo Politeknik Sorowako" className="w-full h-full object-contain" />
           </div>
-          <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+          <h2 id="student-identity-dialog-title" className="text-xl sm:text-2xl font-black text-white tracking-tight">
             {step === 'CREATE_PASSWORD' ? 'Aktivasi Akun Mahasiswa' : step === 'LOGIN_PASSWORD' ? 'Login Mahasiswa' : 'Portal Praktik Mahasiswa'}
           </h2>
           {activeCourse?.name && (
@@ -264,7 +306,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
         {step === 'NIM' && (
           <div>
             <div className="mb-6">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+              <label htmlFor="student-identity-nim" className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
                 Nomor Induk Mahasiswa (NIM)
               </label>
               <p className="text-xs text-slate-400 mb-3.5">
@@ -276,6 +318,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
                   <User className="w-4 h-4" />
                 </div>
                 <input
+                  id="student-identity-nim"
                   type="text"
                   value={nimInput}
                   onChange={e => {
@@ -543,7 +586,15 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
 
   return (
     <ModalPortal>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-fadeIn overflow-hidden">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="student-identity-dialog-title"
+        tabIndex={-1}
+        onKeyDown={handleDialogKeyDown}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-fadeIn overflow-hidden"
+      >
         {/* Animated Orbs in Modal Backdrop */}
         <div className="absolute -top-20 -left-20 w-96 h-96 rounded-full bg-blue-600/30 blur-[90px] animate-float-slow pointer-events-none" />
         <div className="absolute -bottom-20 -right-20 w-96 h-96 rounded-full bg-indigo-600/30 blur-[90px] animate-float-reverse pointer-events-none" />

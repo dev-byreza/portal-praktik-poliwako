@@ -154,9 +154,14 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
         <div className="grid min-w-0 w-full max-w-5xl grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2 lg:gap-6">
           
           {/* CARD 1: PORTAL MAHASISWA */}
-          <div
-            onClick={() => onSelectRole('STUDENT', '/mahasiswa')}
-            className="group relative min-w-0 backdrop-blur-2xl bg-slate-900/75 hover:bg-slate-900/95 rounded-3xl p-3 sm:p-7 border border-white/15 hover:border-cyan-400/60 ring-1 ring-cyan-500/20 hover:ring-2 hover:ring-cyan-400/40 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] hover:shadow-[0_25px_60px_-15px_rgba(56,189,248,0.25)] transition-all duration-300 cursor-pointer flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden lg:aspect-[4/2.5] min-h-[170px] sm:min-h-[230px] lg:min-h-[290px]"
+          <a
+            href="/mahasiswa"
+            onClick={event => {
+              if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+              event.preventDefault();
+              onSelectRole('STUDENT', '/mahasiswa');
+            }}
+            className="group relative min-w-0 backdrop-blur-2xl bg-slate-900/75 hover:bg-slate-900/95 rounded-3xl p-3 sm:p-7 border border-white/15 hover:border-cyan-400/60 ring-1 ring-cyan-500/20 hover:ring-2 hover:ring-cyan-400/40 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] hover:shadow-[0_25px_60px_-15px_rgba(56,189,248,0.25)] transition-all duration-300 flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden lg:aspect-[4/2.5] min-h-[170px] sm:min-h-[230px] lg:min-h-[290px] text-left text-inherit no-underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cyan-300 focus-visible:ring-offset-4 focus-visible:ring-offset-slate-950"
           >
             {/* Top Specular Glow */}
             <div className="absolute top-0 left-0 right-0 h-20 sm:h-28 bg-gradient-to-b from-cyan-500/10 via-transparent to-transparent pointer-events-none rounded-t-3xl" />
@@ -188,12 +193,17 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
                 <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:translate-x-1.5 transition-transform" />
               </div>
             </div>
-          </div>
+          </a>
 
           {/* CARD 2: PORTAL INSTRUKTUR */}
-          <div
-            onClick={() => onSelectRole('INSTRUCTOR', '/instruktur')}
-            className="group relative min-w-0 backdrop-blur-2xl bg-slate-900/75 hover:bg-slate-900/95 rounded-3xl p-3 sm:p-7 border border-white/15 hover:border-indigo-400/60 ring-1 ring-indigo-500/20 hover:ring-2 hover:ring-indigo-400/40 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] hover:shadow-[0_25px_60px_-15px_rgba(99,102,241,0.25)] transition-all duration-300 cursor-pointer flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden lg:aspect-[4/2.5] min-h-[170px] sm:min-h-[230px] lg:min-h-[290px]"
+          <a
+            href="/instruktur"
+            onClick={event => {
+              if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+              event.preventDefault();
+              onSelectRole('INSTRUCTOR', '/instruktur');
+            }}
+            className="group relative min-w-0 backdrop-blur-2xl bg-slate-900/75 hover:bg-slate-900/95 rounded-3xl p-3 sm:p-7 border border-white/15 hover:border-indigo-400/60 ring-1 ring-indigo-500/20 hover:ring-2 hover:ring-indigo-400/40 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] hover:shadow-[0_25px_60px_-15px_rgba(99,102,241,0.25)] transition-all duration-300 flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden lg:aspect-[4/2.5] min-h-[170px] sm:min-h-[230px] lg:min-h-[290px] text-left text-inherit no-underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300 focus-visible:ring-offset-4 focus-visible:ring-offset-slate-950"
           >
             {/* Top Specular Glow */}
             <div className="absolute top-0 left-0 right-0 h-20 sm:h-28 bg-gradient-to-b from-indigo-500/10 via-transparent to-transparent pointer-events-none rounded-t-3xl" />
@@ -226,7 +236,7 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
                 <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:translate-x-1.5 transition-transform" />
               </div>
             </div>
-          </div>
+          </a>
 
         </div>
 
