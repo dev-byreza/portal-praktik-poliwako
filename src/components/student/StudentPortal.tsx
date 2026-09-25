@@ -1032,11 +1032,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
             {/* Tab: Final Project */}
             {activeTab === 'FINAL_PROJECT' && (
-              <StudentFinalProjectCard
-                isActive={isFinalProjectActive}
-                driveUrl={activePeriod?.finalProjectDriveUrl}
-                description={activePeriod?.finalProjectDescription}
-              />
+              <StudentFinalProjectCard />
             )}
 
             {/* Tab: Grade and Feedback */}

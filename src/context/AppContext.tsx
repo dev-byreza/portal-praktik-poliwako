@@ -32,6 +32,7 @@ import { getRealtimeWitaDateString, fetchInternetNetworkTime } from '../services
 import { getUnitAssignments } from '../utils/learningAssignments';
 import { normalizeLearningUnitNumbers, orderLearningUnits } from '../utils/learningUnitOrdering';
 import { preparePeriodGradePublication, preparePeriodGradeUnpublication } from '../utils/gradePublication';
+import { normalizeGoogleDriveFolderUrl } from '../utils/googleDriveUtils';
 
 const parseAssignmentDeadline = (value: string): number | null => {
   const raw = String(value || '').trim();
@@ -135,7 +136,7 @@ interface AppContextType {
   submitAssignment: (assignmentId: string, file: File, submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST', allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' | 'AUTOCAD_LINK') => Promise<{ success: boolean; message?: string }>;
   submitAssignmentLink: (assignmentId: string, url: string, submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST') => Promise<{ success: boolean; message?: string }>;
   reviewSubmission: (submissionId: string, status: 'REVISION_REQUIRED' | 'ACCEPTED', feedback: string) => Promise<void>;
-  confirmFinalProject: (url: string) => Promise<void>;
+  confirmFinalProject: () => Promise<void>;
   reviewFinalProject: (participantId: string, status: 'REVISION_REQUIRED' | 'ACCEPTED', feedback: string) => Promise<void>;
   submitStudentRemedial: (remedialId: string, file: File) => Promise<void>;
 
@@ -1184,14 +1185,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Student Final Project Confirmation
-  const confirmFinalProject = async (url: string) => {
+  const confirmFinalProject = async () => {
     if (!studentSession) throw new Error('Silakan masuk kembali.');
-    const link = new URL(url);
-    if (link.protocol !== 'https:' || link.hostname !== 'drive.google.com') throw new Error('Gunakan tautan Google Drive HTTPS untuk hasil pekerjaan Anda.');
+    const period = periods.find(item => item.id === studentSession.periodId);
+    if (!period?.finalProjectEnabled) throw new Error('Pengumpulan final project belum diaktifkan instruktur.');
+    const driveFolderUrl = normalizeGoogleDriveFolderUrl(period.finalProjectDriveUrl);
+    if (!driveFolderUrl) throw new Error('Folder Google Drive instruktur belum siap. Hubungi instruktur.');
     const participant = participants.find(p => p.studentId === studentSession.studentId && p.periodId === studentSession.periodId);
     if (!participant) throw new Error('Pendaftaran peserta tidak ditemukan.');
     if (participant.finalProjectReviewStatus === 'ACCEPTED') throw new Error('Proyek sudah diterima. Hubungi instruktur untuk perubahan.');
-    const updated: PracticeParticipant = {...participant, finalProjectUrl: link.href, finalProjectConfirmed: true, finalProjectReviewStatus: 'SUBMITTED', finalProjectSubmittedAt: new Date().toISOString(), progressStatus: participant.progressStatus === 'PUBLISHED' || participant.progressStatus === 'ASSESSED' ? participant.progressStatus : 'PROJECT_SUBMITTED'};
+    const updated: PracticeParticipant = {...participant, finalProjectUrl: driveFolderUrl, finalProjectConfirmed: true, finalProjectReviewStatus: 'SUBMITTED', finalProjectSubmittedAt: new Date().toISOString(), progressStatus: participant.progressStatus === 'PUBLISHED' || participant.progressStatus === 'ASSESSED' ? participant.progressStatus : 'PROJECT_SUBMITTED'};
     await runServerSave('proyek akhir', async () => {
       await ApiService.saveFinalProject(updated);
       setParticipants(prev => prev.map(p => p.id === updated.id ? updated : p));

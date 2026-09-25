@@ -1,5 +1,26 @@
 const GOOGLE_DRIVE_HOSTS = new Set(['drive.google.com', 'docs.google.com']);
 
+/** Return a configured Google Drive folder URL only when it is a real HTTPS folder link. */
+export const normalizeGoogleDriveFolderUrl = (value?: string): string | null => {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+
+  try {
+    const url = new URL(raw);
+    const folderId = url.pathname.match(/\/folders\/([^/]+)/i)?.[1];
+    if (
+      url.protocol !== 'https:'
+      || url.hostname.toLowerCase() !== 'drive.google.com'
+      || !folderId
+      || folderId.toLowerCase().startsWith('poliwako-')
+    ) return null;
+
+    return url.href;
+  } catch {
+    return null;
+  }
+};
+
 /** Extract a file ID from the common Google Drive sharing URL formats. */
 export const getGoogleDriveFileId = (value?: string): string | null => {
   const raw = String(value || '').trim();

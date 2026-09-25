@@ -12,7 +12,7 @@ function loadTypeScript(relativePath) {
     target: ts.ScriptTarget.ES2020,
   } }).outputText;
   const module = { exports: {} };
-  vm.runInNewContext(js, { module, exports: module.exports, Date, Intl, console, require: () => ({}) });
+  vm.runInNewContext(js, { module, exports: module.exports, Date, Intl, URL, console, require: () => ({}) });
   return module.exports;
 }
 
@@ -51,6 +51,20 @@ assert.equal(parseGradingScore('1.005'), 1.01, 'Scores must round to hundredth-p
 assert.equal(parseGradingScore('100.5'), 100, 'Scores must stay within the 0–100 range');
 assert.equal(parseGradingScore('-0.5'), 0, 'Negative scores must be clamped to zero');
 assert.equal(parseGradingScore('0'), 0, 'A score of zero must remain valid');
+const storageClientSource = fs.readFileSync(path.join(root, 'src/services/supabaseClient.ts'), 'utf8');
+assert.match(storageClientSource, /createSignedUrl\(storagePath, 7200, download \? \{ download \} : undefined\)/, 'Storage downloads must request an attachment response from Supabase');
+const gradingWorkspaceFilesSource = fs.readFileSync(path.join(root, 'src/components/instructor/GradingWorkspace.tsx'), 'utf8');
+assert.match(gradingWorkspaceFilesSource, /getSubmissionSignedUrl\(activeDocumentSubmission\.storagePath, activeDocumentFileName \|\| true\)/, 'Grading downloads must use an attachment signed URL for private submissions');
+assert.match(gradingWorkspaceFilesSource, /onClick=\{handleDownloadActiveDocument\}[\s\S]*?Unduh/, 'The grading file inspector must expose an explicit download action');
+const { normalizeGoogleDriveFolderUrl } = loadTypeScript('src/utils/googleDriveUtils.ts');
+assert.equal(normalizeGoogleDriveFolderUrl('https://drive.google.com/drive/folders/Abc_123'), 'https://drive.google.com/drive/folders/Abc_123');
+assert.equal(normalizeGoogleDriveFolderUrl('http://drive.google.com/drive/folders/Abc_123'), null, 'Instructor folders must use HTTPS');
+assert.equal(normalizeGoogleDriveFolderUrl('https://drive.google.com/file/d/Abc_123'), null, 'Final project target must be a Drive folder');
+assert.equal(normalizeGoogleDriveFolderUrl('https://drive.google.com/drive/folders/poliwako-demo'), null, 'Placeholder folders must not be used as submission targets');
+const finalProjectCardSource = fs.readFileSync(path.join(root, 'src/components/student/StudentFinalProjectCard.tsx'), 'utf8');
+assert.match(finalProjectCardSource, /periods\.find\(item => item\.id === studentSession\?\.periodId\)/, 'Students must get the folder from their server-backed active period');
+assert.match(finalProjectCardSource, /await confirmFinalProject\(\)/, 'Final project confirmation must not accept a student-provided replacement URL');
+assert.doesNotMatch(finalProjectCardSource, /type="url"/, 'Students must not submit a different Drive link');
 const gradingWorkspaceSource = fs.readFileSync(path.join(root, 'src/components/instructor/GradingWorkspace.tsx'), 'utf8');
 assert.equal((gradingWorkspaceSource.match(/step=\{0\.01\}/g) || []).length, 4, 'All four numeric grading fields must accept hundredths');
 assert.equal((gradingWorkspaceSource.match(/inputMode="decimal"/g) || []).length, 4, 'All numeric grading fields must offer a decimal keypad on mobile');

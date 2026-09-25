@@ -322,12 +322,15 @@ export async function uploadSubmissionPDF(
   }
 }
 
-export async function getSubmissionSignedUrl(storagePath: string): Promise<string | null> {
+export async function getSubmissionSignedUrl(
+  storagePath: string,
+  download: string | boolean = false,
+): Promise<string | null> {
   if (!supabase || !storagePath) return null;
   try {
     const { data, error } = await supabase.storage
       .from('submissions')
-      .createSignedUrl(storagePath, 7200);
+      .createSignedUrl(storagePath, 7200, download ? { download } : undefined);
     if (error) return null;
     return data?.signedUrl || null;
   } catch {

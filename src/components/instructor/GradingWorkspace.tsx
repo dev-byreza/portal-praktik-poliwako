@@ -19,6 +19,7 @@ import {
   ChevronRight,
   ZoomIn,
   ZoomOut,
+  Download,
   Sparkles,
   Save,
   Send,
@@ -41,6 +42,7 @@ import { getCourseRubrics, reconcileRubricScores } from '../../utils/courseRubri
 import { Badge } from '../common/Badge';
 import { getUnitAssignments } from '../../utils/learningAssignments';
 import { parseGradingScore } from '../../utils/gradingScoreInput';
+import { getSubmissionSignedUrl } from '../../services/supabaseClient';
 
 const canInlinePreview = (fileName?: string): boolean =>
   !!fileName && /\.(pdf|jpe?g|png|webp|gif)$/i.test(fileName);
@@ -100,6 +102,7 @@ export const GradingWorkspace: React.FC = () => {
   const [activeCategoryTab, setActiveCategoryTab] = useState<'QUALITY' | 'ATTITUDE' | 'CREATIVITY' | 'REPORT' | 'ALL'>('QUALITY');
   const [openQualitySection, setOpenQualitySection] = useState<QualitySection | null>('ENTRY');
   const [isPdfOpen, setIsPdfOpen] = useState<boolean>(true);
+  const [isFileDownloading, setIsFileDownloading] = useState(false);
 
   // Turunan Nilai Kualitas (70%) States
   const [entryBehaviorScore, setEntryBehaviorScore] = useState<number>(0); // 10%
@@ -271,6 +274,38 @@ export const GradingWorkspace: React.FC = () => {
     : activeDocType === 'ASSIGNMENT'
       ? activeAssignmentSubmission
       : reportSubmission;
+  const activeDocumentUrl = activeDocType === 'POST_TEST'
+    ? postTestFileUrl
+    : activeDocumentSubmission?.fileUrl;
+  const activeDocumentFileName = activeDocumentSubmission?.fileName
+    || (activeDocType === 'POST_TEST' && postTestFileUrl ? 'post-test' : undefined);
+
+  const handleDownloadActiveDocument = async () => {
+    if (!activeDocumentUrl || isFileDownloading) {
+      if (!activeDocumentUrl) showToast('Berkas Belum Ada', 'Tidak ada file yang dapat diunduh dari tab ini.', 'info');
+      return;
+    }
+
+    setIsFileDownloading(true);
+    try {
+      const downloadUrl = activeDocumentSubmission?.storagePath
+        ? await getSubmissionSignedUrl(activeDocumentSubmission.storagePath, activeDocumentFileName || true)
+        : activeDocumentUrl;
+      if (!downloadUrl) throw new Error('Tautan unduh tidak dapat dibuat. Periksa akses Supabase Storage.');
+
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      if (activeDocumentFileName) link.download = activeDocumentFileName;
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      showToast('Unduh Gagal', error instanceof Error ? error.message : 'Berkas tidak dapat diunduh.', 'error');
+    } finally {
+      setIsFileDownloading(false);
+    }
+  };
 
   useEffect(() => {
     setSubmissionReviewFeedback(activeDocumentSubmission?.reviewFeedback || '');
@@ -788,6 +823,16 @@ export const GradingWorkspace: React.FC = () => {
 
               {/* Controls */}
               <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleDownloadActiveDocument}
+                  disabled={!activeDocumentUrl || isFileDownloading}
+                  className="flex min-h-8 items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-700 px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label={isFileDownloading ? 'Menyiapkan unduhan berkas' : `Unduh ${activeDocumentFileName || 'berkas aktif'}`}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>{isFileDownloading ? 'Menyiapkan…' : 'Unduh'}</span>
+                </button>
                 <span className="hidden xl:flex items-center gap-1 text-[10px] text-slate-300 font-mono whitespace-nowrap">
                   <Clock3 className="w-3 h-3 text-cyan-300" />
                   {activeDocumentSubmission
@@ -836,7 +881,7 @@ export const GradingWorkspace: React.FC = () => {
                         <FileText className="mb-3 h-10 w-10 text-slate-400" />
                         <h4 className="text-sm font-bold text-slate-700">{postTestFileUrl ? 'File post-test siap diakses' : 'Belum ada file post-test'}</h4>
                         <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">{postTestFileUrl ? 'Berkas dapat diunduh dari Supabase Storage untuk diperiksa.' : 'File akan tampil setelah mahasiswa mengunggahnya.'}</p>
-                        {postTestFileUrl && <a href={postTestFileUrl} target="_blank" rel="noreferrer" download={postTestSubmission?.fileName} className="mt-3 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700">Unduh File</a>}
+                        {postTestFileUrl && <button type="button" onClick={handleDownloadActiveDocument} className="mt-3 rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-800">Unduh File</button>}
                       </div>
                     )
                   ) : activeDocType === 'ASSIGNMENT' ? (
@@ -858,7 +903,7 @@ export const GradingWorkspace: React.FC = () => {
                         <FileText className="mb-3 h-10 w-10 text-slate-400" />
                         <h4 className="text-sm font-bold text-slate-700">{activeAssignmentSubmission?.fileUrl ? 'File tugas siap diakses' : 'Belum ada file tugas'}</h4>
                         <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">{activeAssignmentSubmission?.fileUrl ? 'Format ini tidak dapat dipratinjau langsung. Unduh file dari Supabase Storage untuk memeriksanya.' : 'File akan tampil setelah mahasiswa mengunggahnya.'}</p>
-                        {activeAssignmentSubmission?.fileUrl && <a href={activeAssignmentSubmission.fileUrl} target="_blank" rel="noreferrer" download={activeAssignmentSubmission.fileName} className="mt-3 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-teal-700">Unduh File Tugas</a>}
+                        {activeAssignmentSubmission?.fileUrl && <button type="button" onClick={handleDownloadActiveDocument} className="mt-3 rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-800">Unduh File Tugas</button>}
                       </div>
                     )
                   ) : reportSubmission?.fileUrl && canInlinePreview(reportSubmission.fileName) ? (
@@ -872,7 +917,7 @@ export const GradingWorkspace: React.FC = () => {
                       <FileText className="mb-3 h-10 w-10 text-slate-400" />
                       <h4 className="text-sm font-bold text-slate-700">{reportSubmission?.fileUrl ? 'File laporan siap diakses' : 'Belum ada file laporan'}</h4>
                       <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">{reportSubmission?.fileUrl ? 'Format ini tidak dapat dipratinjau langsung. Unduh file dari Supabase Storage untuk memeriksanya.' : 'File akan tampil setelah mahasiswa mengunggahnya.'}</p>
-                      {reportSubmission?.fileUrl && <a href={reportSubmission.fileUrl} target="_blank" rel="noreferrer" download={reportSubmission.fileName} className="mt-3 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700">Unduh File Laporan</a>}
+                      {reportSubmission?.fileUrl && <button type="button" onClick={handleDownloadActiveDocument} className="mt-3 rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-800">Unduh File Laporan</button>}
                     </div>
                   )}
                 </div>
@@ -1171,7 +1216,7 @@ export const GradingWorkspace: React.FC = () => {
               {/* ----------------------------------------------------------------- */}
               {/* TURUNAN 1: ENTRY BEHAVIOR (10%) - INPUT NILAI */}
               {/* ----------------------------------------------------------------- */}
-              <div className={`min-h-[92px] border-l-4 bg-white rounded-2xl shadow-sm transition-all ${openQualitySection === 'ENTRY' ? 'border border-indigo-300 border-l-indigo-500 shadow-md' : 'border border-slate-200 border-l-indigo-300 hover:border-indigo-200 hover:shadow-md'}`}>
+              <div className={`min-h-[92px] border bg-white rounded-2xl transition-colors ${openQualitySection === 'ENTRY' ? 'border-blue-300 ring-1 ring-blue-100' : 'border-slate-200 hover:border-slate-300'}`}>
                 <button
                   type="button"
                   aria-expanded={openQualitySection === 'ENTRY'}
@@ -1179,12 +1224,12 @@ export const GradingWorkspace: React.FC = () => {
                   className="w-full p-4 sm:p-5 text-left flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-black text-xs flex items-center justify-center shrink-0">
+                    <span className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 font-black text-xs flex items-center justify-center shrink-0">
                       1
                     </span>
                     <div>
                       <h5 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                        <Compass className="w-3.5 h-3.5 text-indigo-600" />
+                        <Compass className="w-3.5 h-3.5 text-blue-700" />
                         <span>Entry Behavior (Bobot 10%)</span>
                       </h5>
                       <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
@@ -1194,9 +1239,9 @@ export const GradingWorkspace: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2 self-end sm:self-auto">
-                    <div className="min-w-[84px] rounded-xl border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-right">
-                      <span className="block text-[9px] font-bold uppercase tracking-wide text-indigo-500">Kontribusi</span>
-                      <span className="block text-xs font-mono font-bold text-indigo-700">
+                    <div className="min-w-[84px] rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-right">
+                      <span className="block text-[9px] font-bold uppercase tracking-wide text-slate-500">Kontribusi</span>
+                      <span className="block text-xs font-mono font-bold text-blue-800">
                       {(entryBehaviorScore * 0.10).toFixed(1)} Poin
                       </span>
                     </div>
@@ -1229,7 +1274,7 @@ export const GradingWorkspace: React.FC = () => {
                         onClick={() => handleEntryBehaviorChange(val)}
                         className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all ${
                           entryBehaviorScore === val
-                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                            ? 'bg-blue-700 text-white border-blue-700'
                             : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                         }`}
                       >
@@ -1243,7 +1288,7 @@ export const GradingWorkspace: React.FC = () => {
               {/* ----------------------------------------------------------------- */}
               {/* TURUNAN 2: KETERCAPAIAN PRAKTIK (50%) - MERUPAKAN SUB-CPMK */}
               {/* ----------------------------------------------------------------- */}
-              <div className={`min-h-[92px] border-l-4 bg-white rounded-2xl shadow-sm transition-all ${openQualitySection === 'SUB_CPMK' ? 'border border-blue-300 border-l-blue-500 shadow-md' : 'border border-slate-200 border-l-blue-300 hover:border-blue-200 hover:shadow-md'}`}>
+              <div className={`min-h-[92px] border bg-white rounded-2xl transition-colors ${openQualitySection === 'SUB_CPMK' ? 'border-blue-300 ring-1 ring-blue-100' : 'border-slate-200 hover:border-slate-300'}`}>
                 <button
                   type="button"
                   aria-expanded={openQualitySection === 'SUB_CPMK'}
@@ -1251,16 +1296,16 @@ export const GradingWorkspace: React.FC = () => {
                   className="w-full p-4 sm:p-5 text-left flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 font-black text-xs flex items-center justify-center shrink-0">
+                    <span className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 font-black text-xs flex items-center justify-center shrink-0">
                       2
                     </span>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <Target className="w-3.5 h-3.5 text-blue-600" />
+                        <Target className="w-3.5 h-3.5 text-blue-700" />
                         <h5 className="text-sm font-bold text-slate-900">
                           Ketercapaian Praktik (Bobot 50%)
                         </h5>
-                        <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-blue-100 text-blue-800">
+                        <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700">
                           Sub-CPMK
                         </span>
                       </div>
@@ -1271,9 +1316,9 @@ export const GradingWorkspace: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2 self-end sm:self-auto">
-                    <div className="min-w-[108px] rounded-xl border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-right">
-                      <span className="block text-[9px] font-bold uppercase tracking-wide text-blue-500">Rata2 {subCpmkPracticeScore}</span>
-                      <span className="block text-xs font-mono font-bold text-blue-700">
+                    <div className="min-w-[108px] rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-right">
+                      <span className="block text-[9px] font-bold uppercase tracking-wide text-slate-500">Rata2 {subCpmkPracticeScore}</span>
+                      <span className="block text-xs font-mono font-bold text-blue-800">
                       {(subCpmkPracticeScore * 0.50).toFixed(1)} Poin
                       </span>
                     </div>
@@ -1288,15 +1333,15 @@ export const GradingWorkspace: React.FC = () => {
                     const activeScore = currentScoreObj?.score ?? 75;
 
                     return (
-                      <div key={item.id} className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-2 hover:border-blue-300 transition-all">
+                      <div key={item.id} className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-2 hover:border-slate-300 transition-colors">
                         <div className="flex items-start justify-between gap-2">
                           <div className="space-y-0.5">
                             <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-blue-600 text-white font-mono shadow-xs">
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 font-mono">
                                 {item.code}
                               </span>
                               {item.weightPercent !== undefined && item.weightPercent > 0 && (
-                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-700 border border-blue-200">
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-slate-100 text-slate-600">
                                   Bobot: {item.weightPercent}%
                                 </span>
                               )}
@@ -1304,7 +1349,7 @@ export const GradingWorkspace: React.FC = () => {
                             </div>
                             <p className="text-[10px] text-slate-600 leading-relaxed">{item.description}</p>
                           </div>
-                          <span className="text-xs font-mono font-bold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-lg shrink-0">
+                          <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-lg shrink-0">
                             {activeScore} Poin
                           </span>
                         </div>
@@ -1318,7 +1363,7 @@ export const GradingWorkspace: React.FC = () => {
                               onClick={() => handleScoreChange('QUALITY', item.id, lvl.score, lvl.label)}
                               className={`py-1.5 px-1 rounded-lg text-center text-[10px] font-bold border transition-all ${
                                 activeScore === lvl.score
-                                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                  ? 'bg-blue-700 text-white border-blue-700'
                                   : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
                               }`}
                             >
@@ -1336,7 +1381,7 @@ export const GradingWorkspace: React.FC = () => {
               {/* ----------------------------------------------------------------- */}
               {/* TURUNAN 3: TUGAS PRAKTIK (15%) - DIHUBUNGKAN KE MATERI TUGAS */}
               {/* ----------------------------------------------------------------- */}
-              <div className={`min-h-[92px] border-l-4 bg-white rounded-2xl shadow-sm transition-all ${openQualitySection === 'ASSIGNMENT' ? 'border border-teal-300 border-l-teal-500 shadow-md' : 'border border-slate-200 border-l-teal-300 hover:border-teal-200 hover:shadow-md'}`}>
+              <div className={`min-h-[92px] border bg-white rounded-2xl transition-colors ${openQualitySection === 'ASSIGNMENT' ? 'border-blue-300 ring-1 ring-blue-100' : 'border-slate-200 hover:border-slate-300'}`}>
                 <button
                   type="button"
                   aria-expanded={openQualitySection === 'ASSIGNMENT'}
@@ -1344,19 +1389,19 @@ export const GradingWorkspace: React.FC = () => {
                   className="w-full p-4 sm:p-5 text-left flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-lg bg-teal-100 text-teal-700 font-black text-xs flex items-center justify-center shrink-0">
+                    <span className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 font-black text-xs flex items-center justify-center shrink-0">
                       3
                     </span>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <BookOpen className="w-3.5 h-3.5 text-teal-600" />
+                        <BookOpen className="w-3.5 h-3.5 text-blue-700" />
                         <h5 className="text-sm font-bold text-slate-900">
                           Tugas Praktik / Worksheet (Bobot 15%)
                         </h5>
-                        <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-teal-100 text-teal-800">
+                        <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700">
                           {tasksToGrade.length} Tugas Materi
                         </span>
-                        <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-800">
+                        <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">
                           {tasksToGrade.length === 1 ? fileTypeLabel(tasksToGrade[0].allowedFileType) : 'Format Sesuai Tugas'}
                         </span>
                       </div>
@@ -1367,9 +1412,9 @@ export const GradingWorkspace: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2 self-end sm:self-auto">
-                    <div className="min-w-[108px] rounded-xl border border-teal-200 bg-teal-50 px-2.5 py-1.5 text-right">
-                      <span className="block text-[9px] font-bold uppercase tracking-wide text-teal-500">Rata2 {assignmentScore}</span>
-                      <span className="block text-xs font-mono font-bold text-teal-700">
+                    <div className="min-w-[108px] rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-right">
+                      <span className="block text-[9px] font-bold uppercase tracking-wide text-slate-500">Rata2 {assignmentScore}</span>
+                      <span className="block text-xs font-mono font-bold text-blue-800">
                       {(assignmentScore * 0.15).toFixed(1)} Poin
                       </span>
                     </div>
@@ -1388,7 +1433,7 @@ export const GradingWorkspace: React.FC = () => {
                     const currentScore = taskScores[task.id] ?? 0;
 
                     return (
-                      <div key={task.id} className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-3 hover:border-teal-300 transition-all shadow-xs">
+                      <div key={task.id} className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-3 hover:border-slate-300 transition-colors">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-slate-100 pb-2">
                           <div>
                             <div className="flex items-center gap-1.5">
@@ -1402,7 +1447,7 @@ export const GradingWorkspace: React.FC = () => {
                                     ? 'bg-rose-100 text-rose-700'
                                     : studentSubmission.status === 'ACCEPTED'
                                       ? 'bg-emerald-100 text-emerald-700'
-                                      : 'bg-blue-100 text-blue-700'
+                                      : 'bg-slate-100 text-slate-700'
                                 }`}>
                                   {studentSubmission.status === 'REVISION_REQUIRED' ? 'Perlu revisi' : studentSubmission.status === 'ACCEPTED' ? 'Diterima' : studentSubmission.status === 'GRADED' ? 'Sudah dinilai' : 'Menunggu review'}
                                 </span>
@@ -1429,9 +1474,9 @@ export const GradingWorkspace: React.FC = () => {
                         </div>
 
                         {/* Uploaded File Inspector Box like Post-Test */}
-                        <div className="p-3 bg-amber-50/60 border border-amber-200/80 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div className={`p-3 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${studentSubmission ? 'bg-slate-50 border-slate-200' : 'bg-amber-50 border-amber-200'}`}>
                           <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0">
+                            <div className={`w-8 h-8 rounded-lg text-white flex items-center justify-center shrink-0 ${studentSubmission ? 'bg-blue-700' : 'bg-amber-600'}`}>
                               <FileText className="w-4 h-4" />
                             </div>
                             <div>
@@ -1452,8 +1497,8 @@ export const GradingWorkspace: React.FC = () => {
                             onClick={() => handleInspectAssignmentPdf(task.id, studentSubmission, task.assignmentTitle)}
                             className={`px-3 py-1.5 text-xs font-bold rounded-xl border flex items-center gap-1.5 transition-all shadow-xs disabled:cursor-not-allowed disabled:opacity-50 ${
                               activeDocType === 'ASSIGNMENT' && activeAssignmentId === task.id
-                                ? 'bg-amber-600 text-white border-amber-600'
-                                : 'bg-white text-amber-800 border-amber-300 hover:bg-amber-100'
+                                ? 'bg-blue-700 text-white border-blue-700'
+                                : 'bg-white text-blue-800 border-slate-300 hover:bg-slate-50'
                             }`}
                           >
                             <Eye className="w-3.5 h-3.5" />
@@ -1486,7 +1531,7 @@ export const GradingWorkspace: React.FC = () => {
                                 onClick={() => handleTaskScoreChange(task.id, val)}
                                 className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all ${
                                   currentScore === val
-                                    ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
+                                    ? 'bg-blue-700 text-white border-blue-700'
                                     : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                                 }`}
                               >
@@ -1504,7 +1549,7 @@ export const GradingWorkspace: React.FC = () => {
               {/* ----------------------------------------------------------------- */}
               {/* TURUNAN 4: POST-TEST (25%) - FILE & NILAI */}
               {/* ----------------------------------------------------------------- */}
-              <div className={`min-h-[92px] border-l-4 bg-white rounded-2xl shadow-sm transition-all ${openQualitySection === 'POST_TEST' ? 'border border-amber-300 border-l-amber-500 shadow-md' : 'border border-slate-200 border-l-amber-300 hover:border-amber-200 hover:shadow-md'}`}>
+              <div className={`min-h-[92px] border bg-white rounded-2xl transition-colors ${openQualitySection === 'POST_TEST' ? 'border-blue-300 ring-1 ring-blue-100' : 'border-slate-200 hover:border-slate-300'}`}>
                 <button
                   type="button"
                   aria-expanded={openQualitySection === 'POST_TEST'}
@@ -1512,16 +1557,16 @@ export const GradingWorkspace: React.FC = () => {
                   className="w-full p-4 sm:p-5 text-left flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 font-black text-xs flex items-center justify-center shrink-0">
+                    <span className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 font-black text-xs flex items-center justify-center shrink-0">
                       4
                     </span>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <FileCheck className="w-3.5 h-3.5 text-amber-600" />
+                        <FileCheck className="w-3.5 h-3.5 text-blue-700" />
                         <h5 className="text-sm font-bold text-slate-900">
                           Post-Test Praktik (Bobot 25%)
                         </h5>
-                        <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-800">
+                        <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">
                           {fileTypeLabel(postTestSubmission?.fileName)}
                         </span>
                       </div>
@@ -1532,9 +1577,9 @@ export const GradingWorkspace: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2 self-end sm:self-auto">
-                    <div className="min-w-[84px] rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-right">
-                      <span className="block text-[9px] font-bold uppercase tracking-wide text-amber-500">Kontribusi</span>
-                      <span className="block text-xs font-mono font-bold text-amber-700">
+                    <div className="min-w-[84px] rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-right">
+                      <span className="block text-[9px] font-bold uppercase tracking-wide text-slate-500">Kontribusi</span>
+                      <span className="block text-xs font-mono font-bold text-blue-800">
                       {(postTestScore * 0.25).toFixed(1)} Poin
                       </span>
                     </div>
@@ -1544,9 +1589,9 @@ export const GradingWorkspace: React.FC = () => {
 
                 {/* Uploaded File Inspector Trigger */}
                 {openQualitySection === 'POST_TEST' && <div className="px-4 pb-4 space-y-3.5">
-                <div className="p-3 bg-amber-50/60 border border-amber-200/80 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className={`p-3 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${postTestFileUrl ? 'bg-slate-50 border-slate-200' : 'bg-amber-50 border-amber-200'}`}>
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0">
+                    <div className={`w-8 h-8 rounded-lg text-white flex items-center justify-center shrink-0 ${postTestFileUrl ? 'bg-blue-700' : 'bg-amber-600'}`}>
                       <FileText className="w-4 h-4" />
                     </div>
                     <div>
@@ -1567,8 +1612,8 @@ export const GradingWorkspace: React.FC = () => {
                     disabled={!postTestFileUrl}
                     className={`px-3 py-1.5 text-xs font-bold rounded-xl border flex items-center gap-1.5 transition-all shadow-xs disabled:cursor-not-allowed disabled:opacity-50 ${
                       activeDocType === 'POST_TEST'
-                        ? 'bg-amber-600 text-white border-amber-600'
-                        : 'bg-white text-amber-800 border-amber-300 hover:bg-amber-100'
+                        ? 'bg-blue-700 text-white border-blue-700'
+                        : 'bg-white text-blue-800 border-slate-300 hover:bg-slate-50'
                     }`}
                   >
                     <Eye className="w-3.5 h-3.5" />
@@ -1601,7 +1646,7 @@ export const GradingWorkspace: React.FC = () => {
                         onClick={() => handlePostTestScoreChange(val)}
                         className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all ${
                           postTestScore === val
-                            ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                            ? 'bg-blue-700 text-white border-blue-700'
                             : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                         }`}
                       >
