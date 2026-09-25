@@ -523,6 +523,25 @@ export class ApiService {
     return data.sessionToken;
   }
 
+  static async studentRestoreSessionProfile(sessionToken: string): Promise<Student | null> {
+    if (!this.isLiveBackend() || !supabase || !sessionToken) return null;
+    const { data, error } = await supabase.rpc('student_restore_session_profile', {
+      p_session_token: sessionToken,
+    });
+    if (error) throw error;
+    const rawStudent = data?.student;
+    if (!data?.success || !rawStudent?.id || !rawStudent?.nim) return null;
+    return {
+      id: rawStudent.id,
+      nim: rawStudent.nim,
+      name: rawStudent.name || '',
+      className: rawStudent.className ?? rawStudent.class_name ?? '',
+      email: rawStudent.email || undefined,
+      hasCreatedPassword: true,
+      createdAt: rawStudent.createdAt || rawStudent.created_at || new Date().toISOString(),
+    };
+  }
+
   static async saveStudent(student: Student, instructorId?: string): Promise<void> {
     if (this.isLiveBackend() && (!supabase || !instructorId)) throw new Error('Sesi instruktur belum siap; mahasiswa belum tersimpan.');
     if (this.isLiveBackend() && supabase && instructorId) {

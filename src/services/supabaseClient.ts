@@ -42,7 +42,8 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured()
           // returns only that session's enrollment. Avoid adding a custom
           // header so fresh browser profiles need no separate CORS exception.
           if (requestUrl.pathname === '/rest/v1/rpc/student_list_course_enrollments'
-            || requestUrl.pathname === '/rest/v1/rpc/student_create_period_session') {
+            || requestUrl.pathname === '/rest/v1/rpc/student_create_period_session'
+            || requestUrl.pathname === '/rest/v1/rpc/student_restore_session_profile') {
             return fetch(input, init);
           }
 

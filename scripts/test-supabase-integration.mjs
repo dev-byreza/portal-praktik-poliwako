@@ -54,5 +54,13 @@ if (periodSessionError || invalidPeriodSession?.success !== false) {
   console.error(`FAIL: period-session RPC did not deny an invalid token (${periodSessionError?.code || 'unexpected response'}).`);
   process.exit(1);
 }
+const { data: invalidRestoreSession, error: restoreSessionError } = await client.rpc(
+  'student_restore_session_profile',
+  { p_session_token: 'invalid-regression-test-token' },
+);
+if (restoreSessionError || invalidRestoreSession?.success !== false) {
+  console.error(`FAIL: profile-restore RPC did not deny an invalid token (${restoreSessionError?.code || 'unexpected response'}).`);
+  process.exit(1);
+}
 
-console.log(`PASS: Supabase Data API smoke test (${schemaChecks.length} tables; invalid enrollment and period-switch tokens denied).`);
+console.log(`PASS: Supabase Data API smoke test (${schemaChecks.length} tables; invalid enrollment, period-switch, and restore tokens denied).`);

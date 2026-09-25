@@ -106,6 +106,15 @@ assert.ok(secureStudentRpcMigrationFile, 'Privileged enrollment logic must stay 
 const secureStudentRpcMigration = fs.readFileSync(path.join(root, 'supabase/migrations', secureStudentRpcMigrationFile), 'utf8');
 assert.match(secureStudentRpcMigration, /private\.student_list_course_enrollments[\s\S]*?SECURITY DEFINER[\s\S]*?CREATE OR REPLACE FUNCTION public\.student_list_course_enrollments[\s\S]*?LANGUAGE SQL/, 'Public enrollment endpoint must be an invoker wrapper around private token checks');
 assert.match(secureStudentRpcMigration, /private\.student_create_period_session[\s\S]*?SECURITY DEFINER[\s\S]*?CREATE OR REPLACE FUNCTION public\.student_create_period_session[\s\S]*?LANGUAGE SQL/, 'Public period-switch endpoint must be an invoker wrapper around private token checks');
+const restoreSessionMigrationFile = fs.readdirSync(path.join(root, 'supabase/migrations'))
+  .find(file => file.endsWith('_restore_student_session_profile.sql'));
+assert.ok(restoreSessionMigrationFile, 'Refresh recovery must have a database-backed student profile restore RPC');
+const restoreSessionMigration = fs.readFileSync(path.join(root, 'supabase/migrations', restoreSessionMigrationFile), 'utf8');
+assert.match(restoreSessionMigration, /session\.token_hash = encode\([\s\S]*?digest\(NULLIF\(BTRIM\(p_session_token\)/, 'Profile restore must verify the opaque server token');
+assert.match(restoreSessionMigration, /student\.id,[\s\S]*?student\.nim,[\s\S]*?student\.name,[\s\S]*?student\.class_name/, 'Profile restore must read identity only from the token-bound database student');
+const appContextSource = fs.readFileSync(path.join(root, 'src/context/AppContext.tsx'), 'utf8');
+assert.match(appContextSource, /ApiService\.studentRestoreSessionProfile\(studentSession\.sessionToken\)/, 'Refresh recovery must not use the redacted NIM lookup as the session profile source');
+assert.match(appContextSource, /studentSessionRestoreStatus/, 'The portal must distinguish profile restore from an unauthenticated login');
 assert.match(scopedPolicyMigration, /token_hash = encode\(digest\(v_token, 'sha256'\), 'hex'\)/, 'A student session token must be verified by its hash');
 assert.match(scopedPolicyMigration, /CREATE POLICY "Student view own submissions"[\s\S]*?USING \(student_id = private\.current_student_id\(period_id\)\)/);
 assert.match(scopedPolicyMigration, /CREATE POLICY "Student view own attendance"[\s\S]*?USING \(student_id = private\.current_student_id\(period_id\)\)/);

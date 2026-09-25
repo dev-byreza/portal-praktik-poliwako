@@ -105,6 +105,8 @@ interface AppContextType {
   // Student Session & Authentication
   studentSession: StudentSession | null;
   currentStudent: Student | null;
+  studentSessionRestoreStatus: 'IDLE' | 'RESTORING' | 'ERROR' | 'INVALID';
+  retryStudentSessionRestore: () => void;
   verifyStudentNim: (nim: string, courseSlug?: string, periodId?: string) => Promise<{
     exists: boolean;
     student?: Student;
@@ -203,6 +205,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     return session;
   });
+  const [studentSessionRestoreStatus, setStudentSessionRestoreStatus] = useState<'IDLE' | 'RESTORING' | 'ERROR' | 'INVALID'>(() => (
+    isLiveBackend && Boolean(StorageService.getStudentSession()?.sessionToken) ? 'RESTORING' : 'IDLE'
+  ));
+  const [studentSessionRestoreAttempt, setStudentSessionRestoreAttempt] = useState(0);
   const [isInstructorLoggedIn, setIsInstructorLoggedIn] = useState<boolean>(() => (
     isLiveBackend ? false : StorageService.isInstructorLoggedIn()
   ));
@@ -599,34 +605,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return student;
   }, [studentSession, students]);
 
-  // Recover sessions created before the student cache was overwritten by an
-  // anonymous RLS-filtered `getStudents()` request. The RPC is intentionally
-  // used instead of exposing the protected students table to anon users.
-  const studentSessionRestoreKey = `${studentSession?.studentId || ''}:${studentSession?.nim || ''}:${studentSession?.courseSlug || ''}:${studentSession?.periodId || ''}`;
-  const studentSessionRestoreRef = useRef<string | null>(null);
+  // Restore the profile from the primary database using the opaque student
+  // session. A refresh must not depend on a profile copy in localStorage.
   useEffect(() => {
-    if (!isLiveBackend || !studentSession || currentStudent || !studentSession.nim) return;
+    if (!isLiveBackend || !studentSession) {
+      setStudentSessionRestoreStatus('IDLE');
+      return;
+    }
     StorageService.setCacheScope(`student:${studentSession.studentId}:${studentSession.periodId}`);
-    if (studentSessionRestoreRef.current === studentSessionRestoreKey) return;
-    studentSessionRestoreRef.current = studentSessionRestoreKey;
+    if (currentStudent) {
+      setStudentSessionRestoreStatus('IDLE');
+      return;
+    }
+    if (!studentSession.sessionToken) {
+      setStudentSessionRestoreStatus('INVALID');
+      return;
+    }
 
-    void ApiService.studentAuthLookup(
-      studentSession.nim,
-      studentSession.courseSlug,
-      studentSession.periodId,
-    ).then(remote => {
-      const remoteStudent = remote.student;
+    let isMounted = true;
+    setStudentSessionRestoreStatus('RESTORING');
+    void ApiService.studentRestoreSessionProfile(studentSession.sessionToken).then(remoteStudent => {
       const isMatchingSession = Boolean(
         remoteStudent
         && remoteStudent.id === studentSession.studentId
-        && normalizeStudentNim(remoteStudent.nim) === normalizeStudentNim(studentSession.nim),
+        && (!studentSession.nim || normalizeStudentNim(remoteStudent.nim) === normalizeStudentNim(studentSession.nim)),
       );
+      if (!isMounted) return;
       if (!isMatchingSession || !remoteStudent) {
-        console.warn('Stored student session could not be restored from Supabase.');
+        setStudentSessionRestoreStatus('INVALID');
         return;
       }
 
-      const restoredStudent = { ...remoteStudent, hasCreatedPassword: remote.hasCreatedPassword };
+      const restoredStudent = { ...remoteStudent, hasCreatedPassword: true };
       setStudents(previous => [
         ...previous.filter(student => student.id !== restoredStudent.id),
         restoredStudent,
@@ -635,15 +645,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ...StorageService.getStudents().filter(student => student.id !== restoredStudent.id),
         restoredStudent,
       ]);
+      setStudentSessionRestoreStatus('IDLE');
     }).catch(error => {
-      console.warn('Student session restore notice:', error);
+      if (!isMounted) return;
+      console.warn('Student session restore notice:', {
+        message: error instanceof Error ? error.message : String(error?.message || error),
+        code: error?.code || null,
+        status: error?.status || null,
+        details: error?.details || null,
+        hint: error?.hint || null,
+      });
+      setStudentSessionRestoreStatus('ERROR');
     });
+
+    return () => { isMounted = false; };
   }, [
     isLiveBackend,
     currentStudent,
     studentSession,
-    studentSessionRestoreKey,
+    studentSessionRestoreAttempt,
   ]);
+
+  const retryStudentSessionRestore = () => {
+    setStudentSessionRestoreStatus('RESTORING');
+    setStudentSessionRestoreAttempt(attempt => attempt + 1);
+  };
 
   // Auth
   const loginInstructor = async (email: string, password?: string): Promise<{ success: boolean; message: string }> => {
@@ -1094,6 +1120,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     StorageService.setCacheScope(isInstructorLoggedIn ? `instructor:${instructor.id}` : 'public');
     setStudentSessionState(null);
     StorageService.setStudentSession(null);
+    setStudentSessionRestoreStatus('IDLE');
     showToast('Sesi Selesai', 'Anda telah keluar dari ruang praktik mahasiswa.', 'info');
   };
 
@@ -2265,6 +2292,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         announcements,
         studentSession,
         currentStudent,
+        studentSessionRestoreStatus,
+        retryStudentSessionRestore,
         verifyStudentNim,
         createStudentPassword,
         loginStudentWithPassword,

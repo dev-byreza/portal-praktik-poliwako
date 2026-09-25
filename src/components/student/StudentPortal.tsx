@@ -58,6 +58,8 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     submissions,
     studentSession,
     currentStudent,
+    studentSessionRestoreStatus,
+    retryStudentSessionRestore,
     isInitialDataLoaded,
     initialDataError,
     setStudentIdentity,
@@ -383,6 +385,31 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
   }, [unauthorizedCourse]);
   if (unauthorizedCourse) {
     return <StudentCourseCatalog onSelectCourse={handleSelectCourse} isSelectingCourse={isSelectingCourse} />;
+  }
+
+  if (studentSession && !currentStudent && studentSessionRestoreStatus === 'RESTORING') {
+    return (
+      <section aria-busy="true" aria-live="polite" className="grid min-h-[60vh] place-items-center bg-slate-100 p-4 sm:p-8" role="status">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <LoaderCircle className="mx-auto mb-3 h-9 w-9 animate-spin text-blue-700" />
+          <h1 className="text-lg font-bold text-slate-900">Memulihkan sesi mahasiswa…</h1>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">Kami sedang memverifikasi sesi dan memuat profil Anda dari server.</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (studentSession && !currentStudent && studentSessionRestoreStatus === 'ERROR') {
+    return (
+      <section className="grid min-h-[60vh] place-items-center bg-slate-100 p-4 sm:p-8">
+        <div role="alert" className="w-full max-w-md rounded-2xl border border-amber-200 bg-white p-8 text-center shadow-sm">
+          <h1 className="text-lg font-bold text-slate-900">Sesi belum dapat dipulihkan</h1>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">Koneksi ke server terganggu. Sesi Anda tetap tersimpan; coba verifikasi ulang.</p>
+          <button type="button" onClick={retryStudentSessionRestore} className="ui-button ui-button-primary mt-5">Coba lagi</button>
+          <button type="button" onClick={clearStudentIdentity} className="ui-button ui-button-secondary mt-3 w-full">Keluar dari sesi</button>
+        </div>
+      </section>
+    );
   }
 
   if (currentStudent && studentSession && !isInitialDataLoaded) {
