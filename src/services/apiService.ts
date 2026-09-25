@@ -384,6 +384,8 @@ export class ApiService {
     periodId?: string;
     courseSlug?: string;
     hasCreatedPassword: boolean;
+    studyProgramName?: string;
+    studyProgramCode?: string;
     student?: Student;
     requiresActivationCode: boolean;
     message?: string;
@@ -405,6 +407,8 @@ export class ApiService {
       periodId: result.periodId || undefined,
       courseSlug: result.courseSlug || undefined,
       hasCreatedPassword: Boolean(result.hasCreatedPassword),
+      studyProgramName: result.studyProgramName || undefined,
+      studyProgramCode: result.studyProgramCode || undefined,
       requiresActivationCode: true,
       student: rawStudent ? {
         id: rawStudent.id,
@@ -501,6 +505,22 @@ export class ApiService {
         createdAt: rawStudent.createdAt || new Date().toISOString(),
       } : undefined,
     };
+  }
+
+  static async studentCreatePeriodSession(sessionToken: string, courseSlug: string, periodId: string): Promise<string> {
+    if (!this.isLiveBackend() || !supabase || !sessionToken) {
+      throw new Error('Sesi mahasiswa belum terverifikasi ke Supabase. Silakan masuk kembali.');
+    }
+    const { data, error } = await supabase.rpc('student_create_period_session', {
+      p_session_token: sessionToken,
+      p_course_slug: courseSlug,
+      p_period_id: periodId,
+    });
+    if (error) throw error;
+    if (!data?.success || typeof data.sessionToken !== 'string' || !data.sessionToken) {
+      throw new Error(data?.message || 'Server menolak akses ke periode praktik ini.');
+    }
+    return data.sessionToken;
   }
 
   static async saveStudent(student: Student, instructorId?: string): Promise<void> {
@@ -723,8 +743,25 @@ export class ApiService {
       finalProjectReviewStatus: p.final_project_review_status || undefined,
       finalProjectFeedback: p.final_project_feedback || undefined,
     });
+    const studentSession = StorageService.getStudentSession();
+    const hasStudentServerSession = Boolean(studentSession?.sessionToken);
 
     try {
+      if (studentSession?.sessionToken) {
+        // Student enrollment is fetched through a database function that
+        // validates this bearer token and returns only this student's
+        // published enrollments, including periods available for switching.
+        // This keeps first-login/incognito catalog access server-authoritative
+        // without exposing participant rows through client-side fallbacks.
+        const { data, error } = await supabase.rpc('student_list_course_enrollments', {
+          p_session_token: studentSession.sessionToken,
+        });
+        if (error) throw error;
+        return (data || [])
+          .filter((participant: any) => !periodId || participant.period_id === periodId)
+          .map((participant: any) => mapParticipant(participant, false));
+      }
+
       let query = supabase.from('practice_participants').select('*, students(*)');
       if (periodId) query = query.eq('period_id', periodId);
       const { data, error } = await query;
@@ -752,11 +789,13 @@ export class ApiService {
       const { data: publicData, error: publicError } = await publicQuery;
       if (publicError || !publicData) {
         if (error) console.error('Error loading participants from Supabase:', error);
+        if (hasStudentServerSession && publicError) throw publicError;
         return [];
       }
       return publicData.map(p => mapParticipant(p, false));
     } catch (error) {
       console.error('Error loading participants from Supabase:', error);
+      if (hasStudentServerSession) throw error;
       if (await getCurrentAuthUser()) throw error;
       return [];
     }

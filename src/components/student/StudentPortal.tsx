@@ -25,7 +25,8 @@ import {
   List,
   LayoutGrid,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  LoaderCircle
 } from 'lucide-react';
 import { StudentIdentityModal } from './StudentIdentityModal';
 import { StudentAssignmentCard } from './StudentAssignmentCard';
@@ -41,6 +42,7 @@ import { sanitizeRichTextHtml } from '../../utils/richText';
 import { CountdownLockedPanel, CountdownModal, getCountdownEndAt, isCountdownLocked } from './StudentCountdownGate';
 import { getUnitAssignments } from '../../utils/learningAssignments';
 import { InteractiveQuiz } from './InteractiveQuiz';
+import { ApiService } from '../../services/apiService';
 
 interface StudentPortalProps {
   courseSlug?: string;
@@ -59,10 +61,12 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     isInitialDataLoaded,
     initialDataError,
     setStudentIdentity,
-    clearStudentIdentity
+    clearStudentIdentity,
+    showToast
   } = useApp();
 
   const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false);
+  const [isSelectingCourse, setIsSelectingCourse] = useState(false);
   const [selectedUnitId, setSelectedUnitId] = useState<string>('');
   const [activeTab, setActiveTabState] = useState<'DASHBOARD' | 'UNITS' | 'FINAL_PROJECT' | 'GRADE'>('DASHBOARD');
   const setActiveTab = (tab: 'DASHBOARD' | 'UNITS' | 'FINAL_PROJECT' | 'GRADE') => {
@@ -176,7 +180,8 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     return () => window.removeEventListener('popstate', syncStudentSlug);
   }, []);
 
-  const handleSelectCourse = (slug: string) => {
+  const handleSelectCourse = async (slug: string) => {
+    if (isSelectingCourse) return;
     const targetCourse = courses.find(c => c.slug === slug);
     if (!targetCourse || !enrolledCourseIds.has(targetCourse.id)) return;
     const enrolledPeriods = periods.filter(period => period.courseId === targetCourse.id && participants.some(participant =>
@@ -187,13 +192,30 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                          enrolledPeriods[0] ||
                          periods.find(period => period.courseId === targetCourse.id && period.status === 'ACTIVE') ||
                          periods.find(period => period.courseId === targetCourse.id);
-    setSelectedCourseSlug(slug);
-    setIsViewingCatalog(false);
-    window.history.pushState(null, '', `/mahasiswa/dashboard/${slug}`);
-    setActiveTabState('DASHBOARD');
-    sessionStorage.setItem('poliwako_in_workspace', 'true');
-    if (currentStudent && targetCourse && targetPeriod) {
-      setStudentIdentity(currentStudent.id, targetCourse.slug, targetPeriod.id);
+    if (!currentStudent || !targetPeriod) return;
+
+    setIsSelectingCourse(true);
+    try {
+      const sessionToken = ApiService.isLiveBackend()
+        ? targetPeriod.id === studentSession?.periodId && studentSession.sessionToken
+          ? studentSession.sessionToken
+          : await ApiService.studentCreatePeriodSession(
+            studentSession?.sessionToken || '',
+            targetCourse.slug,
+            targetPeriod.id,
+          )
+        : undefined;
+      setStudentIdentity(currentStudent.id, targetCourse.slug, targetPeriod.id, sessionToken);
+      setSelectedCourseSlug(slug);
+      setIsViewingCatalog(false);
+      window.history.pushState(null, '', `/mahasiswa/dashboard/${slug}`);
+      setActiveTabState('DASHBOARD');
+      sessionStorage.setItem('poliwako_in_workspace', 'true');
+    } catch (error) {
+      console.error('Unable to switch the student practice period:', error);
+      showToast('Mata Kuliah Belum Dapat Dibuka', 'Server belum dapat memverifikasi pendaftaran periode ini. Coba lagi.', 'error');
+    } finally {
+      setIsSelectingCourse(false);
     }
   };
 
@@ -360,7 +382,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     }
   }, [unauthorizedCourse]);
   if (unauthorizedCourse) {
-    return <StudentCourseCatalog onSelectCourse={handleSelectCourse} />;
+    return <StudentCourseCatalog onSelectCourse={handleSelectCourse} isSelectingCourse={isSelectingCourse} />;
   }
 
   if (currentStudent && studentSession && !isInitialDataLoaded) {

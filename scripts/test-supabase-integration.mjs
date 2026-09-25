@@ -34,4 +34,25 @@ for (const [table, columns] of schemaChecks) {
   }
 }
 
-console.log(`PASS: Supabase Data API schema smoke test (${schemaChecks.length} tables; zero data rows requested).`);
+const { data: invalidEnrollmentSession, error: enrollmentError } = await client.rpc(
+  'student_list_course_enrollments',
+  { p_session_token: 'invalid-regression-test-token' },
+);
+if (enrollmentError || !Array.isArray(invalidEnrollmentSession) || invalidEnrollmentSession.length !== 0) {
+  console.error(`FAIL: session-scoped enrollment RPC rejected an invalid token incorrectly (${enrollmentError?.code || 'unexpected rows'}).`);
+  process.exit(1);
+}
+const { data: invalidPeriodSession, error: periodSessionError } = await client.rpc(
+  'student_create_period_session',
+  {
+    p_session_token: 'invalid-regression-test-token',
+    p_course_slug: 'invalid-course',
+    p_period_id: '00000000-0000-0000-0000-000000000000',
+  },
+);
+if (periodSessionError || invalidPeriodSession?.success !== false) {
+  console.error(`FAIL: period-session RPC did not deny an invalid token (${periodSessionError?.code || 'unexpected response'}).`);
+  process.exit(1);
+}
+
+console.log(`PASS: Supabase Data API smoke test (${schemaChecks.length} tables; invalid enrollment and period-switch tokens denied).`);

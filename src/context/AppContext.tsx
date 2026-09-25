@@ -113,6 +113,8 @@ interface AppContextType {
     courseSlug?: string;
     hasCreatedPassword: boolean;
     requiresActivationCode: boolean;
+    studyProgramName?: string;
+    studyProgramCode?: string;
     message?: string;
   }>;
   createStudentPassword: (nim: string, password: string, activationCode: string, courseSlug: string, periodId: string) => Promise<{
@@ -124,7 +126,7 @@ interface AppContextType {
     message: string;
   }>;
   resetStudentPassword: (studentId: string) => Promise<string | null>;
-  setStudentIdentity: (studentId: string, courseSlug: string, periodId: string) => void;
+  setStudentIdentity: (studentId: string, courseSlug: string, periodId: string, sessionToken?: string) => void;
   clearStudentIdentity: () => void;
 
   // Student Actions
@@ -507,6 +509,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     isInstructorLoggedIn,
     studentSession?.studentId,
     studentSession?.periodId,
+    studentSession?.sessionToken,
     clearLiveInstructorSession,
     mergeLearningUnitsFromServer,
   ]);
@@ -1057,9 +1060,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Student Identity
-  const setStudentIdentity = (studentId: string, courseSlug: string, periodId: string) => {
+  const setStudentIdentity = (studentId: string, courseSlug: string, periodId: string, serverSessionToken?: string) => {
     const std = students.find(s => s.id === studentId);
-    const session = { studentId, nim: std?.nim, courseSlug, periodId };
+    const keepsVerifiedServerScope = studentSession?.studentId === studentId
+      && studentSession.courseSlug === courseSlug
+      && studentSession.periodId === periodId;
+    const session = {
+      studentId,
+      nim: std?.nim || (keepsVerifiedServerScope ? studentSession?.nim : undefined),
+      courseSlug,
+      periodId,
+      ...((serverSessionToken || (keepsVerifiedServerScope ? studentSession?.sessionToken : undefined))
+        ? { sessionToken: serverSessionToken || studentSession?.sessionToken }
+        : {}),
+    };
     StorageService.setCacheScope(`student:${session.studentId}:${session.periodId}`);
     setStudentSessionState(session);
     StorageService.setStudentSession(session);

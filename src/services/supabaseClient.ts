@@ -38,6 +38,14 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured()
             return fetch(input, init);
           }
 
+          // This RPC validates the bearer token from its JSON argument and
+          // returns only that session's enrollment. Avoid adding a custom
+          // header so fresh browser profiles need no separate CORS exception.
+          if (requestUrl.pathname === '/rest/v1/rpc/student_list_course_enrollments'
+            || requestUrl.pathname === '/rest/v1/rpc/student_create_period_session') {
+            return fetch(input, init);
+          }
+
           try {
             const session = JSON.parse(
               window.localStorage.getItem('poliwako_student_session') || 'null',

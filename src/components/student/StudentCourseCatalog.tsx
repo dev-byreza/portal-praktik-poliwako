@@ -19,9 +19,10 @@ import { FooterBranding } from '../common/FooterBranding';
 
 interface StudentCourseCatalogProps {
   onSelectCourse: (courseSlug: string) => void;
+  isSelectingCourse?: boolean;
 }
 
-export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSelectCourse }) => {
+export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSelectCourse, isSelectingCourse = false }) => {
   const {
     currentStudent,
     courses,
@@ -271,10 +272,13 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
                   {/* Action Button */}
                   <button
                     onClick={() => onSelectCourse(course.slug)}
-                    className="ui-button ui-button-primary w-full"
+                    disabled={isSelectingCourse}
+                    className="ui-button ui-button-primary w-full disabled:cursor-wait disabled:opacity-70"
                   >
-                    <span>Buka Workspace Praktik</span>
-                    <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                    <span>{isSelectingCourse ? 'Menghubungkan ke server…' : 'Buka Workspace Praktik'}</span>
+                    {isSelectingCourse
+                      ? <LoaderCircle className="h-4 w-4 animate-spin" />
+                      : <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />}
                   </button>
                 </div>
               </div>

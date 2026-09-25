@@ -45,6 +45,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   const [step, setStep] = useState<'NIM' | 'CREATE_PASSWORD' | 'LOGIN_PASSWORD'>('NIM');
   const [nimInput, setNimInput] = useState('');
   const [targetStudent, setTargetStudent] = useState<Student | null>(null);
+  const [targetStudyProgram, setTargetStudyProgram] = useState<{ name: string; code: string } | null>(null);
   const [targetPeriodId, setTargetPeriodId] = useState<string>('');
   const [targetCourseSlug, setTargetCourseSlug] = useState<string>('');
 
@@ -61,9 +62,11 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const verificationRequestRef = useRef(0);
   const dialogRef = useRef<HTMLDivElement>(null);
-  // The NIM lookup intentionally withholds class/name before password or
-  // activation-code proof. Never turn that missing class into a guessed PPM.
-  const targetStudentProdi = getKnownProdiFromClass(targetStudent?.className);
+  // The NIM lookup returns the database-derived program label without exposing
+  // the student's name or class before password/activation-code proof.
+  const targetStudentProdi = (targetStudyProgram
+    ? getKnownProdiFromClass(undefined, targetStudyProgram.name)
+    : null) || getKnownProdiFromClass(targetStudent?.className);
 
   const activeCourse = courseSlug ? courses.find(c => c.slug === courseSlug) : undefined;
   const activePeriod = activeCourse
@@ -125,6 +128,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
 
     const requestId = ++verificationRequestRef.current;
     setTargetStudent(null);
+    setTargetStudyProgram(null);
     setTargetPeriodId('');
     setTargetCourseSlug('');
     setIsSubmitting(true);
@@ -149,6 +153,9 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
         className: '',
         createdAt: new Date().toISOString(),
       });
+      setTargetStudyProgram(verification.studyProgramName && verification.studyProgramCode
+        ? { name: verification.studyProgramName, code: verification.studyProgramCode }
+        : null);
       setRequiresActivationCode(Boolean(verification.requiresActivationCode));
       setTargetPeriodId(verification.periodId || activePeriod?.id || '');
       setTargetCourseSlug(
@@ -253,6 +260,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
 
   const handleResetToNim = () => {
     setStep('NIM');
+    setTargetStudyProgram(null);
     setPasswordInput('');
     setConfirmPasswordInput('');
     setActivationCodeInput('');
@@ -362,9 +370,10 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
                   <p className="font-mono text-xs text-slate-600">
                     NIM: {targetStudent.nim}{targetStudent.className ? ` • Kelas ${targetStudent.className}` : ''}
                   </p>
-                  {targetStudentProdi
-                    ? <p className="mt-0.5 font-sans text-xs text-amber-900">Prodi: {targetStudentProdi.name}</p>
-                    : <p className="mt-0.5 font-sans text-xs text-amber-900">Prodi mengikuti kelas di database dan tampil setelah verifikasi.</p>}
+                  {targetStudentProdi && <span className={`mt-1.5 inline-flex items-center gap-1.5 rounded-md border px-2 py-1 font-sans text-[11px] font-semibold ${targetStudentProdi.badgeClass}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${targetStudentProdi.dotColor}`} />
+                    {targetStudyProgram?.code || targetStudentProdi.code} <span aria-hidden="true">•</span> {targetStudentProdi.name}
+                  </span>}
                 </div>
                 <button
                   type="button"
@@ -506,9 +515,10 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
                   <p className="font-mono text-xs text-slate-600">
                     NIM: {targetStudent.nim}{targetStudent.className ? ` • Kelas ${targetStudent.className}` : ''}
                   </p>
-                  {targetStudentProdi
-                    ? <p className="mt-0.5 font-sans text-xs text-blue-900">Prodi: {targetStudentProdi.name}</p>
-                    : <p className="mt-0.5 font-sans text-xs text-blue-900">Prodi mengikuti kelas di database dan tampil setelah verifikasi.</p>}
+                  {targetStudentProdi && <span className={`mt-1.5 inline-flex items-center gap-1.5 rounded-md border px-2 py-1 font-sans text-[11px] font-semibold ${targetStudentProdi.badgeClass}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${targetStudentProdi.dotColor}`} />
+                    {targetStudyProgram?.code || targetStudentProdi.code} <span aria-hidden="true">•</span> {targetStudentProdi.name}
+                  </span>}
                 </div>
                 <button
                   type="button"
