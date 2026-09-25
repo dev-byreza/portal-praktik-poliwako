@@ -23,6 +23,28 @@ assert.equal(submissionDeadline('2026-09-25T23:59'), witaDeadline);
 assert.equal(isSubmissionClosed('2026-09-25 23:59 WITA', witaDeadline - 1), false);
 assert.equal(isSubmissionClosed('2026-09-25 23:59 WITA', witaDeadline + 1), true);
 
+const { getKnownProdiFromClass } = loadTypeScript('src/utils/academicUtils.ts');
+assert.equal(getKnownProdiFromClass('1C').code, 'RPM', 'A database class 1C must map to the RPM study program');
+assert.equal(getKnownProdiFromClass('2D').code, 'TRPF', 'A database class 2D must map to the TRPF study program');
+assert.equal(getKnownProdiFromClass('2A').code, 'PPM', 'A database class 2A must map to the PPM study program');
+assert.equal(getKnownProdiFromClass(''), null, 'A missing class must not be guessed as PPM');
+assert.equal(getKnownProdiFromClass('unknown'), null, 'An unknown class must not be guessed as PPM');
+const studentLoginSource = fs.readFileSync(path.join(root, 'src/components/student/StudentIdentityModal.tsx'), 'utf8');
+assert.match(studentLoginSource, /getKnownProdiFromClass\(targetStudent\?\.className\)/, 'Login must derive prodi only from an available verified class');
+
+const { parseGradingScore } = loadTypeScript('src/utils/gradingScoreInput.ts');
+assert.equal(parseGradingScore('82.75'), 82.75, 'Grading inputs must preserve decimal scores');
+assert.equal(parseGradingScore('1.005'), 1.01, 'Scores must round to hundredth-point precision');
+assert.equal(parseGradingScore('100.5'), 100, 'Scores must stay within the 0–100 range');
+assert.equal(parseGradingScore('-0.5'), 0, 'Negative scores must be clamped to zero');
+assert.equal(parseGradingScore('0'), 0, 'A score of zero must remain valid');
+const gradingWorkspaceSource = fs.readFileSync(path.join(root, 'src/components/instructor/GradingWorkspace.tsx'), 'utf8');
+assert.equal((gradingWorkspaceSource.match(/step=\{0\.01\}/g) || []).length, 4, 'All four numeric grading fields must accept hundredths');
+assert.equal((gradingWorkspaceSource.match(/inputMode="decimal"/g) || []).length, 4, 'All numeric grading fields must offer a decimal keypad on mobile');
+assert.equal((gradingWorkspaceSource.match(/parseGradingScore\(e\.target\.value\)/g) || []).length, 4, 'All numeric grading fields must use the decimal-safe parser');
+const assessmentSchema = fs.readFileSync(path.join(root, 'supabase/migrations/0000_initial_schema.sql'), 'utf8');
+assert.match(assessmentSchema, /entry_behavior_score NUMERIC\(5,2\)/, 'Supabase assessment fields must persist decimal grades');
+
 const { preparePeriodGradePublication, preparePeriodGradeUnpublication } = loadTypeScript('src/utils/gradePublication.ts');
 const grades = [
   { id: 'zero-grade', periodId: 'p1', studentId: 's1', finalScore: 0, isPublished: false },
@@ -58,4 +80,4 @@ assert.match(activationMigration, /SET password_hash = NULL[\s\S]*?UPDATE privat
 assert.match(activationMigration, /failed_attempts < 5/);
 assert.match(activationMigration, /r\.status = 'BELUM_LULUS'[\s\S]*?r\.deadline > NOW\(\)/, 'Remedial re-uploads must require a rejected attempt and an open deadline');
 
-console.log('PASS: WITA deadlines, zero-score publish/withdraw, period isolation, student-session RLS definitions, reset revocation, and remedial update guards.');
+console.log('PASS: decimal grading, WITA deadlines, zero-score publish/withdraw, period isolation, student-session RLS definitions, reset revocation, and remedial update guards.');

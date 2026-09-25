@@ -35,19 +35,9 @@ export const InstructorLoginGate: React.FC = () => {
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
   const [showSignupPassword, setShowSignupPassword] = useState(false);
 
-  // Status & Interactive Pointer State
+  // Authentication status
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
-  const [rawMouse, setRawMouse] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    setMousePos({ x, y });
-    setRawMouse({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-  };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,131 +101,32 @@ export const InstructorLoginGate: React.FC = () => {
     }
   };
 
-  const spotlightX = rawMouse.x !== null ? `${rawMouse.x}px` : '50%';
-  const spotlightY = rawMouse.y !== null ? `${rawMouse.y}px` : '50%';
-
   return (
     <div
-      onPointerMove={handlePointerMove}
-      onMouseMove={handlePointerMove}
-      className="relative flex-1 min-h-0 w-full h-full flex flex-col justify-center items-center p-4 overflow-y-auto overflow-x-hidden bg-slate-950 select-none py-8 sm:py-12"
+      className="instructor-login-shell relative flex min-h-0 h-full w-full flex-1 flex-col items-center justify-center overflow-y-auto overflow-x-hidden px-4 py-6 text-slate-800 sm:px-8 sm:py-10"
     >
-      {/* Animated & Pointer-Reactive Background Mesh & Glow Orbs (Identik dengan Student Portal) */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Ambient Base Cyber Grid */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] opacity-20" />
-
-        {/* Dynamic Pointer-Illuminated Spotlight Grid */}
-        <div
-          className="absolute inset-0 bg-[linear-gradient(to_right,#38bdf8_1px,transparent_1px),linear-gradient(to_bottom,#38bdf8_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] opacity-35 transition-opacity duration-300"
-          style={{
-            maskImage: `radial-gradient(circle 500px at ${spotlightX} ${spotlightY}, #000 20%, transparent 80%)`,
-            WebkitMaskImage: `radial-gradient(circle 500px at ${spotlightX} ${spotlightY}, #000 20%, transparent 80%)`
-          }}
-        />
-
-        {/* Pointer Cursor Following Spotlight Aura */}
-        {rawMouse.x !== null && rawMouse.y !== null && (
-          <div
-            className="absolute w-[38rem] h-[38rem] rounded-full bg-cyan-500/18 blur-[110px] pointer-events-none transition-transform duration-100 ease-out will-change-transform"
-            style={{
-              left: `${rawMouse.x}px`,
-              top: `${rawMouse.y}px`,
-              transform: 'translate(-50%, -50%)',
-            }}
-          />
-        )}
-
-        {/* Parallax Floating Orb 1: Cyan / Blue Glow (Top Left) */}
-        <div
-          className="absolute -top-20 -left-20 w-[30rem] h-[30rem] rounded-full bg-gradient-to-br from-blue-600/40 via-cyan-500/30 to-transparent blur-[95px] pointer-events-none transition-transform duration-300 ease-out will-change-transform"
-          style={{
-            transform: `translate(${(mousePos.x - 0.5) * -70}px, ${(mousePos.y - 0.5) * -70}px)`,
-          }}
-        />
-
-        {/* Parallax Floating Orb 2: Indigo / Purple Glow (Bottom Right) */}
-        <div
-          className="absolute -bottom-24 -right-24 w-[34rem] h-[34rem] rounded-full bg-gradient-to-tl from-indigo-600/35 via-purple-600/25 to-transparent blur-[110px] pointer-events-none transition-transform duration-300 ease-out will-change-transform"
-          style={{
-            transform: `translate(${(mousePos.x - 0.5) * 80}px, ${(mousePos.y - 0.5) * 80}px)`,
-          }}
-        />
-
-        {/* Pulsing Central Deep Blue Glow with subtle Parallax */}
-        <div
-          className="absolute top-1/2 left-1/2 w-[36rem] h-[36rem] rounded-full bg-blue-500/15 blur-[130px] pointer-events-none transition-transform duration-500 ease-out will-change-transform"
-          style={{
-            transform: `translate(calc(-50% + ${(mousePos.x - 0.5) * 35}px), calc(-50% + ${(mousePos.y - 0.5) * 35}px))`,
-          }}
-        />
-
-        {/* Floating Micro-sparkle Accents moving with pointer */}
-        <div
-          className="absolute w-2 h-2 rounded-full bg-cyan-400/80 blur-[0.5px] animate-ping pointer-events-none transition-transform duration-300 ease-out"
-          style={{
-            top: '25%',
-            left: '22%',
-            animationDuration: '3s',
-            transform: `translate(${(mousePos.x - 0.5) * -35}px, ${(mousePos.y - 0.5) * -35}px)`
-          }}
-        />
-        <div
-          className="absolute w-2.5 h-2.5 rounded-full bg-blue-400/70 blur-[0.5px] animate-pulse pointer-events-none transition-transform duration-300 ease-out"
-          style={{
-            bottom: '28%',
-            right: '25%',
-            animationDuration: '4s',
-            transform: `translate(${(mousePos.x - 0.5) * 45}px, ${(mousePos.y - 0.5) * 45}px)`
-          }}
-        />
-        <div
-          className="absolute w-2 h-2 rounded-full bg-indigo-400/70 blur-[0.5px] animate-ping pointer-events-none transition-transform duration-300 ease-out"
-          style={{
-            top: '68%',
-            left: '28%',
-            animationDuration: '5s',
-            transform: `translate(${(mousePos.x - 0.5) * -25}px, ${(mousePos.y - 0.5) * -25}px)`
-          }}
-        />
-      </div>
-
       {/* Login Gate Frame with subtle 3D tilt reaction */}
       <div
-        className="relative z-10 w-full flex items-center justify-center transition-transform duration-200 ease-out will-change-transform my-auto"
-        style={{
-          transform: `perspective(1000px) rotateY(${(mousePos.x - 0.5) * 4}deg) rotateX(${(mousePos.y - 0.5) * -4}deg)`,
-        }}
+        className="relative z-10 my-auto flex w-full items-center justify-center"
       >
-        {/* Glassmorphism Dark Card */}
-        <div className="relative backdrop-blur-3xl bg-slate-900/65 rounded-[2.25rem] shadow-[0_25px_70px_-15px_rgba(0,0,0,0.85),0_0_50px_rgba(56,189,248,0.2)] border border-white/15 ring-1 ring-cyan-500/30 w-full max-w-md overflow-hidden flex flex-col transition-all duration-300">
-          
-          {/* Top Glass Specular Reflection Highlight */}
-          <div className="absolute top-0 left-0 right-0 h-36 bg-gradient-to-b from-white/15 via-cyan-500/5 to-transparent pointer-events-none rounded-t-[2.25rem]" />
-
-          {/* Subtle Inner Accent Glows */}
-          <div className="absolute -top-24 -right-24 w-52 h-52 rounded-full bg-cyan-500/15 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-24 -left-24 w-52 h-52 rounded-full bg-blue-600/15 blur-3xl pointer-events-none" />
+        <div className="instructor-login-card relative w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10">
 
           {/* Body Area */}
-          <div className="p-7 sm:p-9 flex-1 flex flex-col relative z-10">
+          <div className="relative z-10 flex flex-1 flex-col p-5 sm:p-7">
             
             {/* Header / Brand Icon */}
             <div className="text-center mb-5">
-              <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md p-2 flex items-center justify-center mx-auto mb-3.5 shadow-xl shadow-cyan-500/15 ring-2 ring-white/20">
-                <img src="/logo-poliwako.webp" alt="Logo Politeknik Sorowako" className="w-full h-full object-contain" />
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-xl border border-slate-200 bg-white p-2">
+                <img src="/logo-poliwako.webp" alt="Logo Politeknik Sorowako" className="h-full w-full object-contain" />
               </div>
-              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
                 Portal Praktik Instruktur
               </h2>
-              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-[11px] font-bold text-cyan-300 mx-auto mt-1.5 shadow-xs">
-                <Sparkles className="w-3 h-3 text-cyan-400" />
-                <span>Politeknik Sorowako • Dosen & Instruktur</span>
-              </div>
+              <p className="mt-1 text-sm text-slate-500">Politeknik Sorowako</p>
             </div>
 
             {/* Dual Tabs: Masuk / Daftar Akun */}
-            <div className="mb-5 flex bg-slate-950/70 backdrop-blur-md p-1 rounded-xl border border-slate-700/60 max-w-xs mx-auto w-full">
+            <div className="instructor-login-tabs mb-5 flex max-w-xs w-full mx-auto rounded-lg border p-1">
               <button
                 type="button"
                 onClick={() => {
@@ -244,8 +135,8 @@ export const InstructorLoginGate: React.FC = () => {
                 }}
                 className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   activeTab === 'LOGIN'
-                    ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    ? 'instructor-login-tab-active bg-blue-700 text-white'
+                    : 'instructor-login-tab-inactive text-slate-600 hover:bg-white'
                 }`}
               >
                 <LogIn className="w-3.5 h-3.5" />
@@ -259,8 +150,8 @@ export const InstructorLoginGate: React.FC = () => {
                 }}
                 className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   activeTab === 'SIGNUP'
-                    ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    ? 'instructor-login-tab-active bg-blue-700 text-white'
+                    : 'instructor-login-tab-inactive text-slate-600 hover:bg-white'
                 }`}
               >
                 <UserPlus className="w-3.5 h-3.5" />
@@ -270,7 +161,7 @@ export const InstructorLoginGate: React.FC = () => {
 
             {/* Error Alert Box */}
             {errorMsg && (
-              <div className="mb-4 p-3.5 bg-rose-950/70 backdrop-blur-md border border-rose-500/50 rounded-2xl flex items-start gap-3 text-rose-200 text-xs animate-shake shadow-xs">
+              <div role="alert" className="mb-4 flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-sm text-rose-900 animate-shake">
                 <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                 <div className="flex-1 font-medium">{errorMsg}</div>
               </div>
@@ -338,7 +229,7 @@ export const InstructorLoginGate: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-3.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:via-indigo-500 hover:to-cyan-500 text-white font-bold text-sm rounded-2xl transition-all shadow-lg shadow-blue-600/30 hover:shadow-cyan-500/30 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 group cursor-pointer disabled:opacity-70 mt-2"
+                  className="ui-button ui-button-primary mt-2 w-full text-sm disabled:cursor-wait disabled:opacity-70"
                 >
                   {isLoading ? (
                     <>
@@ -347,7 +238,7 @@ export const InstructorLoginGate: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      <span>Masuk ke Command Center</span>
+                      <span>Masuk ke dashboard instruktur</span>
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </>
                   )}
@@ -470,7 +361,7 @@ export const InstructorLoginGate: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:via-indigo-500 hover:to-cyan-500 text-white font-bold text-xs rounded-2xl transition-all shadow-lg shadow-blue-600/30 hover:shadow-cyan-500/30 flex items-center justify-center gap-2 mt-2 disabled:opacity-70 cursor-pointer"
+                  className="ui-button ui-button-primary mt-2 w-full disabled:cursor-wait disabled:opacity-70"
                 >
                   {isLoading ? (
                     <>

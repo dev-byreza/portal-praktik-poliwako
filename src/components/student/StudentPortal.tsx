@@ -338,18 +338,6 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     }
   };
 
-  // Interactive pointer tracking for background lighting & parallax animation
-  const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
-  const [rawMouse, setRawMouse] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    setMousePos({ x, y });
-    setRawMouse({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-  };
-
   React.useEffect(() => {
     if (currentStudent && window.location.pathname.replace(/^\/+|\/+$/g, '') === 'mahasiswa') {
       window.history.pushState(null, '', '/mahasiswa/unit');
@@ -389,114 +377,60 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     );
   }
 
-  // Gate check: If student is not authenticated, render login gate directly with interactive pointer-following animations & glassmorphism
+  // Gate check: Keep the student login focused and calm, with no decorative motion.
   if (!currentStudent || !studentSession) {
-    const spotlightX = rawMouse.x !== null ? `${rawMouse.x}px` : '50%';
-    const spotlightY = rawMouse.y !== null ? `${rawMouse.y}px` : '50%';
-
     return (
-      <div 
-        onPointerMove={handlePointerMove}
-        onMouseMove={handlePointerMove}
-        className="relative flex-1 min-h-0 w-full h-full flex flex-col overflow-hidden bg-slate-950 select-none"
-      >
-        
-        {/* Animated & Pointer-Reactive Background Mesh & Glow Orbs */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {/* Ambient Base Cyber Grid */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] opacity-20" />
+      <div className="student-login-shell relative flex min-h-0 flex-1 flex-col overflow-y-auto text-slate-800">
+        <main className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 items-center gap-6 px-4 py-6 sm:px-8 sm:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] lg:gap-16 lg:py-12">
+          <section className="mx-auto w-full max-w-xl lg:mx-0">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+                <img src="/logo-poliwako.webp" alt="" className="h-full w-full object-contain" />
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-800">Politeknik Sorowako</p>
+                <p className="mt-0.5 text-sm text-slate-500">Portal praktik mahasiswa</p>
+              </div>
+            </div>
 
-          {/* Dynamic Pointer-Illuminated Spotlight Grid */}
-          <div 
-            className="absolute inset-0 bg-[linear-gradient(to_right,#38bdf8_1px,transparent_1px),linear-gradient(to_bottom,#38bdf8_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] opacity-35 transition-opacity duration-300"
-            style={{
-              maskImage: `radial-gradient(circle 500px at ${spotlightX} ${spotlightY}, #000 20%, transparent 80%)`,
-              WebkitMaskImage: `radial-gradient(circle 500px at ${spotlightX} ${spotlightY}, #000 20%, transparent 80%)`
-            }}
-          />
+            <div className="mt-6 max-w-lg sm:mt-8 lg:mt-12">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-800">Pembelajaran vokasi</p>
+              <h1 className="mt-2 text-2xl font-bold leading-tight tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
+                Materi, tugas, dan progres praktik.
+              </h1>
+              <p className="mt-3 max-w-md text-sm leading-6 text-slate-600 sm:text-base">
+                Masuk dengan NIM untuk membuka materi, mengumpulkan tugas, dan melihat umpan balik instruktur.
+              </p>
+            </div>
 
-          {/* Pointer Cursor Following Spotlight Aura */}
-          {rawMouse.x !== null && rawMouse.y !== null && (
-            <div 
-              className="absolute w-[38rem] h-[38rem] rounded-full bg-cyan-500/18 blur-[110px] pointer-events-none transition-transform duration-100 ease-out will-change-transform"
-              style={{
-                left: `${rawMouse.x}px`,
-                top: `${rawMouse.y}px`,
-                transform: 'translate(-50%, -50%)',
-              }}
+            <ol className="mt-7 hidden max-w-md divide-y divide-slate-200 border-y border-slate-200 sm:block lg:mt-9">
+              {[
+                ['01', 'Buka materi praktik', 'Ikuti unit dan instruksi dari mata kuliah Anda.'],
+                ['02', 'Kirim hasil pekerjaan', 'Unggah tugas dan pantau status pemeriksaannya.'],
+                ['03', 'Tinjau umpan balik', 'Lihat nilai dan perbaiki pekerjaan bila diminta.'],
+              ].map(([number, title, description]) => (
+                <li key={number} className="flex gap-4 py-3.5">
+                  <span className="pt-0.5 font-mono text-xs font-semibold text-blue-700">{number}</span>
+                  <span>
+                    <span className="block text-sm font-semibold text-slate-800">{title}</span>
+                    <span className="mt-0.5 block text-xs leading-5 text-slate-500">{description}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          <div className="w-full">
+            <StudentIdentityModal
+              // Initial login is course-agnostic; the student selects an
+              // enrolled course after NIM verification succeeds.
+              courseSlug={undefined}
+              isEmbedded={true}
             />
-          )}
-
-          {/* Parallax Floating Orb 1: Cyan / Blue Glow (Top Left) */}
-          <div 
-            className="absolute -top-20 -left-20 w-[30rem] h-[30rem] rounded-full bg-gradient-to-br from-blue-600/40 via-cyan-500/30 to-transparent blur-[95px] pointer-events-none transition-transform duration-300 ease-out will-change-transform"
-            style={{
-              transform: `translate(${(mousePos.x - 0.5) * -70}px, ${(mousePos.y - 0.5) * -70}px)`,
-            }}
-          />
-
-          {/* Parallax Floating Orb 2: Indigo / Purple Glow (Bottom Right) */}
-          <div 
-            className="absolute -bottom-24 -right-24 w-[34rem] h-[34rem] rounded-full bg-gradient-to-tl from-indigo-600/35 via-purple-600/25 to-transparent blur-[110px] pointer-events-none transition-transform duration-300 ease-out will-change-transform"
-            style={{
-              transform: `translate(${(mousePos.x - 0.5) * 80}px, ${(mousePos.y - 0.5) * 80}px)`,
-            }}
-          />
-
-          {/* Pulsing Central Deep Blue Glow with subtle Parallax */}
-          <div 
-            className="absolute top-1/2 left-1/2 w-[36rem] h-[36rem] rounded-full bg-blue-500/15 blur-[130px] pointer-events-none transition-transform duration-500 ease-out will-change-transform"
-            style={{
-              transform: `translate(calc(-50% + ${(mousePos.x - 0.5) * 35}px), calc(-50% + ${(mousePos.y - 0.5) * 35}px))`,
-            }}
-          />
-
-          {/* Floating Micro-sparkle Accents moving with pointer */}
-          <div 
-            className="absolute w-2 h-2 rounded-full bg-cyan-400/80 blur-[0.5px] animate-ping pointer-events-none transition-transform duration-300 ease-out" 
-            style={{ 
-              top: '25%', 
-              left: '22%', 
-              animationDuration: '3s',
-              transform: `translate(${(mousePos.x - 0.5) * -35}px, ${(mousePos.y - 0.5) * -35}px)` 
-            }} 
-          />
-          <div 
-            className="absolute w-2.5 h-2.5 rounded-full bg-blue-400/70 blur-[0.5px] animate-pulse pointer-events-none transition-transform duration-300 ease-out" 
-            style={{ 
-              bottom: '28%', 
-              right: '25%', 
-              animationDuration: '4s',
-              transform: `translate(${(mousePos.x - 0.5) * 45}px, ${(mousePos.y - 0.5) * 45}px)` 
-            }} 
-          />
-          <div 
-            className="absolute w-2 h-2 rounded-full bg-indigo-400/70 blur-[0.5px] animate-ping pointer-events-none transition-transform duration-300 ease-out" 
-            style={{ 
-              top: '68%', 
-              left: '28%', 
-              animationDuration: '5s',
-              transform: `translate(${(mousePos.x - 0.5) * -25}px, ${(mousePos.y - 0.5) * -25}px)` 
-            }} 
-          />
-        </div>
-
-        {/* Login Gate Frame with subtle 3D tilt reaction */}
-        <div 
-          className="relative z-10 flex min-h-0 w-full flex-1 items-center justify-center overflow-y-auto overflow-x-hidden px-4 py-6 transition-transform duration-200 ease-out will-change-transform"
-          style={{
-            transform: `perspective(1000px) rotateY(${(mousePos.x - 0.5) * 5}deg) rotateX(${(mousePos.y - 0.5) * -5}deg)`,
-          }}
-        >
-          <StudentIdentityModal
-            // Initial login is course-agnostic; the student selects an
-            // enrolled course after NIM verification succeeds.
-            courseSlug={undefined}
-            isEmbedded={true}
-          />
-        </div>
-        <footer className="relative z-30 w-full shrink-0 border-t border-white/10 bg-transparent px-4 py-3 text-center">
-          <FooterBranding theme="dark" />
+          </div>
+        </main>
+        <footer className="w-full shrink-0 border-t border-slate-200/80 bg-white/70 px-4 py-2.5 text-center">
+          <FooterBranding theme="light" compact />
         </footer>
       </div>
     );
@@ -521,32 +455,32 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
       )}
       
       {/* Top Compact Banner & Header */}
-      <div className="sticky top-0 z-30 bg-slate-900 text-white border-b border-slate-800 shadow-sm shrink-0">
+      <div className="sticky top-0 z-30 border-b border-slate-200 bg-white text-slate-800 shadow-sm shrink-0">
         <div className="w-full px-4 sm:px-6 lg:px-8 py-2.5">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2.5">
             
             <div className="flex items-center gap-3 min-w-0">
               {/* Logo Institusi Poliwako */}
-              <div className="w-10 h-10 rounded-xl bg-white/10 p-1.5 flex items-center justify-center shadow-md shadow-cyan-500/10 ring-1 ring-white/20 shrink-0">
+              <div className="w-10 h-10 rounded-xl border border-slate-200 bg-white p-1.5 flex items-center justify-center shrink-0">
                 <img src="/logo-poliwako.webp" alt="Logo Poliwako" className="w-full h-full object-contain" />
               </div>
 
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded">
+                  <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-blue-50 text-blue-800 border border-blue-100 rounded">
                     Learning Workspace
                   </span>
-                  <span className="text-[11px] text-slate-400 truncate">
+                  <span className="text-[11px] text-slate-500 truncate">
                     {currentCourse?.code} • {currentCourse?.semester} {currentCourse?.academicYear}
                   </span>
                 </div>
                 <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 mt-0.5">
-                  <h1 className="text-base sm:text-lg font-bold tracking-tight text-white truncate">
+                  <h1 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 truncate">
                     {currentCourse?.name}
                   </h1>
                   {activePeriod && (
-                    <span className="text-[11px] text-slate-400">
-                      Praktik: <strong className="text-cyan-300 font-medium">{activePeriod.name.replace(/\s*\([^)]*\)/, '')}</strong> ({formatPeriodRange(activePeriod.startDate, activePeriod.endDate)})
+                    <span className="text-[11px] text-slate-500">
+                      Praktik: <strong className="text-blue-800 font-semibold">{activePeriod.name.replace(/\s*\([^)]*\)/, '')}</strong> ({formatPeriodRange(activePeriod.startDate, activePeriod.endDate)})
                     </span>
                   )}
                 </div>
@@ -559,26 +493,26 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
               {/* Ganti Praktik (Back to Catalog) Button */}
               <button
                 onClick={handleOpenCatalog}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-cyan-300 hover:text-cyan-200 border border-slate-700 hover:border-cyan-500/50 text-xs font-semibold transition-all shadow-xs cursor-pointer group"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-blue-50 text-blue-800 border border-slate-200 hover:border-blue-300 text-xs font-semibold transition-colors cursor-pointer group"
                 title="Lihat katalog mata kuliah praktik lainnya"
               >
-                <LayoutGrid className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
+                <LayoutGrid className="w-3.5 h-3.5 text-blue-700" />
                 <span>Ganti Praktik</span>
               </button>
 
-              <div className="bg-slate-800/80 border border-slate-700/80 px-2.5 py-1.5 rounded-xl flex items-center gap-2.5 shadow-xs min-w-0 flex-1 md:flex-none md:max-w-none">
-                <div className="w-7 h-7 rounded-lg bg-teal-500/20 text-teal-300 border border-teal-500/30 flex items-center justify-center font-bold text-xs shrink-0">
+              <div className="bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-lg flex items-center gap-2.5 min-w-0 flex-1 md:flex-none md:max-w-none">
+                <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xs shrink-0">
                   {currentStudent.name.charAt(0)}
                 </div>
                 <div className="min-w-0">
-                  <h4 className="text-xs font-bold text-white leading-tight truncate">{currentStudent.name}</h4>
-                <p className="text-[10px] text-slate-400 font-mono leading-tight truncate whitespace-nowrap" title={`NIM: ${currentStudent.nim} • Kelas ${currentStudent.className}`}>
+                  <h4 className="text-xs font-bold text-slate-900 leading-tight truncate">{currentStudent.name}</h4>
+                <p className="text-[10px] text-slate-500 font-mono leading-tight truncate whitespace-nowrap" title={`NIM: ${currentStudent.nim} • Kelas ${currentStudent.className}`}>
                     NIM: {currentStudent.nim} • Kelas {currentStudent.className}
                   </p>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="ml-1.5 px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 hover:text-rose-200 border border-rose-500/30 text-[11px] font-semibold rounded-lg transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
+                  className="ml-1.5 px-2.5 py-1 bg-white hover:bg-rose-50 text-rose-700 border border-slate-200 hover:border-rose-200 text-[11px] font-semibold rounded-lg transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
                   title="Keluar dari sesi mahasiswa"
                 >
                   <LogOut className="w-3 h-3" />
@@ -591,15 +525,15 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
           {/* Progress Bar Header (Compact) */}
           {currentStudent && (
-            <div className="mt-2 pt-1.5 border-t border-slate-800/70 flex flex-col items-stretch gap-2 text-[11px] sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+            <div className="mt-2 pt-1.5 border-t border-slate-200 flex flex-col items-stretch gap-2 text-[11px] sm:flex-row sm:items-center sm:justify-between sm:gap-3">
               <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-                <span className="text-slate-400">Progres Upload Tugas:</span>
-                <span className="font-bold text-cyan-300">{progressStats.completed} dari {progressStats.total} Tugas Tersimpan ({progressStats.percentage}%)</span>
+                <span className="text-slate-500">Progres upload tugas:</span>
+                <span className="font-bold text-blue-800">{progressStats.completed} dari {progressStats.total} tugas tersimpan ({progressStats.percentage}%)</span>
               </div>
 
-              <div className="w-full sm:w-48 lg:w-64 bg-slate-800 rounded-full h-1.5 overflow-hidden border border-slate-700/80 shrink-0">
+              <div className="w-full sm:w-48 lg:w-64 bg-slate-100 rounded-full h-1.5 overflow-hidden border border-slate-200 shrink-0">
                 <div
-                  className="bg-gradient-to-r from-blue-500 to-teal-400 h-full transition-all duration-500 ease-out"
+                  className="bg-blue-700 h-full transition-all duration-500 ease-out"
                   style={{ width: `${progressStats.percentage}%` }}
                 ></div>
               </div>

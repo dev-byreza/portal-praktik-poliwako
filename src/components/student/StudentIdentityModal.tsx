@@ -19,7 +19,7 @@ import {
   X
 } from 'lucide-react';
 import { ModalPortal } from '../common/ModalPortal';
-import { getProdiFromClass } from '../../utils/academicUtils';
+import { getKnownProdiFromClass } from '../../utils/academicUtils';
 
 interface StudentIdentityModalProps {
   isOpen?: boolean;
@@ -61,6 +61,9 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const verificationRequestRef = useRef(0);
   const dialogRef = useRef<HTMLDivElement>(null);
+  // The NIM lookup intentionally withholds class/name before password or
+  // activation-code proof. Never turn that missing class into a guessed PPM.
+  const targetStudentProdi = getKnownProdiFromClass(targetStudent?.className);
 
   const activeCourse = courseSlug ? courses.find(c => c.slug === courseSlug) : undefined;
   const activePeriod = activeCourse
@@ -257,45 +260,38 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   };
 
   const content = (
-    <div className="relative backdrop-blur-3xl bg-slate-900/65 rounded-[2.25rem] shadow-[0_25px_70px_-15px_rgba(0,0,0,0.85),0_0_50px_rgba(56,189,248,0.2)] border border-white/15 ring-1 ring-cyan-500/30 w-full max-w-md overflow-hidden flex flex-col transition-all duration-300">
-      {/* Top Glass Specular Reflection Highlight */}
-      <div className="absolute top-0 left-0 right-0 h-36 bg-gradient-to-b from-white/15 via-cyan-500/5 to-transparent pointer-events-none rounded-t-[2.25rem]" />
-      
-      {/* Subtle Inner Accent Glows */}
-      <div className="absolute -top-24 -right-24 w-52 h-52 rounded-full bg-cyan-500/15 blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-24 -left-24 w-52 h-52 rounded-full bg-blue-600/15 blur-3xl pointer-events-none" />
-
-      {/* Body Area */}
-      <div className="p-7 sm:p-9 flex-1 flex flex-col relative z-10">
+    <section className="student-identity-card relative mx-auto flex w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10">
+      <div className="flex-1 p-5 sm:p-7">
         {onClose && !isEmbedded && (
           <button
             onClick={onClose}
             aria-label="Tutup dialog login mahasiswa"
-            className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors border border-slate-700/60 shadow-xs cursor-pointer"
+            className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
           >
             <X className="w-4 h-4" />
           </button>
         )}
 
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md p-2 flex items-center justify-center mx-auto mb-3.5 shadow-xl shadow-cyan-500/15 ring-2 ring-white/20">
-            <img src="/logo-poliwako.webp" alt="Logo Politeknik Sorowako" className="w-full h-full object-contain" />
-          </div>
-          <h2 id="student-identity-dialog-title" className="text-xl sm:text-2xl font-black text-white tracking-tight">
-            {step === 'CREATE_PASSWORD' ? 'Aktivasi Akun Mahasiswa' : step === 'LOGIN_PASSWORD' ? 'Login Mahasiswa' : 'Portal Praktik Mahasiswa'}
+        <div className="mb-6 text-left">
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-blue-800">
+            {step === 'CREATE_PASSWORD' ? 'Aktivasi akun' : step === 'LOGIN_PASSWORD' ? 'Akun mahasiswa' : 'Masuk ke portal'}
+          </p>
+          <h2 id="student-identity-dialog-title" className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+            {step === 'CREATE_PASSWORD' ? 'Buat password baru' : step === 'LOGIN_PASSWORD' ? 'Masukkan password' : 'Verifikasi NIM Anda'}
           </h2>
           {activeCourse?.name && (
-            <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-[11px] font-bold text-cyan-300 mx-auto mt-1.5 shadow-xs">
-              <Sparkles className="w-3 h-3 text-cyan-400" />
+            <div className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800">
+              <GraduationCap className="h-3.5 w-3.5" aria-hidden="true" />
               <span>{activeCourse.name}</span>
             </div>
           )}
+          {step === 'NIM' && <p className="mt-2 text-sm leading-5 text-slate-600">Gunakan NIM untuk menemukan akun mahasiswa dan mata kuliah Anda.</p>}
         </div>
 
         {/* Error Alert Box */}
         {errorMessage && (
-          <div className="mb-5 p-3.5 bg-rose-950/70 backdrop-blur-md border border-rose-500/50 rounded-2xl flex items-start gap-3 text-rose-200 text-xs animate-shake shadow-xs">
-            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+          <div role="alert" className="mb-5 flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-sm text-rose-900 animate-shake">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-700" />
             <div className="flex-1 font-medium">{errorMessage}</div>
           </div>
         )}
@@ -306,16 +302,16 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
         {step === 'NIM' && (
           <div>
             <div className="mb-6">
-              <label htmlFor="student-identity-nim" className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+              <label htmlFor="student-identity-nim" className="mb-1.5 block text-xs font-semibold text-slate-700">
                 Nomor Induk Mahasiswa (NIM)
               </label>
-              <p className="text-xs text-slate-400 mb-3.5">
-                Masukkan NIM Anda untuk mengakses materi praktik dan penugasan:
+              <p className="mb-3.5 text-xs leading-5 text-slate-500">
+                Masukkan NIM untuk melanjutkan ke materi praktik dan penugasan.
               </p>
 
               <div className="relative group">
-                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-cyan-400 transition-colors">
-                  <User className="w-4 h-4" />
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-700 transition-colors">
+                  <User className="h-4 w-4" aria-hidden="true" />
                 </div>
                 <input
                   id="student-identity-nim"
@@ -332,7 +328,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
                     }
                   }}
                   placeholder="Ketik NIM Anda (contoh: 240001)..."
-                  className="ui-field w-full border-slate-700 bg-slate-950 pl-10 pr-4 py-3.5 text-sm font-semibold text-white placeholder:text-slate-500 placeholder:font-normal focus:border-cyan-400 focus:bg-slate-900 focus:ring-2 focus:ring-cyan-500/20"
+                  className="ui-field w-full border-slate-300 bg-white pl-10 pr-4 py-3.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/15"
                   autoFocus
                 />
               </div>
@@ -344,7 +340,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
               className="ui-button ui-button-primary w-full text-sm group"
             >
               <span>Lanjutkan dengan NIM</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         )}
@@ -355,23 +351,25 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
         {step === 'CREATE_PASSWORD' && targetStudent && (
           <form onSubmit={handleCreatePassword}>
             {/* Student Info Card */}
-            <div className="p-4 bg-amber-950/40 backdrop-blur-md border border-amber-500/30 rounded-2xl mb-4 shadow-xs">
-              <div className="flex items-center gap-1.5 text-amber-300 text-xs font-bold mb-1">
-                <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-amber-900">
+                <Sparkles className="h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
                 <span>Kunjungan Pertama Kali — Aktivasi Akun</span>
               </div>
               <div className="flex items-center justify-between mt-2 pt-2 border-t border-amber-500/20">
                 <div>
-                  <h4 className="text-sm font-bold text-white">{targetStudent.name}</h4>
-                  <p className="text-xs text-slate-400 font-mono">
+                  <h4 className="text-sm font-bold text-slate-900">{targetStudent.name}</h4>
+                  <p className="font-mono text-xs text-slate-600">
                     NIM: {targetStudent.nim}{targetStudent.className ? ` • Kelas ${targetStudent.className}` : ''}
                   </p>
-                  {targetStudent.className && <p className="text-[11px] text-amber-300 font-sans mt-0.5">Prodi: {getProdiFromClass(targetStudent.className).name}</p>}
+                  {targetStudentProdi
+                    ? <p className="mt-0.5 font-sans text-xs text-amber-900">Prodi: {targetStudentProdi.name}</p>
+                    : <p className="mt-0.5 font-sans text-xs text-amber-900">Prodi mengikuti kelas di database dan tampil setelah verifikasi.</p>}
                 </div>
                 <button
                   type="button"
                   onClick={handleResetToNim}
-                  className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-semibold cursor-pointer"
+                  className="inline-flex min-h-10 items-center gap-1 rounded-md px-2 text-xs font-semibold text-blue-800 hover:bg-amber-100"
                 >
                   <ArrowLeft className="w-3 h-3" />
                   <span>Ganti NIM</span>
@@ -379,12 +377,12 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
               </div>
             </div>
 
-            <p className="text-xs text-slate-300 mb-4 leading-relaxed">
+            <p className="mb-4 text-sm leading-5 text-slate-600">
               Akun ini belum memiliki password. Masukkan kode aktivasi dari instruktur, lalu buat password minimal 8 karakter:
             </p>
 
             {requiresActivationCode && <div className="mb-3">
-              <label htmlFor="student-activation-code" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300">Kode Aktivasi</label>
+              <label htmlFor="student-activation-code" className="mb-1.5 block text-xs font-semibold text-slate-700">Kode Aktivasi</label>
               <input
                 id="student-activation-code"
                 type="text"
@@ -394,17 +392,17 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
                 autoCapitalize="characters"
                 maxLength={24}
                 placeholder="Tempel kode 24 karakter dari instruktur"
-                className="ui-field w-full border-slate-700 bg-slate-950 font-mono text-sm tracking-widest text-white focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20"
+                className="ui-field w-full border-slate-300 bg-white font-mono text-sm tracking-widest text-slate-900 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/15"
               />
             </div>}
 
             {/* Input Password Baru */}
             <div className="mb-3">
-              <label htmlFor="student-new-password" className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+              <label htmlFor="student-new-password" className="mb-1.5 block text-xs font-semibold text-slate-700">
                 Password Baru
               </label>
               <div className="relative group">
-                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-cyan-400 transition-colors">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-700 transition-colors">
                   <KeyRound className="w-4 h-4" />
                 </div>
                 <input
@@ -413,13 +411,14 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
                   value={passwordInput}
                   onChange={e => setPasswordInput(e.target.value)}
                   placeholder="Buat password (min. 8 karakter)..."
-                  className="ui-field w-full border-slate-700 bg-slate-950 pl-10 pr-10 py-3 text-sm font-semibold text-white placeholder:text-slate-500 placeholder:font-normal focus:border-cyan-400 focus:bg-slate-900 focus:ring-2 focus:ring-cyan-500/20"
+                  className="ui-field w-full border-slate-300 bg-white py-3 pl-10 pr-10 text-sm font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:border-blue-700 focus:ring-2 focus:ring-blue-700/15"
                   autoFocus
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 cursor-pointer"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                  aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -428,11 +427,11 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
 
             {/* Input Konfirmasi Password */}
             <div className="mb-5">
-              <label htmlFor="student-confirm-password" className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+              <label htmlFor="student-confirm-password" className="mb-1.5 block text-xs font-semibold text-slate-700">
                 Konfirmasi Password Baru
               </label>
               <div className="relative group">
-                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-cyan-400 transition-colors">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-700 transition-colors">
                   <Lock className="w-4 h-4" />
                 </div>
                 <input
@@ -441,12 +440,13 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
                   value={confirmPasswordInput}
                   onChange={e => setConfirmPasswordInput(e.target.value)}
                   placeholder="Ulangi password baru..."
-                  className="ui-field w-full border-slate-700 bg-slate-950 pl-10 pr-10 py-3 text-sm font-semibold text-white placeholder:text-slate-500 placeholder:font-normal focus:border-cyan-400 focus:bg-slate-900 focus:ring-2 focus:ring-cyan-500/20"
+                  className="ui-field w-full border-slate-300 bg-white py-3 pl-10 pr-10 text-sm font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:border-blue-700 focus:ring-2 focus:ring-blue-700/15"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 cursor-pointer"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                  aria-label={showConfirmPassword ? 'Sembunyikan password' : 'Tampilkan password'}
                 >
                   {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -456,11 +456,11 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
               {confirmPasswordInput && (
                 <div className="mt-1.5 flex items-center gap-1.5 text-xs">
                   {passwordInput === confirmPasswordInput ? (
-                    <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                    <span className="flex items-center gap-1 font-semibold text-emerald-800">
                       <CheckCircle2 className="w-3.5 h-3.5" /> Password cocok
                     </span>
                   ) : (
-                    <span className="text-rose-400 font-semibold flex items-center gap-1">
+                    <span className="flex items-center gap-1 font-semibold text-rose-800">
                       <AlertCircle className="w-3.5 h-3.5" /> Password belum cocok
                     </span>
                   )}
@@ -473,7 +473,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
               <button
                 type="button"
                 onClick={handleResetToNim}
-                className="px-4 py-3.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white font-bold text-xs rounded-2xl transition-all shadow-xs cursor-pointer"
+                className="ui-button ui-button-secondary"
               >
                 Kembali
               </button>
@@ -495,25 +495,25 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
         {step === 'LOGIN_PASSWORD' && targetStudent && (
           <form onSubmit={handleLoginPassword}>
             {/* Student Info Card */}
-            <div className="p-4 bg-cyan-950/40 backdrop-blur-md border border-cyan-500/30 rounded-2xl mb-4 shadow-xs">
-              <div className="flex items-center gap-1.5 text-cyan-300 text-xs font-bold mb-1">
-                <Lock className="w-4 h-4 text-cyan-400 shrink-0" />
+            <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+              <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-blue-900">
+                <Lock className="h-4 w-4 shrink-0 text-blue-800" aria-hidden="true" />
                 <span>Mahasiswa Terdaftar</span>
               </div>
               <div className="flex items-center justify-between mt-2 pt-2 border-t border-cyan-500/20">
                 <div>
-                  <h4 className="text-sm font-bold text-white">{targetStudent.name}</h4>
-                  <p className="text-xs text-slate-400 font-mono">
-                    NIM: {targetStudent.nim} • Kelas {targetStudent.className}
+                  <h4 className="text-sm font-bold text-slate-900">{targetStudent.name}</h4>
+                  <p className="font-mono text-xs text-slate-600">
+                    NIM: {targetStudent.nim}{targetStudent.className ? ` • Kelas ${targetStudent.className}` : ''}
                   </p>
-                  <p className="text-[11px] text-cyan-300 font-sans mt-0.5">
-                    Prodi: {getProdiFromClass(targetStudent.className).name}
-                  </p>
+                  {targetStudentProdi
+                    ? <p className="mt-0.5 font-sans text-xs text-blue-900">Prodi: {targetStudentProdi.name}</p>
+                    : <p className="mt-0.5 font-sans text-xs text-blue-900">Prodi mengikuti kelas di database dan tampil setelah verifikasi.</p>}
                 </div>
                 <button
                   type="button"
                   onClick={handleResetToNim}
-                  className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-semibold cursor-pointer"
+                  className="inline-flex min-h-10 items-center gap-1 rounded-md px-2 text-xs font-semibold text-blue-800 hover:bg-blue-100"
                 >
                   <ArrowLeft className="w-3 h-3" />
                   <span>Ganti NIM</span>
@@ -522,11 +522,11 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
             </div>
 
             <div className="mb-5">
-              <label htmlFor="student-login-password" className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+              <label htmlFor="student-login-password" className="mb-1.5 block text-xs font-semibold text-slate-700">
                 Password Akun
               </label>
               <div className="relative group">
-                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-cyan-400 transition-colors">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-700 transition-colors">
                   <KeyRound className="w-4 h-4" />
                 </div>
                 <input
@@ -538,18 +538,19 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
                     if (errorMessage) setErrorMessage(null);
                   }}
                   placeholder="Masukkan password Anda..."
-                  className="ui-field w-full border-slate-700 bg-slate-950 pl-10 pr-10 py-3.5 text-sm font-semibold text-white placeholder:text-slate-500 placeholder:font-normal focus:border-cyan-400 focus:bg-slate-900 focus:ring-2 focus:ring-cyan-500/20"
+                  className="ui-field w-full border-slate-300 bg-white py-3.5 pl-10 pr-10 text-sm font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:border-blue-700 focus:ring-2 focus:ring-blue-700/15"
                   autoFocus
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 cursor-pointer"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                  aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <p className="text-[11px] text-slate-400 mt-2">
+              <p className="mt-2 text-xs text-slate-500">
                 *Jika Anda lupa password, hubungi instruktur mata kuliah untuk mereset akun Anda.
               </p>
             </div>
@@ -559,14 +560,14 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
               <button
                 type="button"
                 onClick={handleResetToNim}
-                className="px-4 py-3.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white font-bold text-xs rounded-2xl transition-all shadow-xs cursor-pointer"
+                className="ui-button ui-button-secondary"
               >
                 Kembali
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting || !passwordInput}
-                className="flex-1 py-3.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:via-indigo-500 hover:to-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm rounded-2xl transition-all shadow-lg shadow-blue-600/30 hover:shadow-cyan-500/30 flex items-center justify-center gap-2 group cursor-pointer"
+                className="ui-button ui-button-primary flex-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <span>Masuk Praktik</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -576,12 +577,12 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
         )}
 
       </div>
-    </div>
+    </section>
   );
 
   if (isEmbedded) {
     return (
-      <div className="flex items-center justify-center p-4 sm:p-6 w-full">
+      <div className="flex w-full items-center justify-center">
         {content}
       </div>
     );
@@ -596,11 +597,8 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
         aria-labelledby="student-identity-dialog-title"
         tabIndex={-1}
         onKeyDown={handleDialogKeyDown}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-fadeIn overflow-hidden"
+        className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/45 p-4 backdrop-blur-[2px] animate-fadeIn"
       >
-        {/* Animated Orbs in Modal Backdrop */}
-        <div className="absolute -top-20 -left-20 w-96 h-96 rounded-full bg-blue-600/30 blur-[90px] animate-float-slow pointer-events-none" />
-        <div className="absolute -bottom-20 -right-20 w-96 h-96 rounded-full bg-indigo-600/30 blur-[90px] animate-float-reverse pointer-events-none" />
         <div className="relative z-10 w-full flex items-center justify-center">
           {content}
         </div>

@@ -95,6 +95,15 @@
     white-space: nowrap;
   }
 
+  .student-login-shell {
+    background-color: #f4f7fa;
+    background-image: radial-gradient(ellipse at 100% 0%, rgba(8, 145, 178, 0.055), transparent 34rem);
+  }
+
+  .student-identity-card {
+    border-radius: 1rem;
+  }
+
   /* Operational surfaces use solid, high-contrast colors for quick scanning. */
   .instructor-shell {
     background-color: #eef2f7;
@@ -134,19 +143,60 @@
   }
 }
 
-/* Shared dark shell behind the public portal gate and its transparent footer. */
+/* Shared neutral shell behind public portal routes. */
 .portal-shell-background {
   min-height: 100svh;
   height: 100svh;
   max-height: 100svh;
-  background-color: #020617;
-  background-image:
-    radial-gradient(circle at 8% 8%, rgba(8, 145, 178, 0.28), transparent 28rem),
-    radial-gradient(circle at 92% 78%, rgba(109, 40, 217, 0.24), transparent 32rem),
-    linear-gradient(to right, rgba(30, 41, 59, 0.48) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(30, 41, 59, 0.48) 1px, transparent 1px);
-  background-size: auto, auto, 3.5rem 3.5rem, 3.5rem 3.5rem;
-  background-position: center;
+  background-color: #f4f7fa;
+}
+
+.instructor-login-shell .instructor-login-card input,
+.instructor-login-shell .instructor-login-card select {
+  border-color: #cbd5e1 !important;
+  border-radius: var(--poliwako-radius-control) !important;
+  background: #ffffff !important;
+  color: var(--poliwako-ink) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.instructor-login-shell .instructor-login-card input::placeholder {
+  color: #94a3b8 !important;
+  font-weight: 400 !important;
+}
+
+.instructor-login-shell .instructor-login-card input:focus,
+.instructor-login-shell .instructor-login-card select:focus {
+  border-color: var(--poliwako-brand) !important;
+  outline: 2px solid rgba(29, 78, 216, 0.16) !important;
+  outline-offset: 1px;
+}
+
+.instructor-login-shell .instructor-login-card label {
+  color: #334155 !important;
+  letter-spacing: normal;
+}
+
+.instructor-login-shell .instructor-login-tabs {
+  border-color: #e2e8f0;
+  background: #f1f5f9;
+  backdrop-filter: none;
+}
+
+.instructor-login-shell .instructor-login-tab-active {
+  background: var(--poliwako-brand) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.instructor-login-shell .instructor-login-tab-inactive {
+  color: #475569 !important;
+}
+
+.instructor-login-shell .instructor-login-tab-inactive:hover {
+  background: #ffffff !important;
+  color: #0f172a !important;
 }
 
 @supports (height: 100dvh) {
@@ -166,8 +216,7 @@ html.portal-viewport-locked body {
   overscroll-behavior: none;
 }
 
-/* Keep the logo artwork above the animated portal background. The logos and
-   the footer remain fully transparent so the grid/glow continues underneath. */
+/* Public portal pages use light surfaces and a compact institutional footer. */
 .footer-logo-layer {
   position: relative;
   z-index: 1;

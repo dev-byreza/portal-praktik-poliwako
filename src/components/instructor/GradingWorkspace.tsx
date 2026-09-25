@@ -40,6 +40,7 @@ import { formatDeadline, formatWitaDateTime } from '../../utils/dateUtils';
 import { getCourseRubrics, reconcileRubricScores } from '../../utils/courseRubrics';
 import { Badge } from '../common/Badge';
 import { getUnitAssignments } from '../../utils/learningAssignments';
+import { parseGradingScore } from '../../utils/gradingScoreInput';
 
 const canInlinePreview = (fileName?: string): boolean =>
   !!fileName && /\.(pdf|jpe?g|png|webp|gif)$/i.test(fileName);
@@ -1209,10 +1210,12 @@ export const GradingWorkspace: React.FC = () => {
                     <label className="text-[11px] font-bold text-slate-700">Skor (0-100):</label>
                     <input
                       type="number"
+                      inputMode="decimal"
                       min={0}
                       max={100}
+                      step={0.01}
                       value={entryBehaviorScore}
-                      onChange={e => handleEntryBehaviorChange(Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)))}
+                      onChange={e => handleEntryBehaviorChange(parseGradingScore(e.target.value))}
                       className="w-20 px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-center text-xs font-bold font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                     />
                   </div>
@@ -1464,10 +1467,12 @@ export const GradingWorkspace: React.FC = () => {
                             <label className="text-[11px] font-bold text-slate-700">Skor Tugas (0-100):</label>
                             <input
                               type="number"
+                              inputMode="decimal"
                               min={0}
                               max={100}
+                              step={0.01}
                               value={currentScore}
-                              onChange={e => handleTaskScoreChange(task.id, Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)))}
+                              onChange={e => handleTaskScoreChange(task.id, parseGradingScore(e.target.value))}
                               className="w-20 px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-center text-xs font-bold font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                             />
                           </div>
@@ -1577,10 +1582,12 @@ export const GradingWorkspace: React.FC = () => {
                     <label className="text-[11px] font-bold text-slate-700">Skor Post-Test (0-100):</label>
                     <input
                       type="number"
+                      inputMode="decimal"
                       min={0}
                       max={100}
+                      step={0.01}
                       value={postTestScore}
-                      onChange={e => handlePostTestScoreChange(Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)))}
+                      onChange={e => handlePostTestScoreChange(parseGradingScore(e.target.value))}
                       className="w-20 px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-center text-xs font-bold font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                     />
                   </div>
@@ -1835,10 +1842,12 @@ export const GradingWorkspace: React.FC = () => {
                     <label className="text-[11px] font-bold text-slate-700">Skor Laporan (0-100):</label>
                     <input
                       type="number"
+                      inputMode="decimal"
                       min={0}
                       max={100}
+                      step={0.01}
                       value={reportScore}
-                      onChange={e => handleReportScoreChange(Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)))}
+                      onChange={e => handleReportScoreChange(parseGradingScore(e.target.value))}
                       className="w-20 px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-center text-xs font-bold font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                     />
                   </div>

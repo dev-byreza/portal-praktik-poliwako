@@ -1,12 +1,6 @@
-// Portal Choice Landing Gate (PRD Root Selector: Portal Instruktur vs Portal Mahasiswa)
+// Portal role selector for students and instructors.
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import {
-  ShieldCheck,
-  GraduationCap,
-  ArrowRight,
-  Sparkles,
-  Lock
-} from 'lucide-react';
+import { ArrowRight, GraduationCap, LockKeyhole, ShieldCheck } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { FooterBranding } from '../common/FooterBranding';
 
@@ -16,16 +10,14 @@ interface PortalSelectorGateProps {
 
 export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelectRole }) => {
   const { isInstructorLoggedIn } = useApp();
-  const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
-  const [rawMouse, setRawMouse] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
   const [fitScale, setFitScale] = useState(1);
   const gateRef = useRef<HTMLDivElement>(null);
-  const contentViewportRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     const gate = gateRef.current;
-    const viewport = contentViewportRef.current;
+    const viewport = viewportRef.current;
     const content = contentRef.current;
     if (!gate || !viewport || !content) return;
 
@@ -33,10 +25,6 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
       const availableHeight = viewport.clientHeight;
       const naturalContentHeight = content.scrollHeight;
       if (!availableHeight || !naturalContentHeight) return;
-
-      // Fit the complete header/cards block inside the space left by the footer.
-      // The scale is only reduced when a short viewport requires it, so normal
-      // desktop and portrait layouts keep their intended size.
       const nextScale = Math.min(1, (availableHeight - 8) / naturalContentHeight);
       setFitScale(Math.max(0.58, Number(nextScale.toFixed(3))));
     };
@@ -46,206 +34,87 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
     resizeObserver.observe(viewport);
     resizeObserver.observe(content);
     measureAvailableSpace();
-
     return () => resizeObserver.disconnect();
   }, []);
 
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    setMousePos({ x, y });
-    setRawMouse({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-  };
-
-  const spotlightX = rawMouse.x !== null ? `${rawMouse.x}px` : '50%';
-  const spotlightY = rawMouse.y !== null ? `${rawMouse.y}px` : '50%';
-
   return (
-    <div
-      ref={gateRef}
-      onPointerMove={handlePointerMove}
-      onMouseMove={handlePointerMove}
-      className="portal-selector-gate relative flex-1 min-h-0 h-full w-full flex flex-col overflow-hidden bg-slate-950 select-none"
-    >
-      {/* Animated & Pointer-Reactive Background Mesh & Glow Orbs */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Ambient Base Cyber Grid */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] opacity-20" />
-
-        {/* Dynamic Pointer-Illuminated Spotlight Grid */}
+    <div ref={gateRef} className="portal-selector-gate relative flex min-h-0 w-full flex-1 flex-col text-slate-800">
+      <main ref={viewportRef} className="flex min-h-0 w-full flex-1 items-center justify-center overflow-y-auto px-4 py-6 sm:px-8 sm:py-10">
         <div
-          className="absolute inset-0 bg-[linear-gradient(to_right,#38bdf8_1px,transparent_1px),linear-gradient(to_bottom,#38bdf8_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] opacity-35 transition-opacity duration-300"
-          style={{
-            maskImage: `radial-gradient(circle 500px at ${spotlightX} ${spotlightY}, #000 20%, transparent 80%)`,
-            WebkitMaskImage: `radial-gradient(circle 500px at ${spotlightX} ${spotlightY}, #000 20%, transparent 80%)`
-          }}
-        />
+          ref={contentRef}
+          className="w-full max-w-5xl"
+          style={{ transform: `scale(${fitScale})`, transformOrigin: 'center center' }}
+        >
+          <header className="mb-7 flex flex-col items-center text-center sm:mb-10">
+            <img src="/logo-poliwako.webp" alt="Logo Politeknik Sorowako" className="mb-4 h-16 w-16 object-contain sm:h-20 sm:w-20" />
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-800">Politeknik Sorowako</p>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-4xl">Portal Praktik Terpadu</h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600 sm:text-base">
+              Pilih portal sesuai peran Anda untuk melanjutkan kegiatan pembelajaran praktik.
+            </p>
+          </header>
 
-        {/* Pointer Cursor Following Spotlight Aura */}
-        {rawMouse.x !== null && rawMouse.y !== null && (
-          <div
-            className="absolute w-[40rem] h-[40rem] rounded-full bg-cyan-500/15 blur-[110px] pointer-events-none transition-transform duration-100 ease-out will-change-transform"
-            style={{
-              left: `${rawMouse.x}px`,
-              top: `${rawMouse.y}px`,
-              transform: 'translate(-50%, -50%)',
-            }}
-          />
-        )}
-
-        {/* Parallax Floating Orb 1: Cyan / Blue Glow (Top Left) */}
-        <div
-          className="absolute -top-20 -left-20 w-[32rem] h-[32rem] rounded-full bg-gradient-to-br from-blue-600/40 via-cyan-500/30 to-transparent blur-[95px] pointer-events-none transition-transform duration-300 ease-out will-change-transform"
-          style={{
-            transform: `translate(${(mousePos.x - 0.5) * -70}px, ${(mousePos.y - 0.5) * -70}px)`,
-          }}
-        />
-
-        {/* Parallax Floating Orb 2: Indigo / Purple Glow (Bottom Right) */}
-        <div
-          className="absolute -bottom-24 -right-24 w-[36rem] h-[36rem] rounded-full bg-gradient-to-tl from-indigo-600/35 via-purple-600/25 to-transparent blur-[110px] pointer-events-none transition-transform duration-300 ease-out will-change-transform"
-          style={{
-            transform: `translate(${(mousePos.x - 0.5) * 80}px, ${(mousePos.y - 0.5) * 80}px)`,
-          }}
-        />
-
-        {/* Floating Micro-sparkle Accents */}
-        <div
-          className="absolute w-2 h-2 rounded-full bg-cyan-400/80 blur-[0.5px] animate-ping pointer-events-none"
-          style={{ top: '20%', left: '20%', animationDuration: '3s' }}
-        />
-        <div
-          className="absolute w-2.5 h-2.5 rounded-full bg-blue-400/70 blur-[0.5px] animate-pulse pointer-events-none"
-          style={{ bottom: '25%', right: '22%', animationDuration: '4s' }}
-        />
-      </div>
-
-      {/* Main Content Container with Subtle 3D Tilt Reaction */}
-      <div
-        ref={contentViewportRef}
-        className="relative z-10 flex min-h-0 w-full flex-1 flex-col items-center justify-center overflow-hidden px-3 py-2 sm:px-6 sm:py-6"
-      >
-      <div
-        ref={contentRef}
-        className="w-full max-w-5xl min-h-0 flex flex-col items-center transition-transform duration-200 ease-out will-change-transform px-1 sm:px-2"
-        style={{
-          transform: `perspective(1000px) rotateY(${(mousePos.x - 0.5) * 3}deg) rotateX(${(mousePos.y - 0.5) * -3}deg) scale(${fitScale})`,
-        }}
-      >
-        {/* Brand Header */}
-        <div className="text-center mb-4 sm:mb-8 flex flex-col items-center">
-          <div className="w-14 h-14 sm:w-20 sm:h-20 mb-2.5 sm:mb-3.5 p-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-xl shadow-cyan-500/15 hover:scale-105 transition-transform shrink-0">
-            <img src="/logo-poliwako.webp" alt="Logo Politeknik Sorowako" className="w-full h-full object-contain" />
-          </div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:gap-2 sm:px-3.5 sm:py-1 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-[10px] sm:text-xs font-bold text-cyan-300 mb-2.5 sm:mb-3.5 shadow-xs">
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Politeknik Sorowako • Sistem Pembelajaran Praktik OBE</span>
-          </div>
-          <h1 className="text-xl sm:text-4xl font-black text-white tracking-tight">
-            Portal Praktik Terpadu
-          </h1>
-          <p className="text-[11px] sm:text-sm text-slate-400 max-w-md mx-auto mt-1.5 leading-relaxed">
-            Silakan pilih gerbang portal sesuai dengan peran akademik Anda untuk melanjutkan ke materi atau sistem penilaian.
-          </p>
-        </div>
-
-        {/* Interactive Choice Cards (Grid 2 Kolom dengan Rasio 4:2.5 yang Memanjang Kesamping) */}
-        <div className="grid min-w-0 w-full max-w-5xl grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2 lg:gap-6">
-          
-          {/* CARD 1: PORTAL MAHASISWA */}
-          <a
-            href="/mahasiswa"
-            onClick={event => {
-              if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-              event.preventDefault();
-              onSelectRole('STUDENT', '/mahasiswa');
-            }}
-            className="group relative min-w-0 backdrop-blur-2xl bg-slate-900/75 hover:bg-slate-900/95 rounded-3xl p-3 sm:p-7 border border-white/15 hover:border-cyan-400/60 ring-1 ring-cyan-500/20 hover:ring-2 hover:ring-cyan-400/40 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] hover:shadow-[0_25px_60px_-15px_rgba(56,189,248,0.25)] transition-all duration-300 flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden lg:aspect-[4/2.5] min-h-[170px] sm:min-h-[230px] lg:min-h-[290px] text-left text-inherit no-underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cyan-300 focus-visible:ring-offset-4 focus-visible:ring-offset-slate-950"
-          >
-            {/* Top Specular Glow */}
-            <div className="absolute top-0 left-0 right-0 h-20 sm:h-28 bg-gradient-to-b from-cyan-500/10 via-transparent to-transparent pointer-events-none rounded-t-3xl" />
-
-            <div>
-              {/* Top Row: Icon & Badge */}
-              <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30 ring-2 ring-white/20 group-hover:scale-105 transition-transform">
-                  <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6" />
+          <section aria-label="Pilih portal" className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+            <a
+              href="/mahasiswa"
+              onClick={event => {
+                if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                event.preventDefault();
+                onSelectRole('STUDENT', '/mahasiswa');
+              }}
+              className="group flex min-h-64 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2 sm:p-7"
+            >
+              <div>
+                <div className="mb-5 flex items-center justify-between gap-3">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-800">
+                    <GraduationCap className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <span className="text-xs font-semibold text-slate-500">Portal mahasiswa</span>
                 </div>
-                <span className="px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[9px] sm:text-[11px] font-extrabold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                  Untuk Mahasiswa
-                </span>
+                <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Materi dan tugas praktik</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Buka materi, pantau tenggat, kumpulkan tugas, dan tinjau umpan balik instruktur.
+                </p>
               </div>
+              <span className="ui-button ui-button-primary mt-6 w-full sm:w-fit">
+                Lanjut sebagai mahasiswa <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </span>
+            </a>
 
-              {/* Title & Description */}
-              <h3 className="text-lg sm:text-2xl lg:text-3xl font-black text-white group-hover:text-cyan-300 transition-colors tracking-tight leading-tight mt-1.5 sm:mt-2 mb-1.5">
-                Portal Praktik Mahasiswa
-              </h3>
-              <p className="text-[11px] sm:text-sm text-slate-400 leading-relaxed line-clamp-2 sm:line-clamp-none">
-                Akses modul materi, presensi praktik harian (WITA), penugasan, instruksi kerja, dan upload laporan menggunakan <strong>NIM</strong>.
-              </p>
-            </div>
-
-            {/* Action CTA Button */}
-            <div className="mt-3 sm:mt-4 pt-1">
-              <div className="w-full py-2.5 sm:py-3 px-3 sm:px-5 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 group-hover:from-blue-500 group-hover:to-cyan-500 text-white font-bold text-[11px] sm:text-sm rounded-xl sm:rounded-2xl transition-all shadow-md shadow-blue-600/30 flex items-center justify-center gap-1.5 sm:gap-2">
-                <span>Masuk ke Portal Mahasiswa</span>
-                <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:translate-x-1.5 transition-transform" />
-              </div>
-            </div>
-          </a>
-
-          {/* CARD 2: PORTAL INSTRUKTUR */}
-          <a
-            href="/instruktur"
-            onClick={event => {
-              if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-              event.preventDefault();
-              onSelectRole('INSTRUCTOR', '/instruktur');
-            }}
-            className="group relative min-w-0 backdrop-blur-2xl bg-slate-900/75 hover:bg-slate-900/95 rounded-3xl p-3 sm:p-7 border border-white/15 hover:border-indigo-400/60 ring-1 ring-indigo-500/20 hover:ring-2 hover:ring-indigo-400/40 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] hover:shadow-[0_25px_60px_-15px_rgba(99,102,241,0.25)] transition-all duration-300 flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden lg:aspect-[4/2.5] min-h-[170px] sm:min-h-[230px] lg:min-h-[290px] text-left text-inherit no-underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300 focus-visible:ring-offset-4 focus-visible:ring-offset-slate-950"
-          >
-            {/* Top Specular Glow */}
-            <div className="absolute top-0 left-0 right-0 h-20 sm:h-28 bg-gradient-to-b from-indigo-500/10 via-transparent to-transparent pointer-events-none rounded-t-3xl" />
-
-            <div>
-              {/* Top Row: Icon & Badge */}
-              <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-blue-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 ring-2 ring-white/20 group-hover:scale-105 transition-transform">
-                  <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6" />
+            <a
+              href="/instruktur"
+              onClick={event => {
+                if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                event.preventDefault();
+                onSelectRole('INSTRUCTOR', '/instruktur');
+              }}
+              className="group flex min-h-64 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2 sm:p-7"
+            >
+              <div>
+                <div className="mb-5 flex items-center justify-between gap-3">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-800">
+                    <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <span className="text-xs font-semibold text-slate-500">Portal instruktur</span>
                 </div>
-                <span className="px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[9px] sm:text-[11px] font-extrabold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  Dosen & Instruktur
-                </span>
+                <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Kelola pembelajaran</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Atur mata kuliah, presensi, penilaian, dan progres mahasiswa.
+                </p>
               </div>
-
-              {/* Title & Description */}
-              <h3 className="text-lg sm:text-2xl lg:text-3xl font-black text-white group-hover:text-indigo-300 transition-colors tracking-tight leading-tight mt-1.5 sm:mt-2 mb-1.5">
-                Portal Instruktur & Dosen
-              </h3>
-              <p className="text-[11px] sm:text-sm text-slate-400 leading-relaxed line-clamp-2 sm:line-clamp-none">
-                Kelola kurikulum praktik, input nilai OBE, rekap export Excel, pemantauan presensi, dan manajemen database mahasiswa.
-              </p>
-            </div>
-
-            {/* Action CTA Button */}
-            <div className="mt-3 sm:mt-4 pt-1">
-              <div className="w-full py-2.5 sm:py-3 px-3 sm:px-5 bg-slate-800 group-hover:bg-indigo-600 text-white font-bold text-[11px] sm:text-sm rounded-xl sm:rounded-2xl transition-all shadow-md flex items-center justify-center gap-1.5 sm:gap-2 border border-slate-700 group-hover:border-indigo-500">
-                <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-400 group-hover:text-white" />
-                <span>{isInstructorLoggedIn ? 'Buka Command Center' : 'Masuk sebagai Instruktur'}</span>
-                <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:translate-x-1.5 transition-transform" />
-              </div>
-            </div>
-          </a>
-
+              <span className="ui-button ui-button-secondary mt-6 w-full sm:w-fit">
+                {isInstructorLoggedIn ? 'Buka portal instruktur' : 'Masuk sebagai instruktur'}
+                {!isInstructorLoggedIn && <LockKeyhole className="h-4 w-4" aria-hidden="true" />}
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </span>
+            </a>
+          </section>
         </div>
+      </main>
 
-      </div>
-      </div>
-
-      <footer className="relative z-30 w-full shrink-0 border-t border-white/10 bg-transparent py-3 text-xs">
-        <div className="mx-auto max-w-7xl px-3 sm:px-4">
-          <FooterBranding theme="dark" />
+      <footer className="shrink-0 border-t border-slate-200/80 bg-white/70 px-4 py-2.5">
+        <div className="mx-auto max-w-7xl">
+          <FooterBranding theme="light" compact />
         </div>
       </footer>
     </div>

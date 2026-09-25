@@ -88,3 +88,17 @@ export const getProdiFromClass = (className?: string, department?: string): Prod
     dotColor: 'bg-emerald-500'
   };
 };
+
+/** Returns a program only when a class/program value is actually available. */
+export const getKnownProdiFromClass = (className?: string, department?: string): ProdiInfo | null => {
+  const dep = department?.trim().toUpperCase() || '';
+  const clean = className?.trim().toUpperCase() || '';
+  const hasKnownDepartment = ['PENGELASAN', 'FABRIKASI', 'TRPF', 'PERANCANGAN', 'RPM', 'PERAWATAN', 'PERBAIKAN', 'PPM']
+    .some(marker => dep.includes(marker));
+  const hasKnownClass = clean.includes('TRPF') || /\bD\b/.test(clean) || /[0-9]D/.test(clean)
+    || clean.includes('RPM') || /\bC\b/.test(clean) || /[0-9]C/.test(clean)
+    || clean.includes('PPM') || /\b(A|B)\b/.test(clean) || /[0-9][AB]/.test(clean);
+
+  if (!hasKnownDepartment && !hasKnownClass) return null;
+  return getProdiFromClass(className, department);
+};

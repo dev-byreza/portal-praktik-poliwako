@@ -191,7 +191,7 @@ export const App: React.FC = () => {
         : 'min-h-screen bg-slate-100 flex flex-col'
     }`}>
       
-      {/* Header Utama: Hanya aktif untuk portal instruktur sebelum login (halaman mahasiswa dimatikan sesuai permintaan) */}
+      {/* Public navigation for the instructor sign-in route. */}
       {activeRoute === 'INSTRUCTOR' && !isInstructorLoggedIn && (
         <Navbar
           activeRoute={activeRoute}
@@ -273,19 +273,19 @@ export const App: React.FC = () => {
         onClose={() => setIsLoginModalOpen(false)}
       /></Suspense>
 
-      {/* Shared View Footer - Product by dev-byreza (Aktif di halaman login & gate) */}
+      {/* Shared light footer for public portal routes. */}
       {(activeRoute === 'NOT_FOUND' ||
         (activeRoute === 'INSTRUCTOR' && !isInstructorLoggedIn)) && (
-        <footer className="relative z-30 shrink-0 border-t border-white/10 bg-transparent py-3 text-xs">
+        <footer className="relative z-30 shrink-0 border-t border-slate-200 bg-white/70 py-3 text-xs">
           <div className="max-w-7xl mx-auto px-4">
-            <FooterBranding theme="dark" />
+            <FooterBranding theme="light" compact />
           </div>
 
           {/* Contextual Navigation Buttons */}
           {activeRoute === 'INSTRUCTOR' && (
             <button
               onClick={() => navigateTo('/mahasiswa')}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-all px-2.5 py-1 rounded-lg hover:bg-slate-800 text-xs font-medium flex items-center gap-1.5 cursor-pointer"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-blue-800 transition-colors px-2.5 py-1 rounded-lg hover:bg-blue-50 text-xs font-medium flex items-center gap-1.5 cursor-pointer"
               title="Pindah ke Portal Mahasiswa"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
