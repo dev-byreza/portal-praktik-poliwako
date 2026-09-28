@@ -114,6 +114,8 @@ assert.match(enrollmentSessionMigration, /CREATE OR REPLACE FUNCTION public\.stu
 assert.match(enrollmentApiSource, /studentCreatePeriodSession\([\s\S]*?student_create_period_session/, 'Course switching must request a server-issued period token');
 const studentSwitchSource = fs.readFileSync(path.join(root, 'src/components/student/StudentPortal.tsx'), 'utf8');
 assert.match(studentSwitchSource, /await ApiService\.studentCreatePeriodSession[\s\S]*?setStudentIdentity\(currentStudent\.id, targetCourse\.slug, targetPeriod\.id, sessionToken\)/, 'Workspace navigation must install the server-issued token before entering a different period');
+assert.doesNotMatch(studentSwitchSource, /targetPeriod\.id === studentSession\?\.periodId[\s\S]*?\? studentSession\.sessionToken/, 'Workspace navigation must refresh even a same-period token instead of reusing a possibly expired session');
+assert.match(studentSwitchSource, /clearStudentIdentity\('EXPIRED'\)/, 'An expired or rejected workspace session must return the student to login');
 const secureStudentRpcMigrationFile = fs.readdirSync(path.join(root, 'supabase/migrations'))
   .find(file => file.endsWith('_hide_student_session_definers.sql'));
 assert.ok(secureStudentRpcMigrationFile, 'Privileged enrollment logic must stay outside the public API schema');

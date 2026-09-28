@@ -85,7 +85,7 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
             )}
 
             <button
-              onClick={clearStudentIdentity}
+              onClick={() => clearStudentIdentity()}
               className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg bg-white hover:bg-rose-50 text-rose-700 border border-slate-200 hover:border-rose-200 text-xs font-semibold transition-colors cursor-pointer shrink-0"
               title="Keluar dari sesi portal"
             >

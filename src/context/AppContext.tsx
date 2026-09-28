@@ -130,7 +130,7 @@ interface AppContextType {
   }>;
   resetStudentPassword: (studentId: string) => Promise<string | null>;
   setStudentIdentity: (studentId: string, courseSlug: string, periodId: string, sessionToken?: string) => void;
-  clearStudentIdentity: () => void;
+  clearStudentIdentity: (reason?: 'USER' | 'EXPIRED') => void;
 
   // Student Actions
   submitAssignment: (assignmentId: string, file: File, submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST', allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' | 'AUTOCAD_LINK') => Promise<{ success: boolean; message?: string }>;
@@ -1117,12 +1117,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast('Selamat Datang', `Praktik aktif untuk ${std?.name || 'Mahasiswa'} (NIM: ${std?.nim})`, 'success');
   };
 
-  const clearStudentIdentity = () => {
+  const clearStudentIdentity = (reason: 'USER' | 'EXPIRED' = 'USER') => {
     StorageService.setCacheScope(isInstructorLoggedIn ? `instructor:${instructor.id}` : 'public');
     setStudentSessionState(null);
     StorageService.setStudentSession(null);
     setStudentSessionRestoreStatus('IDLE');
-    showToast('Sesi Selesai', 'Anda telah keluar dari ruang praktik mahasiswa.', 'info');
+    showToast(
+      reason === 'EXPIRED' ? 'Sesi Berakhir' : 'Sesi Selesai',
+      reason === 'EXPIRED'
+        ? 'Sesi mahasiswa sudah tidak valid atau telah kedaluwarsa. Silakan login kembali.'
+        : 'Anda telah keluar dari ruang praktik mahasiswa.',
+      reason === 'EXPIRED' ? 'warning' : 'info',
+    );
   };
 
   // Student Assignment Submission

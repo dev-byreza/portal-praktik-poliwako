@@ -198,14 +198,15 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
     setIsSelectingCourse(true);
     try {
+      // Always exchange the current capability for a fresh period-scoped
+      // token. Reusing a cached token lets an expired 12-hour session enter
+      // the workspace shell while every protected request inside it fails.
       const sessionToken = ApiService.isLiveBackend()
-        ? targetPeriod.id === studentSession?.periodId && studentSession.sessionToken
-          ? studentSession.sessionToken
-          : await ApiService.studentCreatePeriodSession(
-            studentSession?.sessionToken || '',
-            targetCourse.slug,
-            targetPeriod.id,
-          )
+        ? await ApiService.studentCreatePeriodSession(
+          studentSession?.sessionToken || '',
+          targetCourse.slug,
+          targetPeriod.id,
+        )
         : undefined;
       setStudentIdentity(currentStudent.id, targetCourse.slug, targetPeriod.id, sessionToken);
       setSelectedCourseSlug(slug);
@@ -215,7 +216,19 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
       sessionStorage.setItem('poliwako_in_workspace', 'true');
     } catch (error) {
       console.error('Unable to switch the student practice period:', error);
-      showToast('Mata Kuliah Belum Dapat Dibuka', 'Server belum dapat memverifikasi pendaftaran periode ini. Coba lagi.', 'error');
+      const message = error instanceof Error ? error.message : '';
+      const requiresFreshLogin = message.includes('Sesi mahasiswa belum terverifikasi')
+        || message.includes('Mata kuliah atau periode tidak terdaftar');
+      if (requiresFreshLogin) {
+        sessionStorage.removeItem('poliwako_in_workspace');
+        clearStudentIdentity('EXPIRED');
+      } else {
+        showToast(
+          'Mata Kuliah Belum Dapat Dibuka',
+          message || 'Server belum dapat memverifikasi pendaftaran periode ini. Coba lagi.',
+          'error',
+        );
+      }
     } finally {
       setIsSelectingCourse(false);
     }
@@ -406,7 +419,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
           <h1 className="text-lg font-bold text-slate-900">Sesi belum dapat dipulihkan</h1>
           <p className="mt-2 text-sm leading-relaxed text-slate-600">Koneksi ke server terganggu. Sesi Anda tetap tersimpan; coba verifikasi ulang.</p>
           <button type="button" onClick={retryStudentSessionRestore} className="ui-button ui-button-primary mt-5">Coba lagi</button>
-          <button type="button" onClick={clearStudentIdentity} className="ui-button ui-button-secondary mt-3 w-full">Keluar dari sesi</button>
+          <button type="button" onClick={() => clearStudentIdentity()} className="ui-button ui-button-secondary mt-3 w-full">Keluar dari sesi</button>
         </div>
       </section>
     );
