@@ -294,7 +294,10 @@ export async function uploadSubmissionPDF(
       .from('submissions')
       .upload(filePath, file, {
         cacheControl: '3600',
-        upsert: true,
+        // A new timestamped object only needs INSERT permission. Reserve
+        // upsert for an intentional replacement because Storage requires
+        // SELECT + UPDATE policies in addition to INSERT for upserts.
+        upsert: Boolean(replacementPath),
         contentType,
       });
 

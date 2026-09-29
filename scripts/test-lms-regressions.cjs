@@ -138,6 +138,14 @@ assert.match(scopedPolicyMigration, /CREATE POLICY "Student view own submissions
 assert.match(scopedPolicyMigration, /CREATE POLICY "Student view own attendance"[\s\S]*?USING \(student_id = private\.current_student_id\(period_id\)\)/);
 assert.match(scopedPolicyMigration, /CREATE POLICY "Student view own published assessment"[\s\S]*?student_id = private\.current_student_id\(period_id\)/);
 assert.match(scopedPolicyMigration, /CREATE POLICY "Student view own remedials"[\s\S]*?USING \(student_id = private\.current_student_id\(period_id\)\)/);
+const submissionStorageFixFile = fs.readdirSync(path.join(root, 'supabase/migrations'))
+  .find(file => file.endsWith('_fix_student_submission_storage_rls.sql'));
+assert.ok(submissionStorageFixFile, 'Student submission uploads must include the corrected Storage policies');
+const submissionStorageFix = fs.readFileSync(path.join(root, 'supabase/migrations', submissionStorageFixFile), 'utf8');
+assert.match(submissionStorageFix, /a\.id::TEXT = split_part\(objects\.name, '\/', 5\)/, 'Storage assignment policies must read the object path, not practice_periods.name');
+assert.match(submissionStorageFix, /CREATE POLICY "Students read own submission files"[\s\S]*?a\.deadline > NOW\(\)/, 'A valid new upload path must be readable during Storage INSERT RETURNING');
+const supabaseClientSource = fs.readFileSync(path.join(root, 'src/services/supabaseClient.ts'), 'utf8');
+assert.match(supabaseClientSource, /upsert: Boolean\(replacementPath\)/, 'Fresh submission objects must not request unnecessary upsert permissions');
 assert.match(activationMigration, /CREATE POLICY "Students replace own remedial files"[\s\S]*?r\.status = 'BELUM_LULUS'[\s\S]*?r\.deadline > NOW\(\)/);
 assert.match(activationMigration, /SET password_hash = NULL[\s\S]*?UPDATE private\.student_sessions[\s\S]*?revoked_at = COALESCE\(revoked_at, NOW\(\)\)/, 'Password reset must revoke live sessions');
 assert.match(activationMigration, /failed_attempts < 5/);
