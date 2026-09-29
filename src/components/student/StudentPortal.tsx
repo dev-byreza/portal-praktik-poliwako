@@ -43,6 +43,7 @@ import { CountdownLockedPanel, CountdownModal, getCountdownEndAt, isCountdownLoc
 import { getUnitAssignments } from '../../utils/learningAssignments';
 import { InteractiveQuiz } from './InteractiveQuiz';
 import { ApiService } from '../../services/apiService';
+import { getStudentRouteState } from '../../utils/studentRoute';
 
 interface StudentPortalProps {
   courseSlug?: string;
@@ -108,7 +109,8 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
   // Catalog view state (PRD Option B: Course Catalog & Switcher)
   const [isViewingCatalog, setIsViewingCatalog] = useState<boolean>(() => {
-    return !sessionStorage.getItem('poliwako_in_workspace');
+    if (typeof window === 'undefined') return true;
+    return getStudentRouteState(window.location.pathname).isCatalog;
   });
   const [selectedCourseSlug, setSelectedCourseSlug] = useState<string>(
     studentSession?.courseSlug || courseSlug || 'pemesinan-cnc'
@@ -161,22 +163,18 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
   // Handler to switch course from catalog
   React.useEffect(() => {
     const syncStudentSlug = () => {
-      const parts = window.location.pathname.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
-      if (parts[0] !== 'mahasiswa') return;
-      if (!parts[1]) {
+      const route = getStudentRouteState(window.location.pathname);
+      if (!route.isStudentRoute) return;
+
+      setIsViewingCatalog(route.isCatalog);
+      if (route.isCatalog) {
         sessionStorage.removeItem('poliwako_in_workspace');
-        setIsViewingCatalog(false);
-        return;
+      } else {
+        sessionStorage.setItem('poliwako_in_workspace', 'true');
       }
-      const isCanonicalRoute = ['dashboard', 'unit', 'final-project', 'nilai'].includes(parts[1]);
-      const slug = isCanonicalRoute ? parts[2] : parts[1];
-      const section = isCanonicalRoute ? parts[1] : parts[2];
-      setIsViewingCatalog(!slug);
-      if (slug) setSelectedCourseSlug(slug);
-      if (section === 'dashboard') setActiveTabState('DASHBOARD');
-      else if (section === 'final-project') setActiveTabState('FINAL_PROJECT');
-      else if (section === 'nilai') setActiveTabState('GRADE');
-      else if (section === 'unit') setActiveTabState('UNITS');
+
+      if (route.slug) setSelectedCourseSlug(route.slug);
+      setActiveTabState(route.tab);
     };
     window.addEventListener('popstate', syncStudentSlug);
     syncStudentSlug();
@@ -213,6 +211,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
       // refreshed student session triggers a new catalog fetch. Otherwise the
       // app can briefly fall back to courses[0], causing the enrollment guard
       // to mistake the selected course for an unauthorized one.
+      sessionStorage.setItem('poliwako_in_workspace', 'true');
       setActiveCourseId(targetCourse.id);
       setStudentIdentity(currentStudent.id, targetCourse.slug, targetPeriod.id, sessionToken);
       setSelectedCourseSlug(slug);
@@ -393,7 +392,12 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
   // Never expose a workspace for a course in which this student is not enrolled.
   // Returning to the catalog also keeps manually entered unauthorized slugs from working.
   const unauthorizedCourse = Boolean(
-    currentStudent && studentSession && !isViewingCatalog && currentCourse && !isCurrentCourseEnrolled
+    isInitialDataLoaded
+    && currentStudent
+    && studentSession
+    && !isViewingCatalog
+    && currentCourse
+    && !isCurrentCourseEnrolled
   );
   React.useEffect(() => {
     if (!unauthorizedCourse || typeof window === 'undefined') return;

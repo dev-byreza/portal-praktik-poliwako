@@ -23,6 +23,20 @@ assert.equal(submissionDeadline('2026-09-25T23:59'), witaDeadline);
 assert.equal(isSubmissionClosed('2026-09-25 23:59 WITA', witaDeadline - 1), false);
 assert.equal(isSubmissionClosed('2026-09-25 23:59 WITA', witaDeadline + 1), true);
 
+const { getStudentRouteState } = loadTypeScript('src/utils/studentRoute.ts');
+assert.deepEqual(
+  JSON.parse(JSON.stringify(getStudentRouteState('/mahasiswa/dashboard/cad-2-trpf'))),
+  { isStudentRoute: true, isCatalog: false, slug: 'cad-2-trpf', tab: 'DASHBOARD' },
+  'A refreshed dashboard deep link must remain inside the selected workspace',
+);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(getStudentRouteState('/mahasiswa/unit/cad-2-trpf'))),
+  { isStudentRoute: true, isCatalog: false, slug: 'cad-2-trpf', tab: 'UNITS' },
+  'A refreshed unit deep link must remain inside the selected workspace',
+);
+assert.equal(getStudentRouteState('/mahasiswa/unit').isCatalog, true, 'The slugless unit route is the student catalog');
+assert.equal(getStudentRouteState('/mahasiswa').isCatalog, true, 'The student portal root is the student catalog');
+
 const { getKnownProdiFromClass } = loadTypeScript('src/utils/academicUtils.ts');
 assert.equal(getKnownProdiFromClass('1C').code, 'RPM', 'A database class 1C must map to the RPM study program');
 assert.equal(getKnownProdiFromClass('1C').name, 'Rekayasa Perancangan Mekanik');
@@ -118,6 +132,8 @@ assert.doesNotMatch(studentSwitchSource, /targetPeriod\.id === studentSession\?\
 assert.match(studentSwitchSource, /clearStudentIdentity\('EXPIRED'\)/, 'An expired or rejected workspace session must return the student to login');
 assert.match(studentSwitchSource, /setActiveCourseId\(targetCourse\.id\)[\s\S]*?setStudentIdentity\(currentStudent\.id, targetCourse\.slug, targetPeriod\.id, sessionToken\)/, 'Workspace navigation must select the target course before the session refresh can re-run route guards');
 assert.match(studentSwitchSource, /history\.pushState\(null, '', `\/mahasiswa\/dashboard\/\$\{slug\}`\);[\s\S]*?dispatchEvent\(new PopStateEvent\('popstate'\)\)/, 'Workspace navigation must notify the app router after updating browser history');
+assert.match(studentSwitchSource, /sessionStorage\.setItem\('poliwako_in_workspace', 'true'\);[\s\S]*?setActiveCourseId\(targetCourse\.id\)/, 'Workspace navigation must persist its marker before session refreshes can re-render the portal');
+assert.match(studentSwitchSource, /const unauthorizedCourse = Boolean\([\s\S]*?isInitialDataLoaded[\s\S]*?!isCurrentCourseEnrolled/, 'Enrollment guards must wait for the authoritative enrollment request to finish');
 const secureStudentRpcMigrationFile = fs.readdirSync(path.join(root, 'supabase/migrations'))
   .find(file => file.endsWith('_hide_student_session_definers.sql'));
 assert.ok(secureStudentRpcMigrationFile, 'Privileged enrollment logic must stay outside the public API schema');
