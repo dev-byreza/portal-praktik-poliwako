@@ -148,7 +148,7 @@ interface AppContextType {
 
   createPeriod: (period: Partial<PracticePeriod>) => PracticePeriod;
   duplicatePeriod: (sourcePeriodId: string, newName: string, startDate: string) => PracticePeriod;
-  updatePeriod: (period: PracticePeriod) => void;
+  updatePeriod: (period: PracticePeriod) => Promise<boolean>;
   deletePeriod: (periodId: string) => void;
   syncAllPeriodsStatus: () => Promise<{ changedCount: number; todayStr: string }>;
 
@@ -411,20 +411,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (periodsResult.status === 'fulfilled') {
           const livePeriods = periodsResult.value;
           const todayStr = getRealtimeWitaDateString();
-          let needsUpdate = false;
+          const changedPeriodIds = new Set<string>();
           const reconciledPeriods = livePeriods.map(p => {
             if (p.autoStatus !== false) {
               const expectedStatus = computePeriodStatus(p.startDate, p.endDate, todayStr);
               if (p.status !== expectedStatus) {
-                needsUpdate = true;
+                changedPeriodIds.add(p.id);
                 return { ...p, status: expectedStatus, autoStatus: true };
               }
             }
             return p;
           });
           setPeriods(reconciledPeriods);
-          if (needsUpdate && reconciledPeriods.length > 0) {
-            ApiService.savePeriodsBulk(reconciledPeriods);
+          // Public period reads include courses owned by other instructors.
+          // Never send that entire catalog back through an instructor-scoped
+          // RLS policy: one foreign row would reject the whole batch.
+          if (authInstructorId && coursesResult.status === 'fulfilled' && changedPeriodIds.size > 0) {
+            const ownedCourseIds = new Set(
+              coursesResult.value
+                .filter(course => course.instructorId === authInstructorId)
+                .map(course => course.id),
+            );
+            const ownedStatusUpdates = reconciledPeriods.filter(period => (
+              changedPeriodIds.has(period.id) && ownedCourseIds.has(period.courseId)
+            ));
+            if (ownedStatusUpdates.length > 0) {
+              void ApiService.savePeriodsBulk(ownedStatusUpdates).catch(error => {
+                console.warn('Unable to persist reconciled period status:', error);
+              });
+            }
           }
         }
         if (participantsResult.status === 'fulfilled') setParticipants(participantsResult.value);
@@ -1445,51 +1460,80 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return newPeriod;
   };
 
-  const updatePeriod = (updated: PracticePeriod) => {
+  const updatePeriod = async (updated: PracticePeriod): Promise<boolean> => {
     const isAuto = updated.autoStatus !== false;
     const status = isAuto
       ? computePeriodStatus(updated.startDate, updated.endDate)
       : (updated.status || computePeriodStatus(updated.startDate, updated.endDate));
     const finalUpdated = { ...updated, status, autoStatus: isAuto };
 
-    setPeriods(prev => {
-      let nextList: PracticePeriod[];
-      if (finalUpdated.status === 'ACTIVE') {
-        nextList = prev.map(p => {
-          if (p.id === finalUpdated.id) return finalUpdated;
-          if (p.courseId === finalUpdated.courseId && p.status === 'ACTIVE') {
-            return { ...p, status: 'UPCOMING' };
-          }
-          return p;
-        });
-      } else {
-        nextList = prev.map(p => p.id === finalUpdated.id ? finalUpdated : p);
-      }
-      void runServerSave('periode praktik', () => ApiService.savePeriodsBulk(nextList)).catch(error => {
-        showToast('Sinkronisasi Gagal', `Perubahan periode belum tersimpan ke Supabase: ${error.message}`, 'error');
-      });
-      return nextList;
+    const previousPeriods = periods;
+    const nextList = finalUpdated.status === 'ACTIVE'
+      ? previousPeriods.map(period => {
+        if (period.id === finalUpdated.id) return finalUpdated;
+        if (period.courseId === finalUpdated.courseId && period.status === 'ACTIVE') {
+          return { ...period, status: 'UPCOMING' as const };
+        }
+        return period;
+      })
+      : previousPeriods.map(period => period.id === finalUpdated.id ? finalUpdated : period);
+
+    // Persist only the edited row and any same-course period whose ACTIVE
+    // status was displaced. Sending every public period causes RLS to reject
+    // the batch as soon as it encounters another instructor's course.
+    const rowsToSave = nextList.filter(period => {
+      if (period.courseId !== finalUpdated.courseId) return false;
+      if (period.id === finalUpdated.id) return true;
+      const previous = previousPeriods.find(item => item.id === period.id);
+      return previous?.status !== period.status;
     });
-    showToast('Periode Diperbarui', `Periode "${finalUpdated.name}" berhasil diperbarui (${finalUpdated.startDate} s/d ${finalUpdated.endDate}) [Status: ${finalUpdated.status}].`, 'success');
+    const previousById = new Map(previousPeriods.map(period => [period.id, period]));
+    const attemptedById = new Map(rowsToSave.map(period => [period.id, period]));
+
+    setPeriods(nextList);
+    try {
+      await runServerSave('periode praktik', () => ApiService.savePeriodsBulk(rowsToSave));
+      showToast('Periode Diperbarui', `Periode "${finalUpdated.name}" berhasil diperbarui (${finalUpdated.startDate} s/d ${finalUpdated.endDate}) [Status: ${finalUpdated.status}].`, 'success');
+      return true;
+    } catch (error) {
+      // Roll back only rows that still contain this failed optimistic update;
+      // a newer edit must not be overwritten by a late failure response.
+      setPeriods(current => current.map(period => (
+        attemptedById.get(period.id) === period
+          ? (previousById.get(period.id) || period)
+          : period
+      )));
+      const message = error instanceof Error ? error.message : String(error);
+      showToast('Sinkronisasi Gagal', `Perubahan periode belum tersimpan ke Supabase: ${message}`, 'error');
+      return false;
+    }
   };
 
   const syncAllPeriodsStatus = async (): Promise<{ changedCount: number; todayStr: string }> => {
     const netInfo = await fetchInternetNetworkTime(true).catch(() => null);
     const todayStr = netInfo?.dateString || getRealtimeWitaDateString();
-    let changedCount = 0;
+    const ownedCourseIds = new Set(
+      courses
+        .filter(course => course.instructorId === instructor.id)
+        .map(course => course.id),
+    );
+    const changedOwnedPeriodIds = new Set<string>();
 
     const nextPeriods = periods.map(p => {
       const autoComputed = computePeriodStatus(p.startDate, p.endDate, todayStr);
       if (p.status !== autoComputed) {
-        changedCount++;
+        if (ownedCourseIds.has(p.courseId)) changedOwnedPeriodIds.add(p.id);
         return { ...p, status: autoComputed, autoStatus: true };
       }
       return p;
     });
 
+    const changedPeriods = nextPeriods.filter(period => changedOwnedPeriodIds.has(period.id));
+    const changedCount = changedPeriods.length;
+
     if (changedCount > 0) {
       setPeriods(nextPeriods);
-      await runServerSave('sinkronisasi periode', () => ApiService.savePeriodsBulk(nextPeriods));
+      await runServerSave('sinkronisasi periode', () => ApiService.savePeriodsBulk(changedPeriods));
       showToast(
         'Sinkronisasi Realtime Internet Berhasil',
         `${changedCount} status gelombang otomatis diperbarui sesuai tanggal hari ini (${todayStr} WITA).`,

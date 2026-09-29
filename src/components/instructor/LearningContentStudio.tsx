@@ -69,6 +69,7 @@ export const LearningContentStudio: React.FC = () => {
   const [projectDriveUrlInput, setProjectDriveUrlInput] = useState('');
   const [projectDescriptionInput, setProjectDescriptionInput] = useState('');
   const [projectEnabledInput, setProjectEnabledInput] = useState(false);
+  const [isSavingProjectLink, setIsSavingProjectLink] = useState(false);
 
   // Modals
   const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
@@ -189,18 +190,24 @@ export const LearningContentStudio: React.FC = () => {
     setIsProjectLinkModalOpen(true);
   };
 
-  const handleSaveProjectLink = (e: React.FormEvent) => {
+  const handleSaveProjectLink = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeSelectedPeriod) return;
+    if (!activeSelectedPeriod || isSavingProjectLink) return;
     const url = projectDriveUrlInput.trim();
-    updatePeriod({
-      ...activeSelectedPeriod,
-      finalProjectDriveUrl: url || undefined,
-      finalProjectDescription: projectDescriptionInput.trim() || undefined,
-      finalProjectEnabled: projectEnabledInput,
-    });
-    setIsProjectLinkModalOpen(false);
-    showToast('Project Akhir Diperbarui', 'Link Google Drive project akhir berhasil disinkronkan.', 'success');
+    setIsSavingProjectLink(true);
+    try {
+      const saved = await updatePeriod({
+        ...activeSelectedPeriod,
+        finalProjectDriveUrl: url || undefined,
+        finalProjectDescription: projectDescriptionInput.trim() || undefined,
+        finalProjectEnabled: projectEnabledInput,
+      });
+      if (!saved) return;
+      setIsProjectLinkModalOpen(false);
+      showToast('Project Akhir Diperbarui', 'Link Google Drive project akhir berhasil disinkronkan.', 'success');
+    } finally {
+      setIsSavingProjectLink(false);
+    }
   };
 
   // Unit Form states
@@ -1012,7 +1019,7 @@ export const LearningContentStudio: React.FC = () => {
                   <h3 className="text-base font-bold">Link Project Akhir</h3>
                   <p className="mt-1 text-[11px] text-slate-300">{activeSelectedPeriod.name}</p>
                 </div>
-                <button type="button" onClick={() => setIsProjectLinkModalOpen(false)} className="text-slate-400 hover:text-white">
+                <button type="button" disabled={isSavingProjectLink} onClick={() => setIsProjectLinkModalOpen(false)} className="text-slate-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-50">
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -1051,8 +1058,10 @@ export const LearningContentStudio: React.FC = () => {
                   </span>
                 </label>
                 <div className="flex justify-end gap-2">
-                  <button type="button" onClick={() => setIsProjectLinkModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">Batal</button>
-                  <button type="submit" className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-500">Simpan Link</button>
+                  <button type="button" disabled={isSavingProjectLink} onClick={() => setIsProjectLinkModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">Batal</button>
+                  <button type="submit" disabled={isSavingProjectLink} className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60">
+                    {isSavingProjectLink ? 'Menyimpan…' : 'Simpan Link'}
+                  </button>
                 </div>
               </form>
             </div>

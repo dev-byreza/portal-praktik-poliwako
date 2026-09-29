@@ -149,6 +149,11 @@ assert.match(restoreSessionMigration, /student\.id,[\s\S]*?student\.nim,[\s\S]*?
 const appContextSource = fs.readFileSync(path.join(root, 'src/context/AppContext.tsx'), 'utf8');
 assert.match(appContextSource, /ApiService\.studentRestoreSessionProfile\(studentSession\.sessionToken\)/, 'Refresh recovery must not use the redacted NIM lookup as the session profile source');
 assert.match(appContextSource, /studentSessionRestoreStatus/, 'The portal must distinguish profile restore from an unauthenticated login');
+assert.doesNotMatch(appContextSource, /savePeriodsBulk\(reconciledPeriods\)/, 'Automatic status reconciliation must not write every public period through one instructor RLS scope');
+assert.match(appContextSource, /ownedStatusUpdates[\s\S]*?savePeriodsBulk\(ownedStatusUpdates\)/, 'Automatic status reconciliation must persist only periods owned by the signed-in instructor');
+assert.match(appContextSource, /const rowsToSave = nextList\.filter[\s\S]*?period\.courseId !== finalUpdated\.courseId[\s\S]*?savePeriodsBulk\(rowsToSave\)/, 'A period edit must not include another instructor\'s periods in its RLS-protected batch');
+const learningStudioSource = fs.readFileSync(path.join(root, 'src/components/instructor/LearningContentStudio.tsx'), 'utf8');
+assert.match(learningStudioSource, /const saved = await updatePeriod[\s\S]*?if \(!saved\) return;[\s\S]*?Project Akhir Diperbarui/, 'Project-link success feedback must wait for the Supabase write to succeed');
 assert.match(scopedPolicyMigration, /token_hash = encode\(digest\(v_token, 'sha256'\), 'hex'\)/, 'A student session token must be verified by its hash');
 assert.match(scopedPolicyMigration, /CREATE POLICY "Student view own submissions"[\s\S]*?USING \(student_id = private\.current_student_id\(period_id\)\)/);
 assert.match(scopedPolicyMigration, /CREATE POLICY "Student view own attendance"[\s\S]*?USING \(student_id = private\.current_student_id\(period_id\)\)/);
