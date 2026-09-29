@@ -52,6 +52,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
   const {
     courses,
     activeCourseId,
+    setActiveCourseId,
     periods,
     learningUnits,
     participants,
@@ -208,10 +209,16 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
           targetPeriod.id,
         )
         : undefined;
+      // Keep the global course selection and URL router aligned before the
+      // refreshed student session triggers a new catalog fetch. Otherwise the
+      // app can briefly fall back to courses[0], causing the enrollment guard
+      // to mistake the selected course for an unauthorized one.
+      setActiveCourseId(targetCourse.id);
       setStudentIdentity(currentStudent.id, targetCourse.slug, targetPeriod.id, sessionToken);
       setSelectedCourseSlug(slug);
       setIsViewingCatalog(false);
       window.history.pushState(null, '', `/mahasiswa/dashboard/${slug}`);
+      window.dispatchEvent(new PopStateEvent('popstate'));
       setActiveTabState('DASHBOARD');
       sessionStorage.setItem('poliwako_in_workspace', 'true');
     } catch (error) {

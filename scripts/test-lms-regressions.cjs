@@ -116,6 +116,8 @@ const studentSwitchSource = fs.readFileSync(path.join(root, 'src/components/stud
 assert.match(studentSwitchSource, /await ApiService\.studentCreatePeriodSession[\s\S]*?setStudentIdentity\(currentStudent\.id, targetCourse\.slug, targetPeriod\.id, sessionToken\)/, 'Workspace navigation must install the server-issued token before entering a different period');
 assert.doesNotMatch(studentSwitchSource, /targetPeriod\.id === studentSession\?\.periodId[\s\S]*?\? studentSession\.sessionToken/, 'Workspace navigation must refresh even a same-period token instead of reusing a possibly expired session');
 assert.match(studentSwitchSource, /clearStudentIdentity\('EXPIRED'\)/, 'An expired or rejected workspace session must return the student to login');
+assert.match(studentSwitchSource, /setActiveCourseId\(targetCourse\.id\)[\s\S]*?setStudentIdentity\(currentStudent\.id, targetCourse\.slug, targetPeriod\.id, sessionToken\)/, 'Workspace navigation must select the target course before the session refresh can re-run route guards');
+assert.match(studentSwitchSource, /history\.pushState\(null, '', `\/mahasiswa\/dashboard\/\$\{slug\}`\);[\s\S]*?dispatchEvent\(new PopStateEvent\('popstate'\)\)/, 'Workspace navigation must notify the app router after updating browser history');
 const secureStudentRpcMigrationFile = fs.readdirSync(path.join(root, 'supabase/migrations'))
   .find(file => file.endsWith('_hide_student_session_definers.sql'));
 assert.ok(secureStudentRpcMigrationFile, 'Privileged enrollment logic must stay outside the public API schema');
