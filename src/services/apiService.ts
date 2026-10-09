@@ -390,11 +390,10 @@ export class ApiService {
     studyProgramName?: string;
     studyProgramCode?: string;
     student?: Student;
-    requiresActivationCode: boolean;
     message?: string;
   }> {
     if (!this.isLiveBackend() || !supabase) {
-      return { exists: false, isEnrolled: false, hasCreatedPassword: false, requiresActivationCode: false, message: 'Backend Supabase belum terhubung.' };
+      return { exists: false, isEnrolled: false, hasCreatedPassword: false, message: 'Backend Supabase belum terhubung.' };
     }
     const { data, error } = await supabase.rpc('student_auth_lookup', {
       p_nim: nim,
@@ -412,7 +411,6 @@ export class ApiService {
       hasCreatedPassword: Boolean(result.hasCreatedPassword),
       studyProgramName: result.studyProgramName || undefined,
       studyProgramCode: result.studyProgramCode || undefined,
-      requiresActivationCode: true,
       student: rawStudent ? {
         id: rawStudent.id,
         nim: rawStudent.nim,
@@ -425,7 +423,7 @@ export class ApiService {
     };
   }
 
-  static async studentAuthSetPassword(nim: string, password: string, activationCode: string, courseSlug: string, periodId: string): Promise<{
+  static async studentAuthSetPassword(nim: string, password: string, courseSlug: string, periodId: string): Promise<{
     success: boolean;
     message: string;
     periodId?: string;
@@ -438,9 +436,8 @@ export class ApiService {
     const { data, error } = await supabase.rpc('student_auth_set_password', {
       p_nim: nim,
       p_password: password,
-      p_activation_code: activationCode,
-      p_course_slug: courseSlug,
-      p_period_id: periodId,
+      p_course_slug: courseSlug || null,
+      p_period_id: periodId || null,
     });
     if (error) throw error;
     const result = data || {};
@@ -461,18 +458,15 @@ export class ApiService {
     };
   }
 
-  static async issueStudentActivationCode(studentId: string, resetExistingPassword: boolean): Promise<string> {
+  static async resetStudentPassword(studentId: string): Promise<void> {
     if (!this.isLiveBackend() || !supabase) {
-      throw new Error('Penerbitan kode aktivasi memerlukan koneksi Supabase dan sesi instruktur.');
+      throw new Error('Reset password memerlukan koneksi Supabase dan sesi instruktur.');
     }
-    const { data, error } = await supabase.rpc('student_auth_issue_activation_code', {
+    const { data, error } = await supabase.rpc('student_auth_reset_password', {
       p_student_id: studentId,
-      p_reset_existing_password: resetExistingPassword,
     });
     if (error) throw error;
-    const code = typeof data === 'string' ? data : data?.code;
-    if (!code) throw new Error('Server tidak mengembalikan kode aktivasi.');
-    return code;
+    if (!data?.success) throw new Error(data?.message || 'Server tidak dapat mereset password.');
   }
 
   static async studentAuthLogin(nim: string, password: string, courseSlug: string, periodId: string): Promise<{
@@ -765,11 +759,15 @@ export class ApiService {
       finalProjectReviewStatus: p.final_project_review_status || undefined,
       finalProjectFeedback: p.final_project_feedback || undefined,
     });
+    // An instructor may sign in after testing the student portal in the same
+    // browser. In that case a persisted student token must not narrow the
+    // instructor's participant list to that one student's enrollments.
+    const authUser = await getCurrentAuthUser();
     const studentSession = StorageService.getStudentSession();
     const hasStudentServerSession = Boolean(studentSession?.sessionToken);
 
     try {
-      if (studentSession?.sessionToken) {
+      if (!authUser && studentSession?.sessionToken) {
         // Student enrollment is fetched through a database function that
         // validates this bearer token and returns only this student's
         // published enrollments, including periods available for switching.
@@ -791,8 +789,6 @@ export class ApiService {
 
       // Resolve the auth role only when the direct query was empty or failed.
       // The normal catalog path therefore avoids a second Auth request.
-      const authUser = await getCurrentAuthUser();
-
       // An authenticated instructor must never receive the anonymous minimal
       // enrollment view as a silent fallback. That view has no student names
       // and can make a valid instructor query look partially empty.

@@ -63,4 +63,25 @@ if (restoreSessionError || invalidRestoreSession?.success !== false) {
   process.exit(1);
 }
 
-console.log(`PASS: Supabase Data API smoke test (${schemaChecks.length} tables; invalid enrollment, period-switch, and restore tokens denied).`);
+const { data: missingPasswordStudent, error: passwordSetupError } = await client.rpc(
+  'student_auth_set_password',
+  {
+    p_nim: 'regression-missing-student-' + crypto.randomUUID(),
+    p_password: 'Regression-password-1',
+    p_course_slug: null,
+    p_period_id: null,
+  },
+);
+if (passwordSetupError || missingPasswordStudent?.success !== false || missingPasswordStudent?.message !== 'NIM tidak ditemukan.') {
+  console.error(`FAIL: code-free password RPC did not deny a missing student (${passwordSetupError?.code || 'unexpected response'}).`);
+  process.exit(1);
+}
+const { error: anonymousResetError } = await client.rpc('student_auth_reset_password', {
+  p_student_id: '00000000-0000-0000-0000-000000000000',
+});
+if (!anonymousResetError || anonymousResetError.code !== '42501') {
+  console.error(`FAIL: anonymous callers must not execute password reset (${anonymousResetError?.code || 'unexpected access'}).`);
+  process.exit(1);
+}
+
+console.log(`PASS: Supabase Data API smoke test (${schemaChecks.length} tables; invalid session tokens, missing password student, and anonymous reset denied).`);

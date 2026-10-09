@@ -115,12 +115,11 @@ interface AppContextType {
     periodId?: string;
     courseSlug?: string;
     hasCreatedPassword: boolean;
-    requiresActivationCode: boolean;
     studyProgramName?: string;
     studyProgramCode?: string;
     message?: string;
   }>;
-  createStudentPassword: (nim: string, password: string, activationCode: string, courseSlug: string, periodId: string) => Promise<{
+  createStudentPassword: (nim: string, password: string, courseSlug: string, periodId: string) => Promise<{
     success: boolean;
     message: string;
   }>;
@@ -128,7 +127,7 @@ interface AppContextType {
     success: boolean;
     message: string;
   }>;
-  resetStudentPassword: (studentId: string) => Promise<string | null>;
+  resetStudentPassword: (studentId: string) => Promise<void>;
   setStudentIdentity: (studentId: string, courseSlug: string, periodId: string, sessionToken?: string) => void;
   clearStudentIdentity: (reason?: 'USER' | 'EXPIRED') => void;
 
@@ -868,7 +867,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         isEnrolled: false,
         periodId: undefined,
         hasCreatedPassword: false,
-        requiresActivationCode: false,
         message: 'Silakan masukkan NIM Anda.'
       };
     }
@@ -884,7 +882,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             isEnrolled: false,
             periodId: undefined,
             hasCreatedPassword: false,
-            requiresActivationCode: false,
             message: 'Data NIM dari server tidak cocok dengan NIM yang dimasukkan. Silakan coba lagi.'
           };
         }
@@ -907,7 +904,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           isEnrolled: false,
           periodId: undefined,
           hasCreatedPassword: false,
-          requiresActivationCode: false,
           message: 'Data mahasiswa belum dapat diverifikasi ke Supabase. Coba lagi.'
         };
       }
@@ -920,7 +916,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         isEnrolled: false,
         periodId: undefined,
         hasCreatedPassword: false,
-        requiresActivationCode: false,
         message: `NIM "${nim.trim()}" tidak terdaftar dalam pangkalan data mahasiswa Politeknik Sorowako.`
       };
     }
@@ -945,12 +940,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       isEnrolled,
       periodId: preferredPeriod?.id,
       hasCreatedPassword,
-      requiresActivationCode: false,
       message: isEnrolled ? undefined : 'Mahasiswa belum terdaftar pada mata kuliah atau periode praktik ini.'
     };
   };
 
-  const createStudentPassword = async (nim: string, password: string, activationCode: string, courseSlug: string, periodId: string) => {
+  const createStudentPassword = async (nim: string, password: string, courseSlug: string, periodId: string) => {
     const std = students.find(s => normalizeStudentNim(s.nim) === normalizeStudentNim(nim));
     if (!std && !isLiveBackend) {
       return { success: false, message: 'Data mahasiswa tidak ditemukan.' };
@@ -961,7 +955,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     if (isLiveBackend) {
       try {
-        const result = await ApiService.studentAuthSetPassword(nim, password, activationCode, courseSlug, periodId);
+        const result = await ApiService.studentAuthSetPassword(nim, password, courseSlug, periodId);
         if (!result.success) return { success: false, message: result.message };
         const remoteStudent = result.student;
         if (!remoteStudent) return { success: false, message: 'Data mahasiswa tidak diterima dari server.' };
@@ -992,6 +986,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     }
 
+    if (std!.hasCreatedPassword || std!.password) {
+      return { success: false, message: 'Password akun ini sudah pernah dibuat. Silakan gunakan login password.' };
+    }
+    const enrollment = await verifyStudentNim(nim, courseSlug || undefined, periodId || undefined);
+    if (!enrollment.exists || !enrollment.isEnrolled) {
+      return { success: false, message: enrollment.message || 'Mahasiswa belum terdaftar pada periode praktik ini.' };
+    }
     const trimmedPassword = password.trim();
     const updatedStudents = students.map(s => {
       if (normalizeStudentNim(s.nim) === normalizeStudentNim(nim)) {
@@ -1070,22 +1071,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { success: true, message: 'Login berhasil.' };
   };
 
-  const resetStudentPassword = async (studentId: string): Promise<string | null> => {
+  const resetStudentPassword = async (studentId: string): Promise<void> => {
     const student = students.find(item => item.id === studentId);
     if (!student) throw new Error('Mahasiswa tidak ditemukan di daftar lokal.');
     if (isLiveBackend) {
-      const activationCode = await ApiService.issueStudentActivationCode(
-        studentId,
-        Boolean(student.hasCreatedPassword || student.password),
-      );
+      await ApiService.resetStudentPassword(studentId);
       setStudents(previous => previous.map(item => item.id === studentId
         ? { ...item, password: undefined, hasCreatedPassword: false }
         : item));
       StorageService.saveStudents(StorageService.getStudents().map(item => item.id === studentId
         ? { ...item, password: undefined, hasCreatedPassword: false }
         : item));
-      showToast('Kode Aktivasi Terbit', `Kode sekali pakai untuk ${student.name} berlaku 24 jam. Sampaikan melalui kanal institusi tepercaya.`, 'success');
-      return activationCode;
+      showToast('Password Direset', `${student.name} dapat membuat password baru saat login berikutnya.`, 'success');
+      return;
     }
 
     const updatedStudents = students.map(s => {
@@ -1098,7 +1096,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     StorageService.saveStudents(updatedStudents);
 
     showToast('Password Direset', `Akun ${student.name} di mode lokal telah direset.`, 'info');
-    return null;
   };
 
   // Student Identity

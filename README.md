@@ -84,7 +84,8 @@
    - URL ramah pengguna: `/pemesinan-cnc`, `/cad-cam`, dll.
 2. **Autentikasi Aman Tanpa Akun**
    - Identifikasi berbasis NIM + Nama yang terdaftar pada gelombang aktif.
-   - Registrasi password mandiri saat pertama kali login.
+   - Registrasi password mandiri saat pertama kali login, tanpa kode aktivasi setelah NIM dan pendaftaran periode tervalidasi.
+   - Reset password oleh instruktur mencabut sesi lama; mahasiswa dapat langsung membuat password baru saat login berikutnya.
 3. **Workspace Pembelajaran Bertahap (*Progressive Locking*)**
    - Silabus interaktif dengan status unit: *Locked* 🔒, *Available* ●, dan *Completed* ✓.
    - Pratinjau dokumen materi PDF langsung di browser dan pemutar video YouTube.

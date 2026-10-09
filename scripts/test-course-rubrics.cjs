@@ -98,9 +98,16 @@ let failTable;
 let failOperation;
 let cachedAssessments = [];
 let cachedAttendance = [];
+let currentAuthUser = { id: 'instructor-1' };
+let storedStudentSession = { sessionToken: 'stale-student-token' };
+let enrollmentRpcCalls = 0;
 const oldSubId = '10000000-0000-4000-8000-000000000001';
 const oldRubricId = '20000000-0000-4000-8000-000000000001';
 const fakeClient = {
+  rpc(name) {
+    if (name === 'student_list_course_enrollments') enrollmentRpcCalls += 1;
+    return Promise.resolve({ data: [{ id: 'student-only-row', period_id: 'period-1', student_id: 'student-1' }], error: null });
+  },
   from(table) {
     const call = { table, filters: [] };
     calls.push(call);
@@ -114,7 +121,12 @@ const fakeClient = {
       then(resolve, reject) {
         const error = table === failTable && call.operation === failOperation ? new Error('Save denied') : null;
         const data = call.operation === 'select'
-          ? [{ id: table === 'rubric_criteria' ? oldRubricId : oldSubId }]
+          ? table === 'practice_participants'
+            ? [
+                { id: 'participant-1', period_id: 'period-1', student_id: 'student-1', students: { id: 'student-1', nim: '001', name: 'Mahasiswa 1', class_name: '2A' } },
+                { id: 'participant-2', period_id: 'period-1', student_id: 'student-2', students: { id: 'student-2', nim: '002', name: 'Mahasiswa 2', class_name: '2B' } },
+              ]
+            : [{ id: table === 'rubric_criteria' ? oldRubricId : oldSubId }]
           : { id: 'saved' };
         return Promise.resolve({ data, error }).then(resolve, reject);
       },
@@ -123,7 +135,7 @@ const fakeClient = {
   },
 };
 const { ApiService } = loadSource('src/services/apiService.ts', {
-  './supabaseClient': { supabase: fakeClient, isSupabaseConfigured: () => live },
+  './supabaseClient': { supabase: fakeClient, isSupabaseConfigured: () => live, getCurrentAuthUser: async () => currentAuthUser },
   './storageService': { StorageService: {
     getCourses: () => cached,
     saveCourses: courses => { cached = courses; },
@@ -131,6 +143,7 @@ const { ApiService } = loadSource('src/services/apiService.ts', {
     saveAssessments: assessments => { cachedAssessments = assessments; },
     getAttendance: () => cachedAttendance,
     saveAttendance: attendance => { cachedAttendance = attendance; },
+    getStudentSession: () => storedStudentSession,
   } },
   '../utils/learningAssignments': { getUnitAssignments: () => [] },
   '../utils/learningUnitOrdering': { normalizeLearningUnitNumbers: units => units },
@@ -149,6 +162,15 @@ const course = {
 };
 
 (async () => {
+  const instructorParticipants = await ApiService.getParticipants('period-1');
+  assert.equal(instructorParticipants.length, 2, 'An authenticated instructor must load all course participants even if an old student session remains in storage');
+  assert.equal(enrollmentRpcCalls, 0, 'Instructor requests must not use the student-scoped enrollment RPC');
+  currentAuthUser = null;
+  const studentParticipants = await ApiService.getParticipants('period-1');
+  assert.equal(studentParticipants.length, 1, 'A student session without instructor authentication must remain limited to its own enrollment');
+  assert.equal(enrollmentRpcCalls, 1, 'Student requests must keep using the session-scoped enrollment RPC');
+  currentAuthUser = { id: 'instructor-1' };
+
   const saved = await ApiService.saveCourse(course);
   assert.match(saved.qualityRubrics[1].id, /^[0-9a-f-]{36}$/);
   assert.equal(saved.qualityRubrics[0].subCpmkId, saved.subCpmks[0].id);

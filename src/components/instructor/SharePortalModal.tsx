@@ -40,7 +40,7 @@ Portal Praktik Poliwako untuk materi pembelajaran, presensi WITA, dan pengumpula
 *Petunjuk Masuk:*
 1. Buka tautan di atas melalui browser (HP atau Laptop).
 2. Masukkan *NIM (Nomor Induk Mahasiswa)* Anda yang terdaftar.
-3. Untuk kunjungan pertama, Anda akan diarahkan membuat kata sandi aktivasi.
+3. Untuk kunjungan pertama, Anda akan diarahkan membuat kata sandi baru tanpa kode aktivasi.
 
 Terima kasih dan selamat belajar!`;
 

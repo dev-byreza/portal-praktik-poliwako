@@ -52,8 +52,6 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   // Form states for password
   const [passwordInput, setPasswordInput] = useState('');
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
-  const [activationCodeInput, setActivationCodeInput] = useState('');
-  const [requiresActivationCode, setRequiresActivationCode] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -63,7 +61,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   const verificationRequestRef = useRef(0);
   const dialogRef = useRef<HTMLDivElement>(null);
   // The NIM lookup returns the database-derived program label without exposing
-  // the student's name or class before password/activation-code proof.
+  // the student's name or class before login or password creation.
   const targetStudentProdi = (targetStudyProgram
     ? getKnownProdiFromClass(undefined, targetStudyProgram.name)
     : null) || getKnownProdiFromClass(targetStudent?.className);
@@ -156,7 +154,6 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
       setTargetStudyProgram(verification.studyProgramName && verification.studyProgramCode
         ? { name: verification.studyProgramName, code: verification.studyProgramCode }
         : null);
-      setRequiresActivationCode(Boolean(verification.requiresActivationCode));
       setTargetPeriodId(verification.periodId || activePeriod?.id || '');
       setTargetCourseSlug(
         verification.courseSlug ||
@@ -166,7 +163,6 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
       );
       setPasswordInput('');
       setConfirmPasswordInput('');
-      setActivationCodeInput('');
       setErrorMessage(null);
 
       if (verification.hasCreatedPassword) {
@@ -191,11 +187,6 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
       return;
     }
 
-    if (requiresActivationCode && activationCodeInput.trim().length < 24) {
-      setErrorMessage('Masukkan kode aktivasi sekali pakai dari instruktur.');
-      return;
-    }
-
     if (passwordInput !== confirmPasswordInput) {
       setErrorMessage('Konfirmasi password tidak cocok dengan password baru.');
       return;
@@ -206,7 +197,6 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
       const result = await createStudentPassword(
         targetStudent.nim,
         passwordInput,
-        activationCodeInput.trim().toUpperCase(),
         targetCourseSlug || courseSlug || '',
         targetPeriodId || activePeriod?.id || ''
       );
@@ -263,7 +253,6 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
     setTargetStudyProgram(null);
     setPasswordInput('');
     setConfirmPasswordInput('');
-    setActivationCodeInput('');
     setErrorMessage(null);
   };
 
@@ -387,23 +376,8 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
             </div>
 
             <p className="mb-4 text-sm leading-5 text-slate-600">
-              Akun ini belum memiliki password. Masukkan kode aktivasi dari instruktur, lalu buat password minimal 8 karakter:
+              Akun ini belum memiliki password. Buat password minimal 8 karakter, lalu konfirmasi password Anda:
             </p>
-
-            {requiresActivationCode && <div className="mb-3">
-              <label htmlFor="student-activation-code" className="mb-1.5 block text-xs font-semibold text-slate-700">Kode Aktivasi</label>
-              <input
-                id="student-activation-code"
-                type="text"
-                value={activationCodeInput}
-                onChange={event => setActivationCodeInput(event.target.value.replace(/[^a-f0-9]/gi, '').slice(0, 24))}
-                autoComplete="one-time-code"
-                autoCapitalize="characters"
-                maxLength={24}
-                placeholder="Tempel kode 24 karakter dari instruktur"
-                className="ui-field w-full border-slate-300 bg-white font-mono text-sm tracking-widest text-slate-900 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/15"
-              />
-            </div>}
 
             {/* Input Password Baru */}
             <div className="mb-3">
