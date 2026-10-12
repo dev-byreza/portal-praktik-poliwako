@@ -97,7 +97,7 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
 
   return (
     <aside
-      className={`fixed top-0 left-0 h-screen z-40 bg-[#f4f5f7] dark:bg-[#0f172a] border-r border-slate-200/80 dark:border-slate-800 text-slate-800 dark:text-slate-100 flex flex-col transition-all duration-300 ease-in-out ${
+      className={`instructor-sidebar-viewport fixed top-0 left-0 z-40 bg-[#f4f5f7] dark:bg-[#0f172a] border-r border-slate-200/80 dark:border-slate-800 text-slate-800 dark:text-slate-100 flex flex-col transition-all duration-300 ease-in-out ${
         isCollapsed ? 'w-20' : 'w-64'
       } ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
     >
@@ -234,7 +234,7 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       </div>
 
       {/* Navigation Menu List */}
-      <div className="flex-1 overflow-y-auto py-2 px-3 space-y-1.5 scrollbar-thin">
+      <div className="instructor-sidebar-nav flex-1 min-h-0 overflow-hidden py-2 px-3 space-y-1.5">
         {navItems.map(item => {
           const isActive = activeTab === item.id;
           return (
@@ -291,7 +291,7 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       </div>
 
       {/* Bottom Controls Area (Chat button & Theme toggle & Instructor profile) */}
-      <div className="p-3 border-t border-slate-200/70 dark:border-slate-800/80 shrink-0 flex flex-col-reverse md:flex-col gap-2.5">
+      <div className="instructor-sidebar-footer p-3 border-t border-slate-200/70 dark:border-slate-800/80 shrink-0 flex flex-row-reverse md:flex-col gap-2.5">
         
         {/* Controls Row: Circular Chat Bubble & Vertical Theme Pill */}
         <div className={`flex items-center ${isCollapsed ? 'flex-col gap-2.5 justify-center' : 'justify-between px-1'}`}>
@@ -341,7 +341,7 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
 
         {/* Instructor Profile Card */}
         {!isCollapsed ? (
-          <div className="p-2 rounded-2xl bg-white/80 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700/80 shadow-xs flex items-center justify-between">
+          <div className="min-w-0 flex-1 md:flex-none p-2 rounded-2xl bg-white/80 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700/80 shadow-xs flex items-center justify-between">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-xl bg-slate-900 dark:bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
                 {instructor.name.charAt(0)}
