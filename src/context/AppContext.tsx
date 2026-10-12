@@ -127,10 +127,6 @@ interface AppContextType {
     success: boolean;
     message: string;
   }>;
-  loginStudentWithGoogle: (courseSlug?: string, periodId?: string) => Promise<{
-    success: boolean;
-    message: string;
-  }>;
   resetStudentPassword: (studentId: string) => Promise<void>;
   setStudentIdentity: (studentId: string, courseSlug: string, periodId: string, sessionToken?: string) => void;
   clearStudentIdentity: (reason?: 'USER' | 'EXPIRED') => void;
@@ -343,7 +339,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       if (window.location.pathname.replace(/\/+$/, '').toLowerCase() === '/mahasiswa'
-        && window.sessionStorage.getItem('poliwako_student_google_login') === 'pending') {
+        && new URLSearchParams(window.location.search).get('student_reset') === '1') {
         clearLiveInstructorSession();
         return;
       }
@@ -1098,46 +1094,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     showToast('Login Berhasil', `Selamat datang kembali, ${std.name}!`, 'success');
     return { success: true, message: 'Login berhasil.' };
-  };
-
-  const loginStudentWithGoogle = async (courseSlug?: string, periodId?: string) => {
-    if (!isLiveBackend || !supabase) {
-      return { success: false, message: 'Login Google mahasiswa memerlukan koneksi Supabase.' };
-    }
-
-    try {
-      const result = await ApiService.studentGoogleLogin(courseSlug, periodId);
-      if (!result.success || !result.student || !result.sessionToken || !result.periodId || !result.courseSlug) {
-        return { success: false, message: result.message || 'Akun Google belum terdaftar sebagai mahasiswa pada periode praktik aktif.' };
-      }
-
-      const student = result.student;
-      const session = {
-        studentId: student.id,
-        nim: student.nim,
-        courseSlug: result.courseSlug,
-        periodId: result.periodId,
-        sessionToken: result.sessionToken,
-      };
-      setStudents(previous => [
-        ...previous.filter(item => item.id !== student.id),
-        student,
-      ]);
-      StorageService.saveStudents([
-        ...StorageService.getStudents().filter(item => item.id !== student.id),
-        student,
-      ]);
-      StorageService.setCacheScope(`student:${session.studentId}:${session.periodId}`);
-      setStudentSessionState(session);
-      StorageService.setStudentSession(session);
-      setRole('STUDENT');
-      await supabase.auth.signOut();
-      showToast('Login Berhasil', `Selamat datang, ${student.name}!`, 'success');
-      return { success: true, message: result.message };
-    } catch (error) {
-      console.error('Student Google login failed:', error);
-      return { success: false, message: 'Login Google belum dapat diverifikasi. Pastikan email memakai format NIM@politekniksorowako.ac.id dan NIM terdaftar pada praktik aktif.' };
-    }
   };
 
   const resetStudentPassword = async (studentId: string): Promise<void> => {
@@ -2416,7 +2372,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         verifyStudentNim,
         createStudentPassword,
         loginStudentWithPassword,
-        loginStudentWithGoogle,
         resetStudentPassword,
         setStudentIdentity,
         clearStudentIdentity,
