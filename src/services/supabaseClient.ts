@@ -115,6 +115,25 @@ export async function signInInstructor(
   }
 }
 
+export async function signInInstructorWithGoogle(): Promise<{ error: Error | null }> {
+  if (!supabase) {
+    return { error: new Error('Login Google memerlukan koneksi Supabase yang sudah dikonfigurasi.') };
+  }
+
+  try {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/instruktur`,
+        queryParams: { hd: 'politekniksorowako.ac.id' },
+      },
+    });
+    return { error };
+  } catch (err: any) {
+    return { error: err };
+  }
+}
+
 export async function signUpInstructor(
   email: string,
   password: string,

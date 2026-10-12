@@ -337,6 +337,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return;
       }
 
+      const email = session.user.email?.trim().toLowerCase() || '';
+      if (!email.endsWith('@politekniksorowako.ac.id')) {
+        clearLiveInstructorSession();
+        window.setTimeout(() => { void supabase.auth.signOut(); }, 0);
+        return;
+      }
+
       StorageService.setCacheScope(`instructor:${session.user.id}`);
       StorageService.setInstructorLoggedIn(true);
       setIsInstructorLoggedIn(true);

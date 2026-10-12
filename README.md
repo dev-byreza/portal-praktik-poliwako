@@ -21,12 +21,31 @@
 
 ---
 
+## 🔗 Preview Aplikasi
+
+- **Aplikasi utama**: [praktik.devbyreza.cloud](https://praktik.devbyreza.cloud)
+- **Link alternatif (Vercel)**: [praktik-poliwako.vercel.app](https://praktik-poliwako.vercel.app)
+
+---
+
 ## 📖 Ringkasan Produk
 
 **Portal Praktik Poliwako** adalah aplikasi web terpusat untuk memfasilitasi instruktur Politeknik Sorowako dalam mengelola seluruh siklus pembelajaran praktik vokasi. Sistem ini mengintegrasikan manajemen mata kuliah, periode gelombang praktik, modul pembelajaran modular, pengumpulan tugas berkas PDF, presensi 5 hari berbobot, penilaian OBE (*Outcome-Based Education*), penanganan remedial, hingga rekapitulasi nilai dan analitik performa mahasiswa.
 
 - **Instruktur**: Masuk menggunakan akun email institusi resmi (`@politekniksorowako.ac.id`).
 - **Mahasiswa**: Mengakses ruang belajar mandiri tanpa memerlukan akun rumit, cukup melalui URL publik mata kuliah (contoh: `/{course-slug}`) dan memilih identitas Nama + NIM yang telah didaftarkan instruktur pada periode berjalan.
+
+### Login Google Instruktur
+
+Aktifkan provider Google pada **Supabase Dashboard → Authentication → Providers → Google**, lalu masukkan OAuth Client ID dan Client Secret dari Google Cloud. Authorized redirect URI di Google Cloud harus memakai callback Supabase proyek: `https://<project-ref>.supabase.co/auth/v1/callback`.
+
+Tambahkan URL berikut ke daftar redirect URL yang diizinkan pada Supabase Auth:
+
+- `http://localhost:5173/instruktur`
+- `https://praktik.devbyreza.cloud/instruktur`
+- `https://praktik-poliwako.vercel.app/instruktur`
+
+Akun instruktur lama dipertahankan ketika email Google terverifikasi sama persis dengan email akun Supabase: identitas Google ditautkan ke pengguna dan UUID Supabase yang sama, sehingga profil serta kepemilikan mata kuliah tetap utuh. Email akun lama harus sudah terverifikasi; email berbeda atau belum terverifikasi tidak boleh dipindahkan otomatis. Migrasi `supabase/migrations/20261012073840_preserve_instructor_profile_on_google_link.sql` sudah diterapkan ke proyek Supabase aktif agar metadata Google tidak menimpa data profil yang sudah ada.
 
 ---
 

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { signInInstructorWithGoogle } from '../../services/supabaseClient';
 import {
   GraduationCap,
   ShieldCheck,
@@ -67,6 +68,16 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
     } catch (err: any) {
       setErrorMsg(err.message || 'Terjadi kesalahan saat masuk');
     } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setErrorMsg(null);
+    setIsLoading(true);
+    const { error } = await signInInstructorWithGoogle();
+    if (error) {
+      setErrorMsg(error.message || 'Login dengan Google gagal.');
       setIsLoading(false);
     }
   };
@@ -199,6 +210,20 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
             {/* TAB: LOGIN */}
             {activeTab === 'LOGIN' && (
               <form onSubmit={handleLoginSubmit} className="space-y-4">
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  disabled={isLoading}
+                  className="w-full rounded-2xl bg-white px-4 py-3 text-sm font-bold text-slate-800 transition hover:bg-slate-100 disabled:cursor-wait disabled:opacity-70 flex items-center justify-center gap-3"
+                >
+                  <span aria-hidden="true" className="text-lg font-black text-blue-600">G</span>
+                  <span>{isLoading ? 'Menghubungkan ke Google...' : 'Masuk dengan Google'}</span>
+                </button>
+                <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-500">
+                  <span className="h-px flex-1 bg-slate-700" />
+                  <span>ATAU GUNAKAN EMAIL DAN PASSWORD</span>
+                  <span className="h-px flex-1 bg-slate-700" />
+                </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
                     Email Resmi Institusi
