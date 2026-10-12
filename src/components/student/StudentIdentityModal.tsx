@@ -311,7 +311,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
         },
       });
       if (error) throw error;
-      setSuccessMessage(`Jika email ${email} terdaftar dan dapat menerima pesan, tautan token reset telah dikirim. Periksa kotak masuk atau folder spam.`);
+      setSuccessMessage('Jika akun terkait dapat menerima email, tautan untuk mengatur ulang kata sandi telah dikirim ke alamat email institusi Anda. Silakan periksa kotak masuk atau folder spam.');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Email reset gagal dikirim. Silakan coba kembali.');
     } finally {
