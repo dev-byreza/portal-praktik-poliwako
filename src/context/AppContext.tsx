@@ -330,8 +330,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // sign-in from another tab, and explicit sign-out.
   useEffect(() => {
     if (!isLiveBackend || !supabase) return;
+    const authClient = supabase;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = authClient.auth.onAuthStateChange((event, session) => {
       if (!session || event === 'SIGNED_OUT') {
         clearLiveInstructorSession();
         return;
@@ -340,7 +341,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const email = session.user.email?.trim().toLowerCase() || '';
       if (!email.endsWith('@politekniksorowako.ac.id')) {
         clearLiveInstructorSession();
-        window.setTimeout(() => { void supabase.auth.signOut(); }, 0);
+        window.setTimeout(() => { void authClient.auth.signOut(); }, 0);
         return;
       }
 
