@@ -12,8 +12,8 @@
     <script>
       (function() {
         try {
-          var theme = localStorage.getItem('poliwako_theme');
-          if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          var theme = localStorage.getItem('poliwako_theme_preference');
+          if (theme === 'dark') {
             document.documentElement.classList.add('dark');
           } else {
             document.documentElement.classList.remove('dark');

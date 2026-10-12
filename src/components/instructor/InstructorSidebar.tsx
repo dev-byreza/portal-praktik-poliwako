@@ -65,22 +65,20 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
 
   const [isCourseDropdownOpen, setIsCourseDropdownOpen] = useState(false);
 
-  // Initialize dark mode from localStorage or documentElement
+  // Initialize from an explicit user preference; otherwise default to light.
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
-    const stored = localStorage.getItem('poliwako_theme');
-    if (stored) return stored === 'dark';
-    return document.documentElement.classList.contains('dark') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    return localStorage.getItem('poliwako_theme_preference') === 'dark';
   });
 
   // Sync dark class on documentElement and persist to localStorage
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
-      localStorage.setItem('poliwako_theme', 'dark');
+      localStorage.setItem('poliwako_theme_preference', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
-      localStorage.setItem('poliwako_theme', 'light');
+      localStorage.setItem('poliwako_theme_preference', 'light');
     }
   }, [isDarkMode]);
 

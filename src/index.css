@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light;
   --poliwako-brand: #1d4ed8;
   --poliwako-brand-strong: #1e40af;
   --poliwako-accent: #0891b2;
