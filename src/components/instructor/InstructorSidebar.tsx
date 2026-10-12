@@ -291,7 +291,7 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       </div>
 
       {/* Bottom Controls Area (Chat button & Theme toggle & Instructor profile) */}
-      <div className="p-3 border-t border-slate-200/70 dark:border-slate-800/80 shrink-0 flex flex-col gap-2.5">
+      <div className="p-3 border-t border-slate-200/70 dark:border-slate-800/80 shrink-0 flex flex-col-reverse md:flex-col gap-2.5">
         
         {/* Controls Row: Circular Chat Bubble & Vertical Theme Pill */}
         <div className={`flex items-center ${isCollapsed ? 'flex-col gap-2.5 justify-center' : 'justify-between px-1'}`}>
