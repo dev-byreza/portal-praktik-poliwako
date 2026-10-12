@@ -6,7 +6,6 @@ import {
   AlertCircle,
   Lock,
   ArrowRight,
-  Sparkles,
   Eye,
   EyeOff,
   UserPlus,
@@ -244,25 +243,6 @@ export const InstructorLoginGate: React.FC = () => {
                   )}
                 </button>
 
-                <div className="pt-2 border-t border-slate-700/40">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setLoginEmail('rezaf@politekniksorowako.ac.id');
-                      setLoginPassword('732401#Jhe');
-                      setIsLoading(true);
-                      try {
-                        await loginInstructor('rezaf@politekniksorowako.ac.id', '732401#Jhe');
-                      } finally {
-                        setIsLoading(false);
-                      }
-                    }}
-                    className="w-full py-2.5 px-3 rounded-xl bg-cyan-950/40 hover:bg-cyan-900/50 text-xs font-bold text-cyan-300 border border-cyan-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Pratinjau Instruktur (1-Klik Masuk Demo)</span>
-                  </button>
-                </div>
               </form>
             )}
 
