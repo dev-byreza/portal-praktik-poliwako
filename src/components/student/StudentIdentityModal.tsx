@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { ModalPortal } from '../common/ModalPortal';
 import { getKnownProdiFromClass } from '../../utils/academicUtils';
+import { signInStudentWithGoogle, supabase } from '../../services/supabaseClient';
 
 interface StudentIdentityModalProps {
   isOpen?: boolean;
@@ -37,9 +38,11 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   const {
     courses,
     periods,
+    isLiveBackend,
     verifyStudentNim,
     createStudentPassword,
-    loginStudentWithPassword
+    loginStudentWithPassword,
+    loginStudentWithGoogle
   } = useApp();
 
   const [step, setStep] = useState<'NIM' | 'CREATE_PASSWORD' | 'LOGIN_PASSWORD'>('NIM');
@@ -59,6 +62,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const verificationRequestRef = useRef(0);
+  const studentGoogleCallbackStartedRef = useRef(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   // The NIM lookup returns the database-derived program label without exposing
   // the student's name or class before login or password creation.
@@ -71,6 +75,44 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
     ? periods.find(p => p.courseId === activeCourse.id && p.status === 'ACTIVE') ||
       periods.find(p => p.courseId === activeCourse.id)
     : undefined;
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('student_google') !== '1'
+      || window.sessionStorage.getItem('poliwako_student_google_login') !== 'pending'
+      || !supabase
+      || studentGoogleCallbackStartedRef.current) return;
+
+    studentGoogleCallbackStartedRef.current = true;
+    let isCurrent = true;
+    setIsSubmitting(true);
+    setErrorMessage(null);
+    void (async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        if (!data.session) throw new Error('Sesi Google tidak ditemukan. Silakan coba masuk kembali.');
+        const result = await loginStudentWithGoogle(courseSlug, activePeriod?.id);
+        if (!result.success) throw new Error(result.message);
+        window.sessionStorage.removeItem('poliwako_student_google_login');
+        window.history.replaceState(null, '', '/mahasiswa/unit');
+        window.dispatchEvent(new PopStateEvent('popstate'));
+        if (onClose) onClose();
+      } catch (error) {
+        await supabase.auth.signOut();
+        window.sessionStorage.removeItem('poliwako_student_google_login');
+        if (isCurrent) {
+          setErrorMessage(error instanceof Error
+            ? error.message
+            : 'Login Google gagal diverifikasi. Gunakan email NIM@politekniksorowako.ac.id dan pastikan Anda terdaftar pada praktik aktif.');
+        }
+      } finally {
+        if (isCurrent) setIsSubmitting(false);
+      }
+    })();
+
+    return () => { isCurrent = false; };
+  }, [activePeriod?.id, courseSlug, loginStudentWithGoogle, onClose]);
 
   useEffect(() => {
     if (isEmbedded || !isOpen) return;
@@ -298,6 +340,35 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
         {/* ------------------------------------------------------------- */}
         {step === 'NIM' && (
           <div>
+            {isLiveBackend && <>
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={async () => {
+                setErrorMessage(null);
+                setIsSubmitting(true);
+                const { error } = await signInStudentWithGoogle();
+                if (error) {
+                  setErrorMessage(error.message || 'Login Google tidak dapat dimulai. Silakan coba lagi.');
+                  setIsSubmitting(false);
+                }
+              }}
+              className="ui-button flex w-full items-center justify-center gap-3 border border-slate-300 bg-white py-3 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"
+            >
+              <svg aria-hidden="true" viewBox="0 0 48 48" className="h-5 w-5">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z" transform="translate(0 4)" />
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.75 7.18l7.73 6C44.43 37.99 46.98 31.92 46.98 24.55Z" />
+                <path fill="#FBBC05" d="M10.53 28.59a14.4 14.4 0 0 1 0-9.18l-7.98-6.19a23.9 23.9 0 0 0 0 21.56l7.98-6.19Z" transform="translate(0 4)" />
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.91-5.8l-7.73-6c-2.14 1.45-4.88 2.3-8.18 2.3-6.26 0-11.57-4.22-13.46-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48Z" />
+              </svg>
+              <span>{isSubmitting ? 'Menghubungkan ke Google…' : 'Masuk dengan akun Politeknik Sorowako'}</span>
+            </button>
+            <div className="my-5 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              <span className="h-px flex-1 bg-slate-200" />
+              <span>atau masuk dengan NIM</span>
+              <span className="h-px flex-1 bg-slate-200" />
+            </div>
+            </>}
             <div className="mb-6">
               <label htmlFor="student-identity-nim" className="mb-1.5 block text-xs font-semibold text-slate-700">
                 Nomor Induk Mahasiswa (NIM)

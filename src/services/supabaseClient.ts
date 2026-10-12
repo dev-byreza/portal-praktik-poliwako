@@ -43,7 +43,8 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured()
           // header so fresh browser profiles need no separate CORS exception.
           if (requestUrl.pathname === '/rest/v1/rpc/student_list_course_enrollments'
             || requestUrl.pathname === '/rest/v1/rpc/student_create_period_session'
-            || requestUrl.pathname === '/rest/v1/rpc/student_restore_session_profile') {
+            || requestUrl.pathname === '/rest/v1/rpc/student_restore_session_profile'
+            || requestUrl.pathname === '/rest/v1/rpc/student_google_login') {
             return fetch(input, init);
           }
 
@@ -130,6 +131,28 @@ export async function signInInstructorWithGoogle(): Promise<{ error: Error | nul
     });
     return { error };
   } catch (err: any) {
+    return { error: err };
+  }
+}
+
+export async function signInStudentWithGoogle(): Promise<{ error: Error | null }> {
+  if (!supabase) {
+    return { error: new Error('Login Google memerlukan koneksi Supabase yang sudah dikonfigurasi.') };
+  }
+
+  try {
+    window.sessionStorage.setItem('poliwako_student_google_login', 'pending');
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/mahasiswa?student_google=1`,
+        queryParams: { hd: 'politekniksorowako.ac.id' },
+      },
+    });
+    if (error) window.sessionStorage.removeItem('poliwako_student_google_login');
+    return { error };
+  } catch (err: any) {
+    window.sessionStorage.removeItem('poliwako_student_google_login');
     return { error: err };
   }
 }

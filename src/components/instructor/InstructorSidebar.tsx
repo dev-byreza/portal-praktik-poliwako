@@ -1,7 +1,7 @@
 // Collapsible Vertical Sidebar for Instructor Command Center
 // Clean Modern Minimalist Design matching user reference specification with Dark Mode Support
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   LayoutGrid,
@@ -21,8 +21,6 @@ import {
   PanelLeftClose,
   PanelLeft,
   X,
-  Sun,
-  Moon
 } from 'lucide-react';
 
 interface InstructorSidebarProps {
@@ -33,15 +31,7 @@ interface InstructorSidebarProps {
   onOpenCourseWizard: () => void;
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
-  onOpenAiAssistant?: () => void;
 }
-
-// Minimal circular speech bubble icon matching screenshot
-const SpeechBubbleIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
-  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-  </svg>
-);
 
 export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
   activeTab,
@@ -50,8 +40,7 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
   setIsCollapsed,
   onOpenCourseWizard,
   isMobileOpen = false,
-  onCloseMobile,
-  onOpenAiAssistant
+  onCloseMobile
 }) => {
   const {
     instructor,
@@ -64,23 +53,6 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
   } = useApp();
 
   const [isCourseDropdownOpen, setIsCourseDropdownOpen] = useState(false);
-
-  // Initialize from an explicit user preference; otherwise default to light.
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem('poliwako_theme_preference') === 'dark';
-  });
-
-  // Sync dark class on documentElement and persist to localStorage
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('poliwako_theme_preference', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('poliwako_theme_preference', 'light');
-    }
-  }, [isDarkMode]);
 
   // Modern navigation items matching the clean SaaS style
   const navItems = [
@@ -290,55 +262,7 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
         })}
       </div>
 
-      {/* Bottom Controls Area (Chat button & Theme toggle & Instructor profile) */}
-      <div className="instructor-sidebar-footer p-3 border-t border-slate-200/70 dark:border-slate-800/80 shrink-0 flex flex-row-reverse md:flex-col gap-2.5">
-        
-        {/* Controls Row: Circular Chat Bubble & Vertical Theme Pill */}
-        <div className={`flex items-center ${isCollapsed ? 'flex-col gap-2.5 justify-center' : 'justify-between px-1'}`}>
-          <div className="flex items-center gap-2">
-            {/* Circular Speech Bubble Button */}
-            <button
-              type="button"
-              onClick={() => onOpenAiAssistant?.()}
-              className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 shadow-sm border border-slate-200/80 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:shadow hover:border-slate-300 dark:hover:border-slate-600 transition-all cursor-pointer group"
-              title="Buka Asisten AI & Bantuan"
-              aria-label="Asisten AI & Bantuan"
-            >
-              <SpeechBubbleIcon className="w-4 h-4 text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors" />
-            </button>
-          </div>
-
-          {/* Vertical Pill Theme Toggle */}
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => {
-              const next = !isDarkMode;
-              setIsDarkMode(next);
-              showToast('Mode Tampilan', next ? 'Mode Gelap Aktif' : 'Mode Terang Aktif', 'info');
-            }}
-            onKeyDown={e => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                const next = !isDarkMode;
-                setIsDarkMode(next);
-                showToast('Mode Tampilan', next ? 'Mode Gelap Aktif' : 'Mode Terang Aktif', 'info');
-              }
-            }}
-            className="w-8 py-1 rounded-full bg-slate-200/90 dark:bg-slate-850 border border-slate-300/60 dark:border-slate-700 flex flex-col items-center gap-1 shadow-inner cursor-pointer hover:bg-slate-300/70 dark:hover:bg-slate-700 transition-all select-none"
-            title={isDarkMode ? 'Ubah ke Mode Terang' : 'Ubah ke Mode Gelap'}
-            aria-label={isDarkMode ? 'Ubah ke Mode Terang' : 'Ubah ke Mode Gelap'}
-          >
-            {/* Moon Icon */}
-            <div className={`p-1 rounded-full transition-all ${isDarkMode ? 'bg-slate-900 text-cyan-400 shadow-xs ring-1 ring-cyan-500/30' : 'text-slate-400 hover:text-slate-700'}`}>
-              <Moon className="w-3.5 h-3.5" />
-            </div>
-            {/* Sun Icon */}
-            <div className={`p-1 rounded-full transition-all ${!isDarkMode ? 'bg-white text-slate-800 shadow-xs ring-1 ring-slate-900/5' : 'text-slate-500 hover:text-slate-300'}`}>
-              <Sun className="w-3.5 h-3.5 text-slate-700 dark:text-slate-400" />
-            </div>
-          </div>
-        </div>
-
+      <div className="instructor-sidebar-footer p-3 border-t border-slate-200/70 dark:border-slate-800/80 shrink-0">
         {/* Instructor Profile Card */}
         {!isCollapsed ? (
           <div className="min-w-0 flex-1 md:flex-none p-2 rounded-2xl bg-white/80 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700/80 shadow-xs flex items-center justify-between">

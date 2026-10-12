@@ -133,6 +133,11 @@ export class ApiService {
   }
 
   static async getCurrentInstructorId(): Promise<string | null> {
+    if (typeof window !== 'undefined'
+      && window.location.pathname.replace(/\/+$/, '').toLowerCase() === '/mahasiswa'
+      && window.sessionStorage.getItem('poliwako_student_google_login') === 'pending') {
+      return null;
+    }
     const user = await getCurrentAuthUser();
     return user?.id || null;
   }
@@ -500,6 +505,42 @@ export class ApiService {
         className: rawStudent.className ?? rawStudent.class_name ?? '',
         email: rawStudent.email || undefined,
         createdAt: rawStudent.createdAt || new Date().toISOString(),
+      } : undefined,
+    };
+  }
+
+  static async studentGoogleLogin(courseSlug?: string, periodId?: string): Promise<{
+    success: boolean;
+    message: string;
+    periodId?: string;
+    courseSlug?: string;
+    sessionToken?: string;
+    student?: Student;
+  }> {
+    if (!this.isLiveBackend() || !supabase) {
+      return { success: false, message: 'Backend Supabase belum terhubung.' };
+    }
+    const { data, error } = await supabase.rpc('student_google_login', {
+      p_course_slug: courseSlug || null,
+      p_period_id: periodId || null,
+    });
+    if (error) throw error;
+    const result = data || {};
+    const rawStudent = result.student;
+    return {
+      success: Boolean(result.success),
+      message: result.message || (result.success ? 'Login berhasil.' : 'Login gagal.'),
+      periodId: result.periodId || undefined,
+      courseSlug: result.courseSlug || undefined,
+      sessionToken: result.sessionToken || undefined,
+      student: rawStudent ? {
+        id: rawStudent.id,
+        nim: rawStudent.nim,
+        name: rawStudent.name,
+        className: rawStudent.className ?? rawStudent.class_name ?? '',
+        email: rawStudent.email || undefined,
+        hasCreatedPassword: Boolean(rawStudent.hasCreatedPassword ?? rawStudent.has_created_password),
+        createdAt: rawStudent.createdAt || rawStudent.created_at || new Date().toISOString(),
       } : undefined,
     };
   }

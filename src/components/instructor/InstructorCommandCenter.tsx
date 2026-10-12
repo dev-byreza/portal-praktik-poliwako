@@ -16,7 +16,6 @@ const AnalyticsView = lazy(() => import('./AnalyticsView').then(module => ({ def
 const CourseSettings = lazy(() => import('./CourseSettings').then(module => ({ default: module.CourseSettings })));
 const CourseWizardModal = lazy(() => import('./CourseWizardModal').then(module => ({ default: module.CourseWizardModal })));
 const CopyCourseModal = lazy(() => import('./CopyCourseModal').then(module => ({ default: module.CopyCourseModal })));
-const AIAssistantPanel = lazy(() => import('../common/AIAssistantPanel').then(module => ({ default: module.AIAssistantPanel })));
 
 import { InstructorLoginGate } from './InstructorLoginGate';
 
@@ -50,16 +49,29 @@ export const InstructorCommandCenter: React.FC<InstructorCommandCenterProps> = (
   isCourseWizardOpen,
   setIsCourseWizardOpen
 }) => {
-  const { isInstructorLoggedIn, activeCourse, setRole } = useApp();
+  const { isInstructorLoggedIn, activeCourse, setRole, showToast } = useApp();
   const [activeTab, setActiveTab] = useState<string>(getInitialInstructorTab);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [isCopyCourseOpen, setIsCopyCourseOpen] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => (
+    typeof window !== 'undefined' && localStorage.getItem('poliwako_theme_preference') === 'dark'
+  ));
 
   useEffect(() => {
     sessionStorage.setItem(INSTRUCTOR_TAB_STORAGE_KEY, activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDarkMode);
+    localStorage.setItem('poliwako_theme_preference', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
+
+  const toggleTheme = () => {
+    const next = !isDarkMode;
+    setIsDarkMode(next);
+    showToast('Mode Tampilan', next ? 'Mode Gelap Aktif' : 'Mode Terang Aktif', 'info');
+  };
 
   if (!isInstructorLoggedIn) {
     return <InstructorLoginGate />;
@@ -78,7 +90,6 @@ export const InstructorCommandCenter: React.FC<InstructorCommandCenterProps> = (
         onOpenCourseWizard={() => setIsCourseWizardOpen(true)}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
-        onOpenAiAssistant={() => setIsAiAssistantOpen(true)}
       />
 
       {isMobileSidebarOpen && (
@@ -101,7 +112,8 @@ export const InstructorCommandCenter: React.FC<InstructorCommandCenterProps> = (
           activeTab={activeTab}
           onOpenCopyCourse={() => setIsCopyCourseOpen(true)}
           onOpenMobileMenu={() => setIsMobileSidebarOpen(true)}
-          onOpenAiAssistant={() => setIsAiAssistantOpen(true)}
+          isDarkMode={isDarkMode}
+          onToggleTheme={toggleTheme}
         />
 
         {/* Tab Pages */}
@@ -134,13 +146,6 @@ export const InstructorCommandCenter: React.FC<InstructorCommandCenterProps> = (
           sourceCourseId={activeCourse.id}
         /></Suspense>
       )}
-
-      {isAiAssistantOpen && <Suspense fallback={null}><AIAssistantPanel
-        isOpen={isAiAssistantOpen}
-        onClose={() => setIsAiAssistantOpen(false)}
-        title="Asisten AI Portal Praktik"
-        context={`Anda membantu instruktur menyiapkan konten untuk mata kuliah ${activeCourse?.name || 'praktik'}. Gunakan bahasa Indonesia yang jelas, formal, dan ramah mahasiswa.`}
-      /></Suspense>}
 
     </div>
   );
