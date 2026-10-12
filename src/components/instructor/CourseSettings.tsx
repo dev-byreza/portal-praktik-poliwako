@@ -659,7 +659,8 @@ export const CourseSettings: React.FC = () => {
                           max={100}
                           value={cpmk.weightPercent ?? 0}
                           onChange={e => handleSubCpmkChange(idx, 'weightPercent', parseInt(e.target.value, 10) || 0)}
-                          className="w-12 text-center text-xs font-mono font-bold text-slate-900 focus:outline-none"
+                          className="w-12 appearance-none bg-white text-center text-xs font-mono font-bold text-slate-900 focus:outline-none"
+                          style={{ colorScheme: 'light' }}
                         />
                         <span className="text-[11px] font-bold text-slate-500">%</span>
                       </div>
