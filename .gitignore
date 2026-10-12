@@ -29,3 +29,10 @@ dist-ssr
 .env.*.local
 
 .vercel
+
+# Temporary tool & workspace artifacts
+.codex*
+artifact_work
+output
+outputs
+codebase-memory-mcp

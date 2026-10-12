@@ -276,7 +276,7 @@ export const App: React.FC = () => {
       {/* Shared light footer for public portal routes. */}
       {(activeRoute === 'NOT_FOUND' ||
         (activeRoute === 'INSTRUCTOR' && !isInstructorLoggedIn)) && (
-        <footer className="relative z-30 shrink-0 border-t border-slate-200 bg-white/70 py-3 text-xs">
+        <footer className="relative z-30 shrink-0 border-t border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 py-3 text-xs">
           <div className="max-w-7xl mx-auto px-4">
             <FooterBranding theme="light" compact />
           </div>
@@ -285,7 +285,7 @@ export const App: React.FC = () => {
           {activeRoute === 'INSTRUCTOR' && (
             <button
               onClick={() => navigateTo('/mahasiswa')}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-blue-800 transition-colors px-2.5 py-1 rounded-lg hover:bg-blue-50 text-xs font-medium flex items-center gap-1.5 cursor-pointer"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-300 hover:text-blue-800 dark:hover:text-cyan-400 transition-colors px-2.5 py-1 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-800 text-xs font-medium flex items-center gap-1.5 cursor-pointer"
               title="Pindah ke Portal Mahasiswa"
             >
               <ArrowLeft className="w-3.5 h-3.5" />

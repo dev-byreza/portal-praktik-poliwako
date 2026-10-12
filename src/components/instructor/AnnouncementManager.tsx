@@ -101,7 +101,7 @@ export const AnnouncementManager: React.FC = () => {
   };
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
+    <section className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-sm">
       <ConfirmDialog
         isOpen={Boolean(pendingDelete)}
         title="Hapus pengumuman?"
@@ -114,10 +114,10 @@ export const AnnouncementManager: React.FC = () => {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <Megaphone className="h-5 w-5 text-cyan-600" />
-            <h2 className="text-base font-black text-slate-900">Pengumuman mahasiswa</h2>
+            <Megaphone className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+            <h2 className="text-base font-black text-slate-900 dark:text-white">Pengumuman mahasiswa</h2>
           </div>
-          <p className="mt-1 text-xs leading-relaxed text-slate-500">
+          <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
             Informasi aktif muncul langsung pada dashboard mahasiswa yang sesuai.
           </p>
         </div>
@@ -125,7 +125,7 @@ export const AnnouncementManager: React.FC = () => {
           type="button"
           onClick={() => setIsFormOpen(open => !open)}
           disabled={!activeCourseId}
-          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
         >
           {isFormOpen ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
           {isFormOpen ? 'Tutup formulir' : 'Buat pengumuman'}
@@ -133,25 +133,25 @@ export const AnnouncementManager: React.FC = () => {
       </div>
 
       {isFormOpen && (
-        <form onSubmit={handleSubmit} className="mt-5 rounded-2xl border border-cyan-200 bg-cyan-50/40 p-4 sm:p-5">
+        <form onSubmit={handleSubmit} className="mt-5 rounded-2xl border border-cyan-200 dark:border-cyan-800/60 bg-cyan-50/40 dark:bg-slate-800/80 p-4 sm:p-5">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <label className="text-xs font-bold text-slate-700 md:col-span-2">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 md:col-span-2">
               <span className="flex items-center justify-between gap-2">
                 <span>Judul</span>
-                <button type="button" onClick={() => setAiTarget('title')} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold text-cyan-700 hover:bg-cyan-100"><Sparkles className="h-3 w-3" /> Bantu AI</button>
+                <button type="button" onClick={() => setAiTarget('title')} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold text-cyan-700 dark:text-cyan-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50"><Sparkles className="h-3 w-3" /> Bantu AI</button>
               </span>
               <input
                 value={title}
                 onChange={event => setTitle(event.target.value)}
                 maxLength={160}
                 placeholder="Contoh: Perubahan tenggat laporan"
-                className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+                className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-sm font-normal text-slate-900 dark:text-white outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
               />
             </label>
-            <label className="text-xs font-bold text-slate-700 md:col-span-2">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 md:col-span-2">
               <span className="flex items-center justify-between gap-2">
                 <span>Isi pengumuman</span>
-                <button type="button" onClick={() => setAiTarget('message')} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold text-cyan-700 hover:bg-cyan-100"><Sparkles className="h-3 w-3" /> Bantu AI</button>
+                <button type="button" onClick={() => setAiTarget('message')} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold text-cyan-700 dark:text-cyan-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50"><Sparkles className="h-3 w-3" /> Bantu AI</button>
               </span>
               <textarea
                 value={message}
@@ -159,31 +159,31 @@ export const AnnouncementManager: React.FC = () => {
                 maxLength={1000}
                 rows={4}
                 placeholder="Tuliskan informasi dan tindakan yang perlu dilakukan mahasiswa."
-                className="mt-1.5 w-full resize-y rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal text-slate-900 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+                className="mt-1.5 w-full resize-y rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm font-normal text-slate-900 dark:text-white outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
               />
             </label>
-            <label className="text-xs font-bold text-slate-700">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
               Target periode
-              <select value={periodId} onChange={event => setPeriodId(event.target.value)} className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900">
+              <select value={periodId} onChange={event => setPeriodId(event.target.value)} className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-sm font-normal text-slate-900 dark:text-white">
                 <option value="ALL">Semua periode mata kuliah</option>
-                {coursePeriods.map(period => <option key={period.id} value={period.id}>{period.name}</option>)}
+                {coursePeriods.map(period => <option key={period.id} value={period.id} className="dark:bg-slate-900">{period.name}</option>)}
               </select>
             </label>
-            <label className="text-xs font-bold text-slate-700">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
               Prioritas
-              <select value={priority} onChange={event => setPriority(event.target.value as AnnouncementPriority)} className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900">
-                <option value="INFO">Informasi</option>
-                <option value="IMPORTANT">Penting</option>
-                <option value="URGENT">Mendesak</option>
+              <select value={priority} onChange={event => setPriority(event.target.value as AnnouncementPriority)} className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-sm font-normal text-slate-900 dark:text-white">
+                <option value="INFO" className="dark:bg-slate-900">Informasi</option>
+                <option value="IMPORTANT" className="dark:bg-slate-900">Penting</option>
+                <option value="URGENT" className="dark:bg-slate-900">Mendesak</option>
               </select>
             </label>
-            <label className="text-xs font-bold text-slate-700 md:col-span-2">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 md:col-span-2">
               Tampilkan sampai (opsional, WITA)
-              <input type="datetime-local" value={expiresAt} onChange={event => setExpiresAt(event.target.value)} className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900 md:max-w-sm" />
+              <input type="datetime-local" value={expiresAt} onChange={event => setExpiresAt(event.target.value)} className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-sm font-normal text-slate-900 dark:text-white md:max-w-sm" />
             </label>
           </div>
           <div className="mt-4 flex justify-end">
-            <button type="submit" disabled={isSaving} className="min-h-11 rounded-xl bg-blue-600 px-5 text-xs font-bold text-white hover:bg-blue-500 disabled:opacity-60">
+            <button type="submit" disabled={isSaving} className="min-h-11 rounded-xl bg-blue-600 px-5 text-xs font-bold text-white hover:bg-blue-500 disabled:opacity-60 cursor-pointer">
               {isSaving ? 'Menerbitkan…' : 'Terbitkan pengumuman'}
             </button>
           </div>
@@ -197,22 +197,22 @@ export const AnnouncementManager: React.FC = () => {
             const periodName = item.periodId ? coursePeriods.find(period => period.id === item.periodId)?.name : undefined;
             const expired = Boolean(item.expiresAt && new Date(item.expiresAt).getTime() <= Date.now());
             return (
-              <article key={item.id} className={`rounded-2xl border p-4 ${style.border} ${expired ? 'bg-slate-50 opacity-70' : 'bg-white'}`}>
+              <article key={item.id} className={`rounded-2xl border p-4 ${style.border} ${expired ? 'bg-slate-50 dark:bg-slate-800/40 opacity-70' : 'bg-white dark:bg-slate-800/80'}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${style.badge}`}>{style.label}</span>
-                      <span className="text-[10px] font-semibold text-slate-500">{periodName || 'Semua periode'}</span>
-                      {expired && <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">Berakhir</span>}
+                      <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">{periodName || 'Semua periode'}</span>
+                      {expired && <span className="rounded-full bg-slate-200 dark:bg-slate-700 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-300">Berakhir</span>}
                     </div>
-                    <h3 className="mt-2 text-sm font-bold text-slate-900">{item.title}</h3>
-                    <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-slate-600">{item.message}</p>
-                    <p className="mt-2 flex items-center gap-1 text-[10px] text-slate-400">
+                    <h3 className="mt-2 text-sm font-bold text-slate-900 dark:text-white">{item.title}</h3>
+                    <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-slate-600 dark:text-slate-300">{item.message}</p>
+                    <p className="mt-2 flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500">
                       <Clock className="h-3 w-3" /> Terbit {formatWitaDateTime(item.publishedAt)}
                       {item.expiresAt ? ` • Berakhir ${formatWitaDateTime(item.expiresAt)}` : ''}
                     </p>
                   </div>
-                  <button type="button" onClick={() => setPendingDelete(item)} aria-label={`Hapus pengumuman ${item.title}`} className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600">
+                  <button type="button" onClick={() => setPendingDelete(item)} aria-label={`Hapus pengumuman ${item.title}`} className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 dark:hover:text-rose-400 cursor-pointer">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>

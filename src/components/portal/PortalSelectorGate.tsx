@@ -112,7 +112,7 @@ export const PortalSelectorGate: React.FC<PortalSelectorGateProps> = ({ onSelect
         </div>
       </main>
 
-      <footer className="shrink-0 border-t border-slate-200/80 bg-white/70 px-4 py-2.5">
+      <footer className="shrink-0 border-t border-slate-200/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/80 px-4 py-2.5">
         <div className="mx-auto max-w-7xl">
           <FooterBranding theme="light" compact />
         </div>

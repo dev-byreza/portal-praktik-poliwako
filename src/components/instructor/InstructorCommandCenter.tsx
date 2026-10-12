@@ -78,6 +78,7 @@ export const InstructorCommandCenter: React.FC<InstructorCommandCenterProps> = (
         onOpenCourseWizard={() => setIsCourseWizardOpen(true)}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        onOpenAiAssistant={() => setIsAiAssistantOpen(true)}
       />
 
       {isMobileSidebarOpen && (

@@ -502,7 +502,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
             />
           </div>
         </main>
-        <footer className="w-full shrink-0 border-t border-slate-200/80 bg-white/70 px-4 py-2.5 text-center">
+        <footer className="w-full shrink-0 border-t border-slate-200/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/80 px-4 py-2.5 text-center">
           <FooterBranding theme="light" compact />
         </footer>
       </div>
@@ -1065,7 +1065,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
             )}
 
               </div>
-              <footer className="mt-6 border-t border-slate-200 pt-4 pb-1 text-center">
+              <footer className="mt-6 border-t border-slate-200 dark:border-slate-800 pt-4 pb-1 text-center">
             <FooterBranding theme="light" compact />
           </footer>
             </div>

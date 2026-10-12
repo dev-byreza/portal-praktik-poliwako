@@ -27,6 +27,7 @@ import { isSubmissionClosed } from '../../utils/submissionDeadline';
 import { getUnitAssignments } from '../../utils/learningAssignments';
 import { hasSuccessfulSubmission } from '../../utils/studentProgress';
 import { AnnouncementManager } from './AnnouncementManager';
+import { OBEAnalyticsSection } from './OBEAnalyticsSection';
 
 interface DashboardOverviewProps {
   onNavigateTab: (tab: string) => void;
@@ -235,55 +236,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     ].filter(item => item.count > 0);
   }, [assessments, filteredParticipants, kpiStats.ineligibleCount, learningUnits, remedials, submissions]);
 
-  // Dashboard insight data: derived from successful assignment submissions,
-  // the same source used by the student dashboard. Partial uploads contribute
-  // proportionally to the unit's average progress.
-  const insightStats = useMemo(() => {
-    const total = kpiStats.totalParticipants;
-    const progressByUnit = [1, 2, 3, 4, 5].map(unitNumber => {
-      let enrolled = 0;
-      let progressSum = 0;
-
-      filteredParticipants.forEach(participant => {
-        const unit = learningUnits.find(item => (
-          item.periodId === participant.periodId && item.unitNumber === unitNumber
-        ));
-        if (!unit) return;
-
-        const assignments = getUnitAssignments(unit);
-        if (assignments.length === 0) return;
-        enrolled += 1;
-        const participantSubmissions = submissions.filter(submission => (
-          submission.studentId === participant.studentId
-          && submission.periodId === participant.periodId
-        ));
-        const completedAssignments = assignments.filter(assignment => (
-          hasSuccessfulSubmission(participantSubmissions, assignment.id)
-        )).length;
-        progressSum += completedAssignments / assignments.length;
-      });
-
-      return {
-        label: `Unit ${unitNumber}`,
-        value: enrolled > 0 ? Math.round((progressSum / enrolled) * 100) : 0,
-        enrolled
-      };
-    });
-
-    return {
-      completionRate: total > 0 ? Math.round((kpiStats.projectSubmittedCount / total) * 100) : 0,
-      gradingRate: total > 0 ? Math.round((kpiStats.gradedCount / total) * 100) : 0,
-      attentionRate: total > 0 ? Math.round((kpiStats.ineligibleCount / total) * 100) : 0,
-      progressByUnit,
-      statusBars: [
-        { label: 'Project masuk', value: kpiStats.projectSubmittedCount, color: 'bg-indigo-500', text: 'text-indigo-700' },
-        { label: 'Belum selesai', value: kpiStats.unfinishedCount, color: 'bg-amber-500', text: 'text-amber-700' },
-        { label: 'Sudah dinilai', value: kpiStats.gradedCount, color: 'bg-emerald-500', text: 'text-emerald-700' },
-        { label: 'Belum dinilai', value: kpiStats.ungradedCount, color: 'bg-orange-500', text: 'text-orange-700' },
-      ]
-    };
-  }, [filteredParticipants, kpiStats, learningUnits, submissions]);
-
   // Top 3 Rankings (PRD Section 15)
   const topRankings = useMemo(() => {
     // 1. Top 3 for Active Period
@@ -476,17 +428,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     };
   }, [filteredParticipants, assessments, submissions, learningUnits, dashboardPeriod, selectedPeriodFilter]);
 
-  const insightChartPoints = insightStats.progressByUnit.map((item, index) => ({
-    x: 40 + (index * 130),
-    y: 184 - ((item.value / 100) * 140)
-  }));
-  const insightLinePath = insightChartPoints
-    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
-    .join(' ');
-  const insightAreaPath = insightLinePath
-    ? `${insightLinePath} L ${insightChartPoints[insightChartPoints.length - 1].x} 184 L ${insightChartPoints[0].x} 184 Z`
-    : '';
-
   if (!isInitialDataLoaded) {
     return (
       <section aria-busy="true" aria-live="polite" className="space-y-4" role="status">
@@ -511,91 +452,180 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         </div>
       )}
       
-      {/* Welcome & Command Center Header */}
-      <div className="relative flex flex-col items-start gap-4 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 p-4 text-white sm:flex-row sm:items-center sm:justify-between sm:p-5">
-        <div className="relative z-10 min-w-0 w-full xl:flex-1">
-          <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold text-cyan-300">
-            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Dashboard instruktur</span>
+      {/* Clean & Modern Course Header matching Analytics & Evaluation page */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-1">
+        <div>
+          <div className="flex flex-wrap items-center gap-2 mb-1.5">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-cyan-50 dark:bg-cyan-950/50 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800/60 flex items-center gap-1.5">
+              <Sparkles className="w-3 h-3 text-cyan-500" />
+              <span>{activeCourse?.code || 'CAD/CAM'} • Kurikulum OBE</span>
+            </span>
+            <span className="text-xs text-slate-400 dark:text-slate-500">• Politeknik Sorowako</span>
+            {dashboardPeriod && (
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                {activePeriod ? 'Periode Aktif:' : 'Periode:'} {dashboardPeriod.name}
+              </span>
+            )}
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
             {activeCourse?.name || 'Portal Praktik Poliwako'}
           </h1>
-          <p className="mt-1 line-clamp-2 max-w-4xl break-words text-xs leading-relaxed text-slate-300 [overflow-wrap:anywhere]">
-            {activeCourse?.description || 'Kelola pembelajaran praktik, progres mahasiswa, kehadiran, rubrik OBE, dan rekap penilaian terintegrasi.'}
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed">
+            {activeCourse?.description || 'Monitoring capaian pembelajaran praktik CAD, evaluasi mutu OBE, dan rekap nilai terintegrasi.'}
           </p>
-
-          {dashboardPeriod ? (
-            <div className="mt-2 flex w-full max-w-full items-start gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-slate-300 sm:w-fit">
-              <Calendar className="mt-px h-4 w-4 shrink-0 text-cyan-400" />
-              <span className="min-w-0 break-words [overflow-wrap:anywhere]">{activePeriod ? 'Periode Berjalan:' : 'Periode Terakhir:'} <strong className="text-white">{dashboardPeriod.name}</strong> ({formatPeriodRange(dashboardPeriod.startDate, dashboardPeriod.endDate)})</span>
-            </div>
-          ) : (
-            <div className="mt-4 w-fit rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold text-amber-100">
-              Tidak ada periode aktif untuk mata kuliah ini.
-            </div>
-          )}
         </div>
 
         {/* Quick Shortcut Buttons */}
-        <div className="relative z-10 grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0">
+        <div className="flex flex-wrap items-center gap-2 sm:self-auto self-start">
           <button
             onClick={() => onNavigateTab('GRADING')}
-            className="flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2.5 text-xs font-bold text-white transition-colors hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-950 dark:hover:bg-slate-900 text-white text-xs font-bold border border-slate-800 dark:border-slate-700 shadow-sm hover:shadow-md transition-all cursor-pointer"
           >
-            <Award className="w-4 h-4" />
+            <Award className="w-4 h-4 text-cyan-400" />
             <span>Grading Workspace</span>
           </button>
           <button
             onClick={() => onNavigateTab('ATTENDANCE')}
-            className="flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-xs font-bold text-slate-200 transition-colors hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold border border-slate-200 dark:border-slate-800 shadow-xs transition-all cursor-pointer"
           >
-            <Clock className="w-4 h-4" />
+            <Clock className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
             <span>Kehadiran</span>
           </button>
           <button
             onClick={() => onNavigateTab('RECAP')}
-            className="col-span-2 flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-2.5 text-xs font-bold text-white transition-colors hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 sm:col-span-1"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold border border-slate-200 dark:border-slate-800 shadow-xs transition-all cursor-pointer"
           >
-            <FileSpreadsheet className="w-4 h-4" />
-            <span>Rekap & Export</span>
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <span>Rekap Nilai</span>
           </button>
         </div>
       </div>
 
-      {/* Prioritized operational queue */}
-      {activeCourse && (
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              <h2 className="text-base font-black text-slate-900">Perlu tindakan</h2>
-            </div>
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">
-              Antrean operasional dari filter periode dan kelas yang sedang dipilih.
-            </p>
-          </div>
-          {actionQueue.length > 0 && (
-            <span className="w-fit rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
-              {actionQueue.reduce((sum, item) => sum + item.count, 0)} item
-            </span>
-          )}
+      {/* Modern Filter Strip matching Analytic & Evaluasi page */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:px-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+        <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+          <Filter className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+          <span>Filter Tampilan Dashboard</span>
         </div>
 
-        {actionQueue.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Period Selector */}
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/80 rounded-xl px-2.5 py-1.5 text-xs font-semibold">
+            <span className="text-slate-400 text-[11px]">Periode:</span>
+            <select
+              id="dashboard-period-filter"
+              value={selectedPeriodFilter}
+              onChange={e => setSelectedPeriodFilter(e.target.value)}
+              className="bg-transparent font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
+            >
+              <option value="ALL" className="dark:bg-slate-800">Semua Periode ({coursePeriods.length})</option>
+              {coursePeriods.map(p => (
+                <option key={p.id} value={p.id} className="dark:bg-slate-800">
+                  {p.name} ({p.status === 'ACTIVE' ? 'Aktif' : p.status === 'UPCOMING' ? 'Akan Datang' : 'Selesai'})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Class Selector */}
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/80 rounded-xl px-2.5 py-1.5 text-xs font-semibold">
+            <span className="text-slate-400 text-[11px]">Kelas:</span>
+            <select
+              id="dashboard-class-filter"
+              value={selectedClassFilter}
+              onChange={e => setSelectedClassFilter(e.target.value)}
+              className="bg-transparent font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
+            >
+              <option value="ALL" className="dark:bg-slate-800">Semua Kelas</option>
+              <option value="2A" className="dark:bg-slate-800">Kelas 2A</option>
+              <option value="2B" className="dark:bg-slate-800">Kelas 2B</option>
+              <option value="3A" className="dark:bg-slate-800">Kelas 3A</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* 1. OBE Analytics Section with 4 Metric Cards + Dual Curve + Donut Ring (Exact Match to Analytics & Evaluation Page) */}
+      <OBEAnalyticsSection
+        showMetricCards={true}
+        selectedPeriodFilter={selectedPeriodFilter}
+        selectedClassFilter={selectedClassFilter}
+        onNavigateTab={onNavigateTab}
+      />
+
+      {/* 2. Operational Metrics Strip (Clean & Modern 4 Indicators) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Final Project Masuk</span>
+            <div className="text-xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-0.5">{kpiStats.projectSubmittedCount}</div>
+          </div>
+          <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40 flex items-center justify-center shrink-0">
+            <FolderArchive className="w-4 h-4" />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Siap Dinilai</span>
+            <div className="text-xl font-extrabold text-cyan-600 dark:text-cyan-400 mt-0.5">{actionQueue.find(item => item.id === 'pending-grading')?.count || 0}</div>
+          </div>
+          <div className="w-9 h-9 rounded-xl bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-400 border border-cyan-100 dark:border-cyan-900/40 flex items-center justify-center shrink-0">
+            <Clock className="w-4 h-4" />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Sudah Dinilai</span>
+            <div className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">{kpiStats.gradedCount}</div>
+          </div>
+          <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center shrink-0">
+            <CheckCircle className="w-4 h-4" />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Presensi &lt;75%</span>
+            <div className="text-xl font-extrabold text-rose-600 dark:text-rose-400 mt-0.5">{kpiStats.ineligibleCount}</div>
+          </div>
+          <div className="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/40 flex items-center justify-center shrink-0">
+            <AlertTriangle className="w-4 h-4" />
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Action Queue (Perlu Tindakan) */}
+      {activeCourse && actionQueue.length > 0 && (
+        <section className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                <h2 className="text-base font-black text-slate-900 dark:text-white">Perlu tindakan</h2>
+              </div>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                Antrean operasional dari filter periode dan kelas yang sedang dipilih.
+              </p>
+            </div>
+            <span className="w-fit rounded-full border border-amber-200 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/40 px-3 py-1 text-xs font-bold text-amber-700 dark:text-amber-300">
+              {actionQueue.reduce((sum, item) => sum + item.count, 0)} item
+            </span>
+          </div>
+
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             {actionQueue.map(item => {
               const containerClass = item.tone === 'rose'
-                ? 'border-rose-200 bg-rose-50/60 hover:bg-rose-50'
+                ? 'border-rose-200 dark:border-rose-900/60 bg-rose-50/70 dark:bg-slate-800/90 hover:bg-rose-100/60 dark:hover:bg-slate-800'
                 : item.tone === 'amber'
-                  ? 'border-amber-200 bg-amber-50/60 hover:bg-amber-50'
-                  : 'border-blue-200 bg-blue-50/50 hover:bg-blue-50';
+                  ? 'border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-slate-800/90 hover:bg-amber-100/60 dark:hover:bg-slate-800'
+                  : 'border-blue-200 dark:border-blue-900/60 bg-blue-50/70 dark:bg-slate-800/90 hover:bg-blue-100/60 dark:hover:bg-slate-800';
               const iconClass = item.tone === 'rose'
-                ? 'bg-rose-100 text-rose-700'
+                ? 'bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300'
                 : item.tone === 'amber'
-                  ? 'bg-amber-100 text-amber-700'
-                  : 'bg-blue-100 text-blue-700';
+                  ? 'bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300'
+                  : 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300';
               return (
                 <button
                   key={item.id}
@@ -609,11 +639,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-bold text-slate-900">{item.title}</span>
-                        <span className="text-xl font-black text-slate-900">{item.count}</span>
+                        <span className="text-sm font-bold text-slate-900 dark:text-white">{item.title}</span>
+                        <span className="text-xl font-black text-slate-900 dark:text-white">{item.count}</span>
                       </span>
-                      <span className="mt-1 block text-xs leading-relaxed text-slate-600">{item.description}</span>
-                      <span className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-slate-700">
+                      <span className="mt-1 block text-xs leading-relaxed text-slate-600 dark:text-slate-300">{item.description}</span>
+                      <span className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
                         Tindak lanjuti <ArrowUpRight className="h-3.5 w-3.5" />
                       </span>
                     </span>
@@ -622,207 +652,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
               );
             })}
           </div>
-        ) : (
-          <div className="mt-4 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
-            <CheckCircle2 className="h-5 w-5 shrink-0" />
-            <div>
-              <p className="text-sm font-bold">Tidak ada antrean mendesak</p>
-              <p className="mt-1 text-xs">Semua aktivitas pada filter ini sudah tertangani.</p>
-            </div>
-          </div>
-        )}
-      </section>
+        </section>
       )}
-
-      {/* Zero State Onboarding Notice (Tanpa Dummy Data) */}
-      {courses.length === 0 && (
-        <div className="bg-white rounded-3xl p-8 border border-dashed border-blue-300 text-center shadow-xs animate-fadeIn">
-          <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-3">
-            <Layers className="w-7 h-7" />
-          </div>
-          <h3 className="text-base font-bold text-slate-900">Selamat Datang di Portal Praktik Poliwako</h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-4 leading-relaxed">
-            Akun instruktur real Anda (<strong className="text-slate-700">rezaf@politekniksorowako.ac.id</strong>) telah aktif tanpa dummy data. Silakan buat mata kuliah praktik perdana Anda atau kelola database mahasiswa.
-          </p>
-          <div className="flex items-center justify-center gap-2.5">
-            <button
-              onClick={() => onNavigateTab('STUDENTS')}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all"
-            >
-              Kelola Database Mahasiswa
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Filter Bar (PRD Section 14 & 66) */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600">
-          <Filter className="w-4 h-4 text-blue-600" />
-          <span>Filter Data Dashboard</span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-          {/* Period Filter */}
-          <div className="flex items-center gap-2 text-xs">
-              <label htmlFor="dashboard-period-filter" className="text-slate-500 font-medium">Periode:</label>
-            <select
-              id="dashboard-period-filter"
-              value={selectedPeriodFilter}
-              onChange={e => setSelectedPeriodFilter(e.target.value)}
-              className="ui-field max-w-full text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:w-auto"
-            >
-              <option value="ALL">Semua Periode ({coursePeriods.length})</option>
-              {coursePeriods.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.status === 'ACTIVE' ? 'Aktif' : p.status === 'UPCOMING' ? 'Akan Datang' : 'Selesai'})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Class Filter */}
-          <div className="flex items-center gap-2 text-xs">
-              <label htmlFor="dashboard-class-filter" className="text-slate-500 font-medium">Kelas:</label>
-            <select
-              id="dashboard-class-filter"
-              value={selectedClassFilter}
-              onChange={e => setSelectedClassFilter(e.target.value)}
-              className="ui-field max-w-full text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:w-auto"
-            >
-              <option value="ALL">Semua Kelas</option>
-              <option value="2A">Kelas 2A</option>
-              <option value="2B">Kelas 2B</option>
-              <option value="3A">Kelas 3A</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Five operational metrics with explicit definitions */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-        {[
-          { label: 'Mahasiswa', value: kpiStats.totalParticipants, description: 'Terdaftar pada pilihan filter', icon: Users, color: 'text-slate-900' },
-          { label: 'Final project masuk', value: kpiStats.projectSubmittedCount, description: 'Sudah mengirim tautan final project', icon: FolderArchive, color: 'text-indigo-700' },
-          { label: 'Siap dinilai', value: actionQueue.find(item => item.id === 'pending-grading')?.count || 0, description: 'Ada kiriman tanpa nilai akhir tersimpan', icon: Clock, color: 'text-blue-700' },
-          { label: 'Sudah dinilai', value: kpiStats.gradedCount, description: 'Nilai akhir sudah tersimpan, termasuk 0', icon: CheckCircle, color: 'text-emerald-700' },
-          { label: 'Kehadiran <75%', value: kpiStats.ineligibleCount, description: 'Presensi melewati batas kelayakan', icon: AlertTriangle, color: 'text-rose-700' },
-        ].map(metric => (
-          <article key={metric.label} className="flex min-h-28 flex-col justify-between rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4">
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">{metric.label}</span>
-              <metric.icon className={`h-4 w-4 shrink-0 ${metric.color}`} aria-hidden="true" />
-            </div>
-            <strong className={`mt-2 text-2xl font-bold tabular-nums ${metric.color}`}>{metric.value}</strong>
-            <span className="mt-1 text-[10px] leading-snug text-slate-500">{metric.description}</span>
-          </article>
-        ))}
-      </div>
-
-      {/* Academic Insight: compact trend and operational distribution */}
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-        <div className="glass-light-panel relative overflow-hidden rounded-3xl p-5 sm:p-6 xl:col-span-7">
-          <div className="pointer-events-none absolute -right-16 -top-20 h-44 w-44 rounded-full bg-cyan-400/10 blur-3xl" />
-          <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600 ring-1 ring-cyan-100">
-                  <TrendingUp className="h-4 w-4" />
-                </span>
-                <div>
-                  <h2 className="text-sm font-black text-slate-900">Insight Pembelajaran</h2>
-                  <p className="text-[11px] text-slate-500">Rata-rata progres mahasiswa per unit</p>
-                </div>
-              </div>
-            </div>
-            <span className="w-fit rounded-full border border-cyan-200 bg-cyan-50/80 px-3 py-1 text-[11px] font-bold text-cyan-700">
-              {insightStats.completionRate}% project selesai
-            </span>
-          </div>
-
-          <div className="relative mt-5 h-56 overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50/70 p-2 sm:p-4">
-            <div className="pointer-events-none absolute inset-x-4 top-7 border-t border-dashed border-slate-200" />
-            <div className="pointer-events-none absolute inset-x-4 top-1/2 border-t border-dashed border-slate-200" />
-            <div className="pointer-events-none absolute inset-x-4 bottom-8 border-t border-dashed border-slate-200" />
-            <svg viewBox="0 0 600 220" className="relative h-full w-full" role="img" aria-label="Grafik progres per unit">
-              <defs>
-                <linearGradient id="insight-area-gradient" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.28" />
-                  <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.02" />
-                </linearGradient>
-              </defs>
-              {insightAreaPath && <path d={insightAreaPath} fill="url(#insight-area-gradient)" />}
-              {insightLinePath && (
-                <path d={insightLinePath} fill="none" stroke="#0891b2" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />
-              )}
-              {insightChartPoints.map((point, index) => (
-                <g key={insightStats.progressByUnit[index].label}>
-                  <circle cx={point.x} cy={point.y} r="6" fill="#fff" stroke="#0891b2" strokeWidth="3" />
-                  <text x={point.x} y="210" textAnchor="middle" className="fill-slate-500 text-[11px] font-semibold">
-                    {insightStats.progressByUnit[index].label}
-                  </text>
-                  <text x={point.x} y={point.y - 12} textAnchor="middle" className="fill-cyan-700 text-[11px] font-bold">
-                    {insightStats.progressByUnit[index].value}%
-                  </text>
-                </g>
-              ))}
-            </svg>
-          </div>
-          <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500">
-            <span>Filter mengikuti periode dan kelas aktif</span>
-            <button type="button" onClick={() => onNavigateTab('STUDIO')} className="inline-flex items-center gap-1 font-bold text-cyan-700 hover:text-cyan-800">
-              Kelola unit <ArrowUpRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-
-        <div className="glass-light-panel rounded-3xl p-5 sm:p-6 xl:col-span-5">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100">
-                  <BarChart3 className="h-4 w-4" />
-                </span>
-                <div>
-                  <h2 className="text-sm font-black text-slate-900">Status Operasional</h2>
-                  <p className="text-[11px] text-slate-500">Distribusi mahasiswa pada filter aktif</p>
-                </div>
-              </div>
-            </div>
-            <span className="rounded-full border border-indigo-200 bg-indigo-50/80 px-2.5 py-1 text-[11px] font-bold text-indigo-700">
-              {insightStats.gradingRate}% dinilai
-            </span>
-          </div>
-
-          <div className="mt-6 space-y-4">
-            {insightStats.statusBars.map(item => (
-              <div key={item.label}>
-                <div className="mb-1.5 flex items-center justify-between gap-3 text-xs">
-                  <span className="font-semibold text-slate-700">{item.label}</span>
-                  <span className={`font-mono font-bold ${item.text}`}>{item.value}</span>
-                </div>
-                <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className={`h-full rounded-full ${item.color} transition-all duration-700`}
-                    style={{ width: `${Math.min(100, Math.round((item.value / Math.max(kpiStats.totalParticipants, 1)) * 100))}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-6 grid grid-cols-2 gap-3 border-t border-slate-200/80 pt-4">
-            <div className="rounded-2xl bg-emerald-50/70 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Coverage nilai</p>
-              <p className="mt-1 text-xl font-black text-emerald-700">{insightStats.gradingRate}%</p>
-            </div>
-            <div className="rounded-2xl bg-rose-50/70 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-rose-700">Perlu perhatian</p>
-              <p className="mt-1 text-xl font-black text-rose-700">{insightStats.attentionRate}%</p>
-            </div>
-          </div>
-        </div>
-      </section>
 
       <AnnouncementManager />
 
@@ -830,24 +661,24 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         
         {/* Left 7 cols: Top 3 Periode Berjalan (Bigger Size than Chart) */}
-        <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-7 bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6 pb-4 border-b border-slate-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
                     Leaderboard Periode
                   </span>
-                  <span className="text-xs text-slate-400">• Evaluasi OBE</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500">• Evaluasi OBE</span>
                 </div>
-                <h3 className="text-base font-bold text-slate-900 mt-1 flex items-center gap-2">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white mt-1 flex items-center gap-2">
                   <Award className="w-5 h-5 text-amber-500" />
                   <span>Top 3 Mahasiswa {activePeriod ? 'Periode Berjalan' : dashboardPeriod ? 'Periode Terakhir' : 'Periode'}</span>
                 </h3>
               </div>
 
               {dashboardPeriod && (
-                <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold border border-slate-200 w-fit">
+                <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 w-fit">
                   {dashboardPeriod.name}
                 </span>
               )}
@@ -859,31 +690,31 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                 topRankings.activePeriodScores.map((item, idx) => {
                   const rankStyles = [
                     {
-                      bg: 'bg-gradient-to-r from-amber-50/80 via-amber-50/30 to-white border-amber-300 ring-1 ring-amber-400/20',
+                      bg: 'bg-gradient-to-r from-amber-50/80 via-amber-50/30 to-white dark:from-amber-950/35 dark:via-amber-950/15 dark:to-slate-900 border-amber-300 dark:border-amber-600/40 ring-1 ring-amber-400/20 dark:ring-amber-500/20',
                       badge: 'bg-amber-400 text-amber-950 font-black shadow-sm',
                       label: '🏆 Peringkat 1',
-                      scoreColor: 'text-amber-700',
+                      scoreColor: 'text-amber-700 dark:text-amber-400',
                       medal: 'Juara 1'
                     },
                     {
-                      bg: 'bg-gradient-to-r from-slate-100/80 via-slate-50/40 to-white border-slate-300',
-                      badge: 'bg-slate-300 text-slate-800 font-bold',
+                      bg: 'bg-gradient-to-r from-slate-100/80 via-slate-50/40 to-white dark:from-slate-800/60 dark:via-slate-800/30 dark:to-slate-900 border-slate-300 dark:border-slate-700',
+                      badge: 'bg-slate-300 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold',
                       label: '🥈 Peringkat 2',
-                      scoreColor: 'text-slate-700',
+                      scoreColor: 'text-slate-700 dark:text-slate-300',
                       medal: 'Juara 2'
                     },
                     {
-                      bg: 'bg-gradient-to-r from-amber-900/5 via-amber-700/5 to-white border-amber-200',
-                      badge: 'bg-amber-700/20 text-amber-900 font-bold',
+                      bg: 'bg-gradient-to-r from-amber-900/5 via-amber-700/5 to-white dark:from-amber-950/20 dark:via-amber-950/10 dark:to-slate-900 border-amber-200 dark:border-amber-800/50',
+                      badge: 'bg-amber-700/20 dark:bg-amber-800/40 text-amber-900 dark:text-amber-300 font-bold',
                       label: '🥉 Peringkat 3',
-                      scoreColor: 'text-amber-800',
+                      scoreColor: 'text-amber-800 dark:text-amber-400',
                       medal: 'Juara 3'
                     }
                   ][idx] || {
-                    bg: 'bg-slate-50 border-slate-200',
-                    badge: 'bg-slate-200 text-slate-700',
+                    bg: 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700',
+                    badge: 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
                     label: `#${idx + 1}`,
-                    scoreColor: 'text-blue-700',
+                    scoreColor: 'text-blue-700 dark:text-cyan-400',
                     medal: `Top ${idx + 1}`
                   };
 
@@ -898,23 +729,23 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                               {rankStyles.label}
                             </span>
-                            <span className="px-2 py-0.2 text-[10px] bg-white text-slate-600 rounded font-semibold border border-slate-200 font-mono">
+                            <span className="px-2 py-0.2 text-[10px] bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded font-semibold border border-slate-200 dark:border-slate-700 font-mono">
                               Kelas {item.participant.student.className}
                             </span>
                           </div>
-                          <h4 className="text-sm font-bold text-slate-900 truncate mt-0.5">
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate mt-0.5">
                             {item.participant.student.name}
                           </h4>
-                          <p className="text-[11px] text-slate-500 font-mono">
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
                             NIM: {item.participant.student.nim}
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center sm:flex-col items-start sm:items-end justify-between border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200/60 shrink-0">
+                      <div className="flex items-center sm:flex-col items-start sm:items-end justify-between border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200/60 dark:border-slate-800 shrink-0">
                         <div className="flex items-baseline gap-1.5">
                           <span className={`text-xl font-black ${rankStyles.scoreColor}`}>
                             {item.finalScore}
@@ -929,7 +760,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                             );
                           })()}
                         </div>
-                        <span className="text-[10px] font-semibold text-slate-500">
+                        <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
                           {item.isPublished ? '✓ Terpublikasi' : 'Draft Penilaian'}
                         </span>
                       </div>
@@ -937,20 +768,20 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                   );
                 })
               ) : (
-                <div className="p-8 text-center text-slate-400 border border-dashed rounded-2xl">
+                <div className="p-8 text-center text-slate-400 dark:text-slate-500 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl">
                   <Award className="w-10 h-10 mx-auto mb-2 opacity-40" />
-                  <p className="text-xs font-semibold text-slate-600">Belum ada nilai yang dimasukkan pada periode ini</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Buka Grading Workspace untuk mulai menilai rubrik mahasiswa.</p>
+                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Belum ada nilai yang dimasukkan pada periode ini</p>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Buka Grading Workspace untuk mulai menilai rubrik mahasiswa.</p>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+          <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500">
             <span>Formula OBE: Kualitas (70%) + Sikap (10%) + Kreativitas (5%) + Laporan (15%)</span>
             <button
               onClick={() => onNavigateTab('GRADING')}
-              className="text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1"
+              className="text-blue-600 dark:text-cyan-400 hover:text-blue-700 dark:hover:text-cyan-300 font-bold flex items-center gap-1"
             >
               <span>Grading Workspace</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
@@ -959,27 +790,27 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         </div>
 
         {/* Right 5 cols: Performance Chart Synchronized to Rekap Nilai */}
-        <div className="lg:col-span-5 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-5 bg-white dark:bg-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
               <div>
-                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-blue-600" />
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-blue-600 dark:text-cyan-400" />
                   <span>Grafik Perkembangan Mahasiswa</span>
                 </h3>
-                <p className="text-xs text-slate-500">Sinkronisasi Real-Time Rekap Nilai</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Sinkronisasi Real-Time Rekap Nilai</p>
               </div>
 
               <div className="flex items-center gap-2">
                 {/* View Mode Toggle: Harian vs Komponen Rekap */}
-                <div className="flex items-center bg-slate-100 p-0.5 rounded-xl text-[11px] font-semibold">
+                <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl text-[11px] font-semibold">
                   <button
                     type="button"
                     onClick={() => setChartViewMode('DAILY')}
                     className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                       chartViewMode === 'DAILY'
-                        ? 'bg-white text-blue-700 shadow-xs font-bold'
-                        : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-white dark:bg-slate-900 text-blue-700 dark:text-cyan-400 shadow-xs font-bold'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                   >
                     Harian
@@ -989,8 +820,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                     onClick={() => setChartViewMode('CATEGORY')}
                     className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                       chartViewMode === 'CATEGORY'
-                        ? 'bg-white text-blue-700 shadow-xs font-bold'
-                        : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-white dark:bg-slate-900 text-blue-700 dark:text-cyan-400 shadow-xs font-bold'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                   >
                     Komponen
@@ -998,7 +829,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                 </div>
 
                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg ${
-                  rekapPerformance.hasData ? 'bg-blue-50 text-blue-700 font-mono font-bold' : 'bg-slate-100 text-slate-500'
+                  rekapPerformance.hasData ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-cyan-400 font-mono font-bold border border-transparent dark:border-blue-800/40' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                 }`}>
                   {rekapPerformance.hasData ? `Rata2: ${rekapPerformance.overallAvg}` : 'Belum Dinilai'}
                 </span>
@@ -1012,17 +843,17 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                   rekapPerformance.dailyItems.map((item, index) => (
                     <div key={index} className="space-y-1.5">
                       <div className="flex items-center justify-between text-xs">
-                        <div className="font-semibold text-slate-800 flex items-center gap-1.5 min-w-0">
+                        <div className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 min-w-0">
                           <span className="shrink-0">{item.day}</span>
                           <span className="text-slate-400 font-normal text-[10px] truncate max-w-[130px] sm:max-w-xs">
                             • {item.label}
                           </span>
                         </div>
-                        <div className="font-mono font-bold text-blue-700 shrink-0">
+                        <div className="font-mono font-bold text-blue-700 dark:text-cyan-400 shrink-0">
                           {item.avgScore} <span className="text-[10px] text-slate-400 font-normal">({item.submissions} Mhs)</span>
                         </div>
                       </div>
-                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
                         <div
                           className={`bg-gradient-to-r ${item.color} h-full rounded-full transition-all duration-700 ease-out`}
                           style={{ width: `${Math.min(100, Math.max(0, item.avgScore))}%` }}
@@ -1034,17 +865,17 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                   rekapPerformance.categoryItems.map((cat, index) => (
                     <div key={index} className="space-y-1.5">
                       <div className="flex items-center justify-between text-xs">
-                        <div className="font-semibold text-slate-800 flex items-center gap-1.5">
+                        <div className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                           <span>{cat.name}</span>
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-100 text-slate-600 font-mono">
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono">
                             {cat.weight}
                           </span>
                         </div>
-                        <div className="font-mono font-bold text-indigo-700 shrink-0">
+                        <div className="font-mono font-bold text-indigo-700 dark:text-indigo-400 shrink-0">
                           {cat.avgScore} <span className="text-[10px] text-slate-400 font-normal">({cat.count} Mhs)</span>
                         </div>
                       </div>
-                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
                         <div
                           className={`bg-gradient-to-r ${cat.color} h-full rounded-full transition-all duration-700 ease-out`}
                           style={{ width: `${Math.min(100, Math.max(0, cat.avgScore))}%` }}
@@ -1055,29 +886,29 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                 )}
               </div>
             ) : (
-              <div className="py-9 text-center text-slate-400 border border-dashed border-slate-200 rounded-2xl my-3">
+              <div className="py-9 text-center text-slate-400 dark:text-slate-500 border border-dashed border-slate-200 dark:border-slate-700 rounded-2xl my-3">
                 <BarChart3 className="w-10 h-10 mx-auto mb-2 opacity-30 text-slate-400" />
-                <p className="text-xs font-semibold text-slate-700">Belum Ada Rekap Nilai Mahasiswa</p>
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Belum Ada Rekap Nilai Mahasiswa</p>
                 <p className="text-[11px] text-slate-400 mt-0.5 max-w-xs mx-auto">
                   Grafik perkembangan akan otomatis tersinkronisasi saat instruktur menginput nilai mahasiswa di Grading Workspace.
                 </p>
                 <button
                   onClick={() => onNavigateTab('GRADING')}
-                  className="mt-3.5 px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-xl border border-blue-200 transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
+                  className="mt-3.5 px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-950 dark:hover:bg-slate-900 text-white text-xs font-bold rounded-xl border border-slate-800 dark:border-slate-700 transition-all shadow-sm inline-flex items-center gap-1.5 cursor-pointer"
                 >
                   <span>Mulai Menilai di Grading Workspace</span>
-                  <ArrowUpRight className="w-3.5 h-3.5" />
+                  <ArrowUpRight className="w-3.5 h-3.5 text-cyan-400" />
                 </button>
               </div>
             )}
           </div>
 
-          <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+          <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
             <span>SKM Kelulusan: 75.0</span>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => onNavigateTab('REKAP')}
-                className="text-slate-600 hover:text-emerald-700 font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                className="text-slate-600 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 font-semibold flex items-center gap-1 transition-colors cursor-pointer"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Buka Rekap Nilai</span>
@@ -1085,7 +916,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
               <span>•</span>
               <button
                 onClick={() => onNavigateTab('ANALYTICS')}
-                className="text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1 cursor-pointer"
+                className="text-blue-600 dark:text-cyan-400 hover:text-blue-700 dark:hover:text-cyan-300 font-semibold flex items-center gap-1 cursor-pointer"
               >
                 <span>Detail Analitik</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
@@ -1097,24 +928,24 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       </div>
 
       {/* Row 2: Top 3 Umum Mata Kuliah (Diletakkan Terpisah di Bawah, Tidak Sejajar) */}
-      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100">
+      <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
                 Akumulasi Seluruh Periode
               </span>
             </div>
-            <h3 className="text-base font-bold text-slate-900 mt-1 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-indigo-600" />
+            <h3 className="text-base font-bold text-slate-900 dark:text-white mt-1 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
               <span>Top 3 Umum Mata Kuliah ({activeCourse?.name})</span>
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Pencapaian mahasiswa dengan nilai kumulatif tertinggi dari seluruh gelombang periode praktik pada mata kuliah ini.
             </p>
           </div>
 
-          <span className="text-xs font-semibold text-slate-400">
+          <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">
             Ranking Lintas Periode
           </span>
         </div>
@@ -1126,17 +957,17 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
               const cardThemes = [
                 {
                   badgeBg: 'bg-indigo-600 text-white',
-                  border: 'border-indigo-200 bg-gradient-to-b from-indigo-50/50 to-white',
+                  border: 'border-indigo-200 dark:border-indigo-800/60 bg-gradient-to-b from-indigo-50/50 dark:from-indigo-950/40 to-white dark:to-slate-900',
                   trophy: '🏆 Juara Umum 1'
                 },
                 {
                   badgeBg: 'bg-blue-600 text-white',
-                  border: 'border-blue-200 bg-gradient-to-b from-blue-50/40 to-white',
+                  border: 'border-blue-200 dark:border-blue-800/60 bg-gradient-to-b from-blue-50/40 dark:from-blue-950/40 to-white dark:to-slate-900',
                   trophy: '🥈 Juara Umum 2'
                 },
                 {
                   badgeBg: 'bg-teal-600 text-white',
-                  border: 'border-teal-200 bg-gradient-to-b from-teal-50/40 to-white',
+                  border: 'border-teal-200 dark:border-teal-800/60 bg-gradient-to-b from-teal-50/40 dark:from-teal-950/40 to-white dark:to-slate-900',
                   trophy: '🥉 Juara Umum 3'
                 }
               ][idx];
@@ -1148,7 +979,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                 >
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                         {cardThemes.trophy}
                       </span>
                       <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs ${cardThemes.badgeBg}`}>
@@ -1156,22 +987,22 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                       </div>
                     </div>
 
-                    <h4 className="text-sm font-bold text-slate-900 leading-snug">
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">
                       {item.participant.student.name}
                     </h4>
-                    <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
                       NIM: {item.participant.student.nim} • Kelas {item.participant.student.className}
                     </p>
-                    <p className="text-[11px] text-indigo-700 font-medium mt-1">
+                    <p className="text-[11px] text-indigo-700 dark:text-indigo-400 font-medium mt-1">
                       {item.periodName}
                     </p>
                   </div>
 
-                  <div className="mt-5 pt-3 border-t border-slate-100 flex items-baseline justify-between">
-                    <span className="text-xs text-slate-400 font-semibold">Skor Akhir:</span>
+                  <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-baseline justify-between">
+                    <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold">Skor Akhir:</span>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-black text-indigo-900">
-                        {item.finalScore} <span className="text-xs text-slate-400 font-normal">Poin</span>
+                      <span className="text-2xl font-black text-indigo-900 dark:text-indigo-200">
+                        {item.finalScore} <span className="text-xs text-slate-400 dark:text-slate-500 font-normal">Poin</span>
                       </span>
                       {(() => {
                         const pred = getGradePredicate(item.finalScore);
@@ -1187,8 +1018,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
               );
             })
           ) : (
-            <div className="col-span-3 p-8 text-center text-slate-400 border border-dashed rounded-2xl">
-              <p className="text-xs font-semibold text-slate-600">Belum ada rekapan nilai kumulatif mata kuliah.</p>
+            <div className="col-span-3 p-8 text-center text-slate-400 dark:text-slate-500 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl">
+              <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Belum ada rekapan nilai kumulatif mata kuliah.</p>
             </div>
           )}
         </div>

@@ -1,3 +1,9 @@
+import {
+  DEMO_OBE_COURSE,
+  DEMO_OBE_PERIODS,
+  DEMO_OBE_UNITS,
+  buildDemoObeData
+} from './demoCourseData';
 // Real Course & Student Data for Portal Praktik Poliwako
 // Target: Politeknik Sorowako (PRD v1.0)
 // Program Studi: Rekayasa Perancangan Mekanik
@@ -144,7 +150,15 @@ export const INITIAL_STUDENTS: Student[] = [
 ];
 
 // Mata Kuliah Real: CAD 1.1
+const {
+  participants: DEMO_OBE_PARTICIPANTS,
+  assessments: DEMO_OBE_ASSESSMENTS,
+  attendance: DEMO_OBE_ATTENDANCE,
+  submissions: DEMO_OBE_SUBMISSIONS
+} = buildDemoObeData(INITIAL_STUDENTS);
+
 export const INITIAL_COURSES: Course[] = [
+  DEMO_OBE_COURSE,
   {
     id: 'course-cad-1-1',
     instructorId: 'inst-rezaf',
@@ -430,6 +444,7 @@ export const INITIAL_COURSES: Course[] = [
 
 // 3 Gelombang Periode Praktik CAD 1.1 Sesuai Kalender Akademik Poliwako 2026
 export const INITIAL_PERIODS: PracticePeriod[] = [
+  ...DEMO_OBE_PERIODS,
   {
     id: 'per-cad1-1-g1',
     courseId: 'course-cad-1-1',
@@ -544,6 +559,7 @@ export const INITIAL_PERIODS: PracticePeriod[] = [
 
 // Distribusi Peserta Real CAD 1.1 Berdasarkan Jadwal Resmi Kelas 1C
 export const INITIAL_PARTICIPANTS: PracticeParticipant[] = [
+  ...DEMO_OBE_PARTICIPANTS,
   ...officialRpm.courses.flatMap(course => course.periods.flatMap(period => period.nims.map(nim => {
     const student = INITIAL_STUDENTS.find(s => s.nim === nim)!;
     const periodId = course.code === 'DPP'
@@ -606,6 +622,7 @@ export const INITIAL_PARTICIPANTS: PracticeParticipant[] = [
 
 // 5 Modul Pembelajaran CAD 1.1 untuk Gelombang 2 (Aktif Berjalan)
 export const INITIAL_LEARNING_UNITS: LearningUnit[] = [
+  ...DEMO_OBE_UNITS,
   {
     id: 'unit-cad1-m1',
     periodId: 'per-cad1-1-g2',
@@ -875,11 +892,11 @@ export const INITIAL_LEARNING_UNITS: LearningUnit[] = [
 ];
 
 // Presensi Real Praktik 5 Hari Gelombang 2
-export const INITIAL_ATTENDANCE: AttendanceRecord[] = [];
+export const INITIAL_ATTENDANCE: AttendanceRecord[] = [...DEMO_OBE_ATTENDANCE];
 
 export const INITIAL_UNIT_PROGRESS: UnitProgress[] = [];
-export const INITIAL_SUBMISSIONS: Submission[] = [];
-export const INITIAL_ASSESSMENTS: Assessment[] = [];
+export const INITIAL_SUBMISSIONS: Submission[] = [...DEMO_OBE_SUBMISSIONS];
+export const INITIAL_ASSESSMENTS: Assessment[] = [...DEMO_OBE_ASSESSMENTS];
 export const INITIAL_REMEDIALS: RemedialAssignment[] = [];
 
 export const INITIAL_FEEDBACK_RULES: FeedbackRule[] = [

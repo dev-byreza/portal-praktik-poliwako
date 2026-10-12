@@ -584,17 +584,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     StorageService.saveAnnouncements(announcements);
   }, [announcements]);
 
-  const showToast = (title: string, message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
-    const id = `toast-${Date.now()}-${Math.random()}`;
-    setToasts(prev => [...prev, { id, title, message, type }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 4000);
-  };
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const removeToast = (id: string) => {
+  const showToast = useCallback((title: string, message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    // Hanya 1 baris saja berganti: selalu timpa notifikasi sebelumnya
+    setToasts([{ id, title, message, type }]);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+      toastTimeoutRef.current = null;
+    }, 3500);
+  }, []);
+
+  const removeToast = useCallback((id: string) => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+      toastTimeoutRef.current = null;
+    }
     setToasts(prev => prev.filter(t => t.id !== id));
-  };
+  }, []);
 
   const setActiveCourseId = (id: string) => {
     setActiveCourseIdState(id);

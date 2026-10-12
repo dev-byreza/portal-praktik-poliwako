@@ -242,6 +242,16 @@ export class StorageService {
         }
       }
     });
+    // Ensure Demo OBE Course is available
+    const demoCourseId = 'course-demo-cad-sim';
+    if (!courses.some(c => c.id === demoCourseId)) {
+      const demoInitial = INITIAL_COURSES.find(c => c.id === demoCourseId);
+      if (demoInitial) {
+        courses.unshift(demoInitial);
+        changed = true;
+      }
+    }
+
     // Ensure DPP 2 is available
     const dppCourseId = 'c3d4e5f6-d002-4000-8000-000000000001';
     if (activeCacheScope === 'local' && !courses.some(c => c.id === dppCourseId)) {
@@ -280,6 +290,15 @@ export class StorageService {
   static getPeriods(): PracticePeriod[] {
     let periods = getItem<PracticePeriod[]>(STORAGE_KEYS.PERIODS, INITIAL_PERIODS);
     let changed = false;
+
+    // Ensure Demo OBE periods are available
+    if (!periods.some(p => p.courseId === 'course-demo-cad-sim')) {
+      const demoInitials = INITIAL_PERIODS.filter(p => p.courseId === 'course-demo-cad-sim');
+      if (demoInitials.length > 0) {
+        periods = [...periods, ...demoInitials];
+        changed = true;
+      }
+    }
 
     // Check if DPP 2 periods are missing
     const dppCourseId = 'c3d4e5f6-d002-4000-8000-000000000001';

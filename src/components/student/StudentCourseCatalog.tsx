@@ -286,7 +286,7 @@ export const StudentCourseCatalog: React.FC<StudentCourseCatalogProps> = ({ onSe
           })}
         </div>
 
-        <footer className="relative z-10 mt-10 border-t border-slate-200 pt-5 pb-8 text-center">
+        <footer className="relative z-10 mt-10 border-t border-slate-200 dark:border-slate-800 pt-5 pb-8 text-center">
           <FooterBranding theme="light" compact />
         </footer>
       </main>
