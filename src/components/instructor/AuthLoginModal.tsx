@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { signInInstructorWithGoogle } from '../../services/supabaseClient';
+import { GoogleLogo } from './GoogleLogo';
 import {
   GraduationCap,
   ShieldCheck,
@@ -216,7 +217,7 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
                   disabled={isLoading}
                   className="flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border-2 border-blue-200 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm transition hover:border-blue-500 hover:bg-blue-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70"
                 >
-                  <span aria-hidden="true" className="flex h-7 w-7 items-center justify-center rounded-full border border-blue-100 bg-blue-50 text-base font-black text-blue-600 shadow-sm">G</span>
+                  <GoogleLogo className="h-6 w-6 shrink-0" />
                   <span>{isLoading ? 'Menghubungkan ke Google...' : 'Masuk dengan Google'}</span>
                 </button>
                 <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-500">
