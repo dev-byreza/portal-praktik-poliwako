@@ -1372,42 +1372,30 @@ export const GradingWorkspace: React.FC = () => {
                   onClick={() => setOpenQualitySection(current => current === 'ASSIGNMENT' ? null : 'ASSIGNMENT')}
                   className="w-full p-4 sm:p-5 text-left flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 font-black text-xs flex items-center justify-center shrink-0">
-                      3
+                  <div className="flex min-w-0 items-center gap-2">
+                    <BookOpen className="h-4 w-4 shrink-0 text-blue-700" />
+                    <h5 className="truncate text-sm font-bold text-slate-900">
+                      {getQualityComponent('ASSIGNMENT')?.name}
+                    </h5>
+                    <span className="shrink-0 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                      {getQualityComponent('ASSIGNMENT')?.weightPercent}%
                     </span>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <BookOpen className="w-3.5 h-3.5 text-blue-700" />
-                        <h5 className="text-sm font-bold text-slate-900">
-                          {getQualityComponent('ASSIGNMENT')?.name} (Bobot {getQualityComponent('ASSIGNMENT')?.weightPercent}%)
-                        </h5>
-                        <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700">
-                          {tasksToGrade.length} Tugas Materi
-                        </span>
-                        <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">
-                          {tasksToGrade.length === 1 ? fileTypeLabel(tasksToGrade[0].allowedFileType) : 'Format Sesuai Tugas'}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-                        {getQualityComponent('ASSIGNMENT')?.description}
-                      </p>
-                    </div>
+                    <span className="text-xs text-slate-500">{tasksToGrade.length} tugas</span>
                   </div>
 
-                  <div className="flex items-center gap-2 self-end sm:self-auto">
-                    <div className="min-w-[108px] rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-right">
-                      <span className="block text-[9px] font-bold uppercase tracking-wide text-slate-500">Rata2 {assignmentScore}</span>
-                      <span className="block text-xs font-mono font-bold text-blue-800">
-                      {(assignmentScore * ((getQualityComponent('ASSIGNMENT')?.weightPercent || 0) / 100)).toFixed(1)} Poin
-                      </span>
-                    </div>
+                  <div className="flex items-center gap-3 self-end sm:self-auto">
+                    <span className="text-xs font-mono font-semibold text-slate-600" title="Rata-rata nilai tugas">
+                      Rata-rata {assignmentScore}
+                    </span>
+                    <span className="text-xs font-mono font-bold text-blue-800" title="Kontribusi ke nilai akhir">
+                      +{(assignmentScore * ((getQualityComponent('ASSIGNMENT')?.weightPercent || 0) / 100)).toFixed(1)}
+                    </span>
                     <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${openQualitySection === 'ASSIGNMENT' ? 'rotate-180' : ''}`} />
                   </div>
                 </button>
 
                 {/* List of Tasks Connected to Materials */}
-                {openQualitySection === 'ASSIGNMENT' && <div className="px-4 pb-4 space-y-3.5 pt-0.5">
+                {openQualitySection === 'ASSIGNMENT' && <div className="divide-y divide-slate-100 px-4 pb-2 pt-0.5">
                   {tasksToGrade.map((task) => {
                     const studentSubmission = submissions.find(
                       s => s.assignmentId === task.id &&
@@ -1417,16 +1405,15 @@ export const GradingWorkspace: React.FC = () => {
                     const currentScore = taskScores[task.id] ?? 0;
 
                     return (
-                      <div key={task.id} className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-3 hover:border-slate-300 transition-colors">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-slate-100 pb-2">
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-slate-100 text-slate-700">
-                                Modul {task.unitNumber}
-                              </span>
-                              <h6 className="text-xs font-bold text-slate-900">{task.assignmentTitle}</h6>
+                      <div key={task.id} className="space-y-2.5 py-3">
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-mono font-semibold text-slate-600">
+                              M{task.unitNumber}
+                            </span>
+                            <h6 className="min-w-0 text-xs font-semibold text-slate-900" title={task.description || undefined}>{task.assignmentTitle}</h6>
                               {studentSubmission && (
-                                <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
+                                <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${
                                   studentSubmission.status === 'REVISION_REQUIRED'
                                     ? 'bg-rose-100 text-rose-700'
                                     : studentSubmission.status === 'ACCEPTED'
@@ -1436,65 +1423,58 @@ export const GradingWorkspace: React.FC = () => {
                                   {studentSubmission.status === 'REVISION_REQUIRED' ? 'Perlu revisi' : studentSubmission.status === 'ACCEPTED' ? 'Diterima' : studentSubmission.status === 'GRADED' ? 'Sudah dinilai' : 'Menunggu review'}
                                 </span>
                               )}
-                            </div>
-                            <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
-                              {task.description}
-                            </p>
-                            {task.allowedFileType === 'AUTOCAD_LINK' && studentSubmission?.fileUrl && /^https?:\/\//i.test(studentSubmission.fileUrl) && (
-                              <a
-                                href={studentSubmission.fileUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 hover:text-blue-900 hover:underline"
-                              >
-                                <ExternalLink className="h-3 w-3" />
-                                Buka Link Autodesk Share
-                              </a>
-                            )}
                           </div>
-                          <span className="text-[9px] font-mono text-slate-400 shrink-0 self-start sm:self-auto">
-                            Tenggat: {formatDeadline(task.deadline)}
+                          <span className="shrink-0 text-[10px] text-slate-400 sm:text-right" title="Tenggat tugas">
+                            Tenggat {formatDeadline(task.deadline)}
                           </span>
                         </div>
 
-                        {/* Uploaded File Inspector Box like Post-Test */}
-                        <div className={`p-3 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${studentSubmission ? 'bg-slate-50 border-slate-200' : 'bg-amber-50 border-amber-200'}`}>
-                          <div className="flex items-center gap-2.5">
-                            <div className={`w-8 h-8 rounded-lg text-white flex items-center justify-center shrink-0 ${studentSubmission ? 'bg-blue-700' : 'bg-amber-600'}`}>
-                              <FileText className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <span className="text-xs font-bold text-slate-900 block truncate max-w-xs">
-                                {studentSubmission?.fileName || 'Belum ada file yang diunggah'}
+                        {task.description && (
+                          <details className="group text-[10px] text-slate-500">
+                            <summary className="w-fit cursor-pointer select-none font-medium hover:text-slate-700">Instruksi tugas</summary>
+                            <p className="mt-1 max-w-3xl leading-relaxed">{task.description}</p>
+                          </details>
+                        )}
+
+                        <div className="flex flex-col gap-2 rounded-lg bg-slate-50 px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <FileText className={`h-4 w-4 shrink-0 ${studentSubmission ? 'text-blue-700' : 'text-slate-400'}`} />
+                            <div className="min-w-0">
+                              <span className="block truncate text-xs font-medium text-slate-800" title={studentSubmission?.fileName || undefined}>
+                                {studentSubmission?.fileName || 'Belum diunggah'}
                               </span>
-                              <span className="text-[10px] text-slate-500">
-                                {studentSubmission
-                                  ? `${fileTypeLabel(studentSubmission.fileName, task.allowedFileType)} Tugas • ${studentSubmission.fileSize} • Diunggah: ${formatWitaDateTime(studentSubmission.submittedAt)}`
-                                  : 'Belum ada file yang diunggah mahasiswa.'}
-                              </span>
+                              {studentSubmission && <span className="block truncate text-[10px] text-slate-500">
+                                {fileTypeLabel(studentSubmission.fileName, task.allowedFileType)} · {studentSubmission.fileSize} · {formatWitaDateTime(studentSubmission.submittedAt)}
+                              </span>}
                             </div>
                           </div>
 
-                          <button
-                            type="button"
-                            disabled={!studentSubmission?.fileUrl}
-                            onClick={() => handleInspectAssignmentPdf(task.id, studentSubmission, task.assignmentTitle)}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-xl border flex items-center gap-1.5 transition-all shadow-xs disabled:cursor-not-allowed disabled:opacity-50 ${
-                              activeDocType === 'ASSIGNMENT' && activeAssignmentId === task.id
-                                ? 'bg-blue-700 text-white border-blue-700'
-                                : 'bg-white text-blue-800 border-slate-300 hover:bg-slate-50'
-                            }`}
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>{studentSubmission?.fileUrl ? (activeDocType === 'ASSIGNMENT' && activeAssignmentId === task.id ? 'Sedang Ditampilkan' : 'Lihat File') : 'Belum Ada File'}</span>
-                          </button>
+                          {task.allowedFileType === 'AUTOCAD_LINK' && studentSubmission?.fileUrl && /^https?:\/\//i.test(studentSubmission.fileUrl) ? (
+                            <a href={studentSubmission.fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-blue-700 hover:bg-blue-50">
+                              Buka link <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={!studentSubmission?.fileUrl}
+                              onClick={() => handleInspectAssignmentPdf(task.id, studentSubmission, task.assignmentTitle)}
+                              className={`inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                                activeDocType === 'ASSIGNMENT' && activeAssignmentId === task.id
+                                  ? 'border-blue-700 bg-blue-700 text-white'
+                                  : 'border-slate-200 bg-white text-blue-700 hover:bg-blue-50'
+                              }`}
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                              {studentSubmission?.fileUrl ? (activeDocType === 'ASSIGNMENT' && activeAssignmentId === task.id ? 'Ditampilkan' : 'Lihat') : 'Tanpa file'}
+                            </button>
+                          )}
                         </div>
 
-                        {/* Score Input Controls */}
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-0.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
-                            <label className="text-[11px] font-bold text-slate-700">Skor Tugas (0-100):</label>
+                            <label htmlFor={`assignment-score-${task.id}`} className="text-[11px] font-semibold text-slate-600">Nilai</label>
                             <input
+                              id={`assignment-score-${task.id}`}
                               type="number"
                               inputMode="decimal"
                               min={0}
@@ -1502,18 +1482,19 @@ export const GradingWorkspace: React.FC = () => {
                               step={0.01}
                               value={currentScore}
                               onChange={e => handleTaskScoreChange(task.id, parseGradingScore(e.target.value))}
-                              className="w-20 px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-center text-xs font-bold font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                              aria-label={`Nilai tugas ${task.assignmentTitle}`}
+                              className="w-16 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-center text-xs font-bold font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                             />
                           </div>
 
-                          {/* Preset quick buttons */}
                           <div className="flex flex-wrap items-center gap-1.5">
                             {[100, 85, 75, 50, 0].map(val => (
                               <button
                                 key={val}
                                 type="button"
                                 onClick={() => handleTaskScoreChange(task.id, val)}
-                                className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all ${
+                                aria-label={`Beri nilai ${val}`}
+                                className={`min-w-8 rounded-md border px-2 py-1 text-[10px] font-semibold transition-colors ${
                                   currentScore === val
                                     ? 'bg-blue-700 text-white border-blue-700'
                                     : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
