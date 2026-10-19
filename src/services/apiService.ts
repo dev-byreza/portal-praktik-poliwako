@@ -171,7 +171,10 @@ export class ApiService {
   }
 
   static async logout(): Promise<void> {
-    await authSignOutInstructor();
+    StorageService.setInstructorLoggedIn(false);
+    try {
+      await authSignOutInstructor();
+    } catch {}
   }
 
   static async getCurrentInstructorId(): Promise<string | null> {
@@ -179,6 +182,11 @@ export class ApiService {
       && window.location.pathname.replace(/\/+$/, '').toLowerCase() === '/mahasiswa'
       && new URLSearchParams(window.location.search).get('student_reset') === '1') {
       return null;
+    }
+    // Prioritize Neon instructor session
+    if (StorageService.isInstructorLoggedIn()) {
+      const saved = StorageService.getInstructor();
+      if (saved?.id) return saved.id;
     }
     const user = await getCurrentAuthUser();
     return user?.id || null;
@@ -189,6 +197,24 @@ export class ApiService {
   // INSTRUCTOR PROFILE
   // ====================================================================
   static async getInstructorProfile(userId?: string): Promise<InstructorProfile> {
+    const saved = StorageService.getInstructor();
+    if (saved?.id && (!userId || saved.id === userId)) {
+      return saved;
+    }
+    try {
+      const neon = await getNeonBootstrapData();
+      if (userId && neon?.instructorDirectory?.[userId]) {
+        const d = neon.instructorDirectory[userId];
+        return {
+          id: userId,
+          email: saved?.email || '',
+          name: d.name || 'Instruktur',
+          nip: d.nip || undefined,
+          department: d.department || 'Teknik Mesin',
+          avatarUrl: d.avatarUrl || undefined,
+        };
+      }
+    } catch {}
     if (!this.isLiveBackend() || !supabase || !userId) {
       return StorageService.getInstructor();
     }

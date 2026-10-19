@@ -61,6 +61,22 @@ async function check() {
       }
     }
 
+    const users = await pool.query('SELECT id, email, length(encrypted_password) as pass_len FROM auth.users');
+    console.log('AUTH USERS IN NEON:');
+    console.table(users.rows);
+
+    const profs = await pool.query('SELECT id, email, name FROM public.profiles');
+    console.log('PROFILES IN NEON:');
+    console.table(profs.rows);
+
+    const matUrls = await pool.query('SELECT title, type, content_url FROM public.learning_materials WHERE content_url IS NOT NULL LIMIT 5');
+    console.log('SAMPLE MATERIAL URLS:');
+    console.table(matUrls.rows);
+
+    const subUrls = await pool.query('SELECT file_name, file_url FROM public.submissions WHERE file_url IS NOT NULL LIMIT 5');
+    console.log('SAMPLE SUBMISSION URLS:');
+    console.table(subUrls.rows);
+
     const q = [
       ['courses', 'SELECT * FROM public.courses ORDER BY created_at ASC'],
       ['course_sub_cpmk', 'SELECT * FROM public.course_sub_cpmk'],
