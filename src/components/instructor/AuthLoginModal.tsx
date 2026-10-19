@@ -63,6 +63,9 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose 
       const result = await loginInstructor(loginEmail, loginPassword);
       if (result.success) {
         onClose();
+        if (typeof window !== 'undefined' && window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase() !== 'instruktur') {
+          window.location.href = '/instruktur';
+        }
       } else {
         setErrorMsg(result.message);
       }

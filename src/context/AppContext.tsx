@@ -211,13 +211,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   ));
   const [studentSessionRestoreAttempt, setStudentSessionRestoreAttempt] = useState(0);
   const [isInstructorLoggedIn, setIsInstructorLoggedIn] = useState<boolean>(() => (
-    isLiveBackend ? false : StorageService.isInstructorLoggedIn()
+    StorageService.isInstructorLoggedIn()
   ));
   const [role, setRole] = useState<UserRole>(() => (
-    isLiveBackend ? 'STUDENT' : (StorageService.isInstructorLoggedIn() ? 'INSTRUCTOR' : 'STUDENT')
+    StorageService.isInstructorLoggedIn() ? 'INSTRUCTOR' : 'STUDENT'
   ));
   const [instructor, setInstructor] = useState<InstructorProfile>(() => (
-    isLiveBackend ? { id: '', email: '', name: '', department: '' } : StorageService.getInstructor()
+    StorageService.getInstructor()
   ));
   const isAdmin = isInstructorLoggedIn
     && instructor.email.trim().toLowerCase() === 'rezaf@politekniksorowako.ac.id';
@@ -336,6 +336,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const authClient = supabase;
 
     const { data: { subscription } } = authClient.auth.onAuthStateChange((event, session) => {
+      // If logged in via Neon, do not let Supabase empty session reset the instructor
+      if (StorageService.isInstructorLoggedIn()) {
+        return;
+      }
       if (!session || event === 'SIGNED_OUT') {
         clearLiveInstructorSession();
         return;
