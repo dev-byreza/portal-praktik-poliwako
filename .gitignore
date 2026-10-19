@@ -30,9 +30,27 @@ dist-ssr
 
 .vercel
 
+# Database dumps & scratch
+data.sql
+roles.sql
+scripts/patch_api_service.mjs
+scripts/update_messages.mjs
+scripts/test_student_auth_neon.mjs
+scripts/test_neon_auth.mjs
+scripts/finish_neon_import.mjs
+scripts/import_data_to_neon.mjs
+scripts/import_neon_clean.mjs
+scripts/migrate_to_neon.mjs
+scripts/neon_manager.mjs
+scripts/prepare_neon_schema.mjs
+scripts/run_neon_migrations.mjs
+scripts/dump_live_data.mjs
+scripts/import_live_data.mjs
+
 # Temporary tool & workspace artifacts
 .codex*
 artifact_work
 output
 outputs
 codebase-memory-mcp
+

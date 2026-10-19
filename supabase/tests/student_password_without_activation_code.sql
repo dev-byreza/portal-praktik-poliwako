@@ -9,6 +9,11 @@ DECLARE
   v_period_id UUID;
   v_slug TEXT;
   v_owner UUID;
+  v_admin UUID;
+  v_reset_token TEXT;
+  v_added_student_id UUID := gen_random_uuid();
+  v_denied_student_id UUID := gen_random_uuid();
+  v_deleted_count INTEGER;
   v_result JSONB;
   v_hash TEXT;
   v_first_token TEXT;
@@ -56,8 +61,9 @@ BEGIN
   IF (v_result->>'success')::BOOLEAN IS DISTINCT FROM TRUE THEN RAISE EXCEPTION 'Login after password creation failed.'; END IF;
   RESET ROLE;
 
-  IF has_function_privilege('anon', 'public.student_auth_reset_password(uuid)', 'EXECUTE') THEN
-    RAISE EXCEPTION 'Anonymous reset access is enabled.';
+  IF to_regprocedure('public.student_auth_reset_password(uuid)') IS NOT NULL
+    OR to_regprocedure('public.student_auth_reset_own_password(text)') IS NOT NULL THEN
+    RAISE EXCEPTION 'Legacy no-token and email reset functions remain available.';
   END IF;
   IF has_function_privilege('authenticated', 'public.student_auth_issue_activation_code(uuid,boolean)', 'EXECUTE') THEN
     RAISE EXCEPTION 'Code issuance remains available.';
@@ -65,45 +71,72 @@ BEGIN
 
   PERFORM set_config('request.jwt.claim.sub', '', TRUE);
   PERFORM set_config('request.jwt.claims', '{}', TRUE);
-  BEGIN
-    PERFORM public.student_auth_reset_password(v_student_id);
-    RAISE EXCEPTION 'Reset without instructor identity accepted.';
-  EXCEPTION WHEN raise_exception THEN
-    IF SQLERRM <> 'Sesi instruktur diperlukan untuk mereset password.' THEN RAISE; END IF;
-  END;
-  PERFORM set_config('request.jwt.claim.sub', gen_random_uuid()::TEXT, TRUE);
   SET LOCAL ROLE authenticated;
   BEGIN
-    PERFORM public.student_auth_reset_password(v_student_id);
-    RAISE EXCEPTION 'Unauthorized instructor reset accepted.';
+    PERFORM public.student_auth_issue_password_reset_token(v_student_id);
+    RAISE EXCEPTION 'Reset token issuance without admin identity accepted.';
   EXCEPTION WHEN raise_exception THEN
-    IF SQLERRM <> 'Instruktur tidak berwenang mengelola akun mahasiswa ini.' THEN RAISE; END IF;
+    IF SQLERRM <> 'Hanya admin yang dapat menerbitkan token reset password.' THEN RAISE; END IF;
   END;
   RESET ROLE;
 
-  PERFORM set_config('request.jwt.claim.sub', v_owner::TEXT, TRUE);
+  PERFORM set_config('request.jwt.claim.sub', gen_random_uuid()::TEXT, TRUE);
   SET LOCAL ROLE authenticated;
-  v_result := public.student_auth_reset_password(v_student_id);
-  IF (v_result->>'success')::BOOLEAN IS DISTINCT FROM TRUE THEN RAISE EXCEPTION 'Authorized reset failed.'; END IF;
+  BEGIN
+    INSERT INTO public.students(id, instructor_id, nim, name, class_name)
+    VALUES (v_denied_student_id, v_owner, 'D' || left(replace(v_denied_student_id::TEXT, '-', ''), 12), 'Unauthorized insert fixture', '1C');
+    RAISE EXCEPTION 'Non-admin student insert accepted.';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  DELETE FROM public.students WHERE id = v_student_id;
+  GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
+  IF v_deleted_count <> 0 THEN RAISE EXCEPTION 'Non-admin student delete accepted.'; END IF;
+  BEGIN
+    PERFORM public.student_auth_issue_password_reset_token(v_student_id);
+    RAISE EXCEPTION 'Non-admin reset token issuance accepted.';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM <> 'Hanya admin yang dapat menerbitkan token reset password.' THEN RAISE; END IF;
+  END;
+  RESET ROLE;
+
+  SELECT id INTO v_admin FROM auth.users
+  WHERE lower(email) = 'rezaf@politekniksorowako.ac.id' AND email_confirmed_at IS NOT NULL
+  LIMIT 1;
+  IF v_admin IS NULL THEN RAISE EXCEPTION 'Confirmed admin account not found for reset test.'; END IF;
+
+  PERFORM set_config('request.jwt.claim.sub', v_admin::TEXT, TRUE);
+  SET LOCAL ROLE authenticated;
+  IF private.is_system_admin() IS DISTINCT FROM TRUE THEN RAISE EXCEPTION 'Admin email was not recognized.'; END IF;
+  INSERT INTO public.students(id, instructor_id, nim, name, class_name)
+  VALUES (v_added_student_id, v_owner, 'A' || left(replace(v_added_student_id::TEXT, '-', ''), 12), 'Admin insert fixture', '1C');
+  DELETE FROM public.students WHERE id = v_added_student_id;
+  GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
+  IF v_deleted_count <> 1 THEN RAISE EXCEPTION 'Admin student delete failed.'; END IF;
+  v_result := public.student_auth_issue_password_reset_token(v_student_id);
+  IF (v_result->>'success')::BOOLEAN IS DISTINCT FROM TRUE THEN RAISE EXCEPTION 'Admin reset token issuance failed.'; END IF;
+  v_reset_token := v_result->>'token';
+  RESET ROLE;
+
+  SET LOCAL ROLE anon;
+  v_result := public.student_auth_reset_password_with_token(v_nim, v_reset_token, 'Replacement-password', v_slug, v_period_id);
+  IF (v_result->>'success')::BOOLEAN IS DISTINCT FROM TRUE THEN RAISE EXCEPTION 'Valid admin reset token was rejected.'; END IF;
   RESET ROLE;
   IF EXISTS (SELECT 1 FROM private.student_sessions WHERE student_id = v_student_id AND revoked_at IS NULL) THEN
     RAISE EXCEPTION 'Reset left an old session active.';
   END IF;
-  IF EXISTS (SELECT 1 FROM public.students WHERE id = v_student_id AND password_hash IS NOT NULL) THEN
-    RAISE EXCEPTION 'Reset did not clear the password.';
+  IF EXISTS (SELECT 1 FROM public.students WHERE id = v_student_id AND extensions.crypt('Replacement-password', password_hash) <> password_hash) THEN
+    RAISE EXCEPTION 'Reset password was not stored correctly.';
   END IF;
 
   SET LOCAL ROLE anon;
   v_result := public.student_restore_session_profile(v_first_token);
   IF (v_result->>'success')::BOOLEAN IS DISTINCT FROM FALSE THEN RAISE EXCEPTION 'Revoked session still restores.'; END IF;
-  v_result := public.student_auth_set_password(v_nim, 'Regression-password-2', v_slug, v_period_id);
-  IF (v_result->>'success')::BOOLEAN IS DISTINCT FROM TRUE THEN RAISE EXCEPTION 'Password recreation without code failed.'; END IF;
   v_result := public.student_auth_login(v_nim, 'Regression-password-1', v_slug, v_period_id);
   IF (v_result->>'success')::BOOLEAN IS DISTINCT FROM FALSE THEN RAISE EXCEPTION 'Old password still works.'; END IF;
-  v_result := public.student_auth_login(v_nim, 'Regression-password-2', v_slug, v_period_id);
+  v_result := public.student_auth_login(v_nim, 'Replacement-password', v_slug, v_period_id);
   IF (v_result->>'success')::BOOLEAN IS DISTINCT FROM TRUE THEN RAISE EXCEPTION 'New password login failed.'; END IF;
   RESET ROLE;
 END;
 $$;
-SELECT 'PASS: password creation, enrollment, overwrite protection, reset authorization, session revocation, and recreation without codes' AS result;
+SELECT 'PASS: password creation, admin-only student CRUD and reset-token issuance, token reset, and session revocation' AS result;
 ROLLBACK;

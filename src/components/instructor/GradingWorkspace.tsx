@@ -279,9 +279,24 @@ export const GradingWorkspace: React.FC = () => {
     : activeDocType === 'ASSIGNMENT'
       ? activeAssignmentSubmission
       : reportSubmission;
+
+  const [activePreviewSignedUrl, setActivePreviewSignedUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isCurrent = true;
+    const path = activeDocumentSubmission?.storagePath;
+    if (path) {
+      void getSubmissionSignedUrl(path).then(url => {
+        if (isCurrent && url) setActivePreviewSignedUrl(url);
+      });
+    } else {
+      setActivePreviewSignedUrl(null);
+    }
+    return () => { isCurrent = false; };
+  }, [activeDocumentSubmission?.id, activeDocumentSubmission?.storagePath]);
   const activeDocumentUrl = activeDocType === 'POST_TEST'
     ? postTestFileUrl
-    : activeDocumentSubmission?.fileUrl;
+    : (activePreviewSignedUrl || activeDocumentSubmission?.fileUrl);
   const activeDocumentFileName = activeDocumentSubmission?.fileName
     || (activeDocType === 'POST_TEST' && postTestFileUrl ? 'post-test' : undefined);
 
@@ -872,7 +887,7 @@ export const GradingWorkspace: React.FC = () => {
                     ) : activeAssignmentSubmission?.fileUrl && canInlinePreview(activeAssignmentSubmission.fileName) ? (
                       <iframe
                         title={activeAssignmentSubmission.fileName}
-                        src={toPdfFitUrl(activeAssignmentSubmission.fileUrl)}
+                        src={toPdfFitUrl(activePreviewSignedUrl || activeAssignmentSubmission.fileUrl)}
                         className="h-full min-h-0 w-full border-0 bg-white"
                       />
                     ) : (
@@ -886,7 +901,7 @@ export const GradingWorkspace: React.FC = () => {
                   ) : reportSubmission?.fileUrl && canInlinePreview(reportSubmission.fileName) ? (
                     <iframe
                       title={reportSubmission.fileName}
-                      src={toPdfFitUrl(reportSubmission.fileUrl)}
+                      src={toPdfFitUrl(activePreviewSignedUrl || reportSubmission.fileUrl)}
                       className="h-full min-h-0 w-full border-0 bg-white"
                     />
                   ) : (

@@ -17,14 +17,15 @@ import {
   X,
   FileText,
   Download,
-  KeyRound
+  KeyRound,
+  Copy
 } from 'lucide-react';
 import { ModalPortal } from '../common/ModalPortal';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { getProdiFromClass } from '../../utils/academicUtils';
 
 export const MasterStudentManager: React.FC = () => {
-  const { students, addStudent, updateStudent, deleteStudent, importStudentsCSV, resetStudentPassword, showToast } = useApp();
+  const { students, addStudent, updateStudent, deleteStudent, importStudentsCSV, resetStudentPassword, showToast, isAdmin } = useApp();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [classFilter, setClassFilter] = useState('ALL');
@@ -40,6 +41,7 @@ export const MasterStudentManager: React.FC = () => {
     variant: 'danger' | 'warning';
     onConfirm: () => void;
   } | null>(null);
+  const [resetTokenDetails, setResetTokenDetails] = useState<{ name: string; nim: string; token: string } | null>(null);
 
   // Form states for manual student add/edit
   const [formNim, setFormNim] = useState('');
@@ -81,9 +83,20 @@ export const MasterStudentManager: React.FC = () => {
 
   const handleResetPassword = async (student: Student) => {
     try {
-      await resetStudentPassword(student.id);
+      const token = await resetStudentPassword(student.id);
+      setResetTokenDetails({ name: student.name, nim: student.nim, token });
     } catch (error: any) {
       showToast('Reset Password Gagal', error?.message || 'Server tidak dapat mereset password.', 'error');
+    }
+  };
+
+  const handleCopyResetToken = async () => {
+    if (!resetTokenDetails) return;
+    try {
+      await navigator.clipboard.writeText(resetTokenDetails.token);
+      showToast('Token Disalin', 'Token reset disalin ke clipboard.', 'success');
+    } catch {
+      showToast('Gagal Menyalin', 'Salin token secara manual dari kotak di atas.', 'error');
     }
   };
 
@@ -227,7 +240,7 @@ export const MasterStudentManager: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        {isAdmin ? <div className="flex items-center gap-3 w-full md:w-auto">
           <button
             onClick={() => {
               setParsedRows([]);
@@ -246,7 +259,7 @@ export const MasterStudentManager: React.FC = () => {
             <UserPlus className="w-4 h-4" />
             <span>Tambah Mahasiswa</span>
           </button>
-        </div>
+        </div> : <p className="text-xs font-medium text-slate-500">Penambahan, penghapusan, impor, dan reset password hanya dapat dilakukan admin.</p>}
       </div>
 
       {/* Filter & Search Bar */}
@@ -344,21 +357,21 @@ export const MasterStudentManager: React.FC = () => {
                     </td>
                     <td className="py-3.5 px-6 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <button
+                        {isAdmin && <button
                           onClick={() => setConfirmState({
                             title: 'Reset Password Mahasiswa?',
-                            message: `Password ${std.name} (${std.nim}) akan direset dan semua sesi lama dibatalkan. Mahasiswa dapat langsung membuat password baru saat login berikutnya.`,
+                            message: `Buat token reset sekali pakai untuk ${std.name} (${std.nim}). Token berlaku 24 jam; password lama tetap berlaku sampai mahasiswa memakai token tersebut.`,
                             confirmLabel: 'Reset Password',
                             variant: 'warning',
                             onConfirm: () => { void handleResetPassword(std); },
                           })}
                           className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-amber-50 hover:text-amber-600"
                           disabled={!std.hasCreatedPassword}
-                          title={std.hasCreatedPassword ? 'Reset password dan cabut sesi lama' : 'Mahasiswa dapat langsung membuat password saat login'}
+                          title={std.hasCreatedPassword ? 'Buat token reset password' : 'Mahasiswa belum memiliki password aktif'}
                           aria-label={`Reset password ${std.name}`}
                         >
                           <KeyRound className="h-3.5 w-3.5" />
-                        </button>
+                        </button>}
                         <button
                           onClick={() => handleOpenEdit(std)}
                           className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -366,7 +379,7 @@ export const MasterStudentManager: React.FC = () => {
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
-                          <button
+                          {isAdmin && <button
                             onClick={() => {
                             setConfirmState({
                               title: 'Hapus Mahasiswa?',
@@ -380,7 +393,7 @@ export const MasterStudentManager: React.FC = () => {
                           title="Hapus Mahasiswa"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        </button>}
                       </div>
                     </td>
                   </tr>
@@ -662,6 +675,30 @@ export const MasterStudentManager: React.FC = () => {
             action();
           }}
         />
+      )}
+
+      {resetTokenDetails && (
+        <ModalPortal>
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+            <section role="dialog" aria-modal="true" aria-labelledby="student-reset-token-title" className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+              <div className="mb-4 flex items-start justify-between gap-4">
+                <div>
+                  <h2 id="student-reset-token-title" className="text-lg font-bold text-slate-900">Token Reset Password</h2>
+                  <p className="mt-1 text-sm text-slate-600">Untuk {resetTokenDetails.name} · NIM {resetTokenDetails.nim}</p>
+                </div>
+                <button type="button" onClick={() => setResetTokenDetails(null)} aria-label="Tutup" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button>
+              </div>
+              <p className="mb-3 text-sm text-slate-600">Berikan token ini langsung kepada mahasiswa. Berlaku 24 jam dan hanya dapat digunakan sekali.</p>
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <code className="min-w-0 flex-1 break-all font-mono text-sm font-bold tracking-wider text-slate-900">{resetTokenDetails.token}</code>
+                <button type="button" onClick={() => void handleCopyResetToken()} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">
+                  <Copy className="h-3.5 w-3.5" /> Salin
+                </button>
+              </div>
+              <button type="button" onClick={() => setResetTokenDetails(null)} className="ui-button ui-button-primary mt-5 w-full">Selesai</button>
+            </section>
+          </div>
+        </ModalPortal>
       )}
 
     </div>

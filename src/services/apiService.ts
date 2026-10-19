@@ -106,6 +106,24 @@ const mapAssignmentRow = (row: any): Assignment => ({
     : (/laporan|report/i.test(row.title || '') ? 'REPORT' : 'ASSIGNMENT'),
 });
 
+let neonBootstrapPromise: Promise<any> | null = null;
+let lastNeonFetchTime = 0;
+async function getNeonBootstrapData(): Promise<any> {
+  if (typeof window === 'undefined') return null;
+  const now = Date.now();
+  if (neonBootstrapPromise && (now - lastNeonFetchTime < 60000)) {
+    return neonBootstrapPromise;
+  }
+  neonBootstrapPromise = fetch('/api/data')
+    .then(async res => {
+      if (!res.ok) return null;
+      lastNeonFetchTime = Date.now();
+      return await res.json();
+    })
+    .catch(() => null);
+  return neonBootstrapPromise;
+}
+
 export class ApiService {
   static isLiveBackend(): boolean {
     return isSupabaseConfigured();
@@ -463,15 +481,16 @@ export class ApiService {
     };
   }
 
-  static async resetStudentPassword(studentId: string): Promise<void> {
+  static async resetStudentPassword(studentId: string): Promise<string> {
     if (!this.isLiveBackend() || !supabase) {
       throw new Error('Reset password memerlukan koneksi Supabase dan sesi instruktur.');
     }
-    const { data, error } = await supabase.rpc('student_auth_reset_password', {
+    const { data, error } = await supabase.rpc('student_auth_issue_password_reset_token', {
       p_student_id: studentId,
     });
     if (error) throw error;
-    if (!data?.success) throw new Error(data?.message || 'Server tidak dapat mereset password.');
+    if (!data?.token) throw new Error(data?.message || 'Server tidak dapat menerbitkan token reset.');
+    return data.token;
   }
 
   static async studentAuthLogin(nim: string, password: string, courseSlug: string, periodId: string): Promise<{
@@ -1364,13 +1383,13 @@ export class ApiService {
     const { data, error } = await supabase.from('submissions').select('*').order('submitted_at', { ascending: false });
     if (error) throw error;
 
-    return Promise.all((data || []).map(async (row: any) => ({
+    return (data || []).map((row: any) => ({
       id: row.id,
       assignmentId: row.assignment_id,
       studentId: row.student_id,
       periodId: row.period_id,
       fileName: row.file_name,
-      fileUrl: row.storage_path ? (await getSubmissionSignedUrl(row.storage_path)) || row.file_url : row.file_url,
+      fileUrl: row.file_url,
       fileSize: row.file_size,
       storagePath: row.storage_path || undefined,
       submittedAt: row.submitted_at,
@@ -1379,7 +1398,7 @@ export class ApiService {
       reviewFeedback: row.review_feedback || undefined,
       reviewedAt: row.reviewed_at || undefined,
       revisionNumber: Number(row.revision_number || 1),
-    })));
+    }));
   }
 
   static async getAssessments(): Promise<Assessment[]> {
@@ -1418,12 +1437,12 @@ export class ApiService {
     if (!supabase) throw new Error('Supabase belum tersedia; remedial server tidak dapat dimuat.');
       const {data,error} = await supabase.from('remedial_assignments').select('*');
     if (error) throw error;
-    return Promise.all((data || []).map(async row => ({
+    return (data || []).map((row: any) => ({
       id: row.id, periodId:row.period_id, studentId:row.student_id, title:row.title, description:row.description,
       deadline:row.deadline, status:row.status, submittedAt:row.submitted_at, reviewedAt:row.reviewed_at,
       submissionFileName:row.submission_file_name, submissionStoragePath:row.submission_storage_path,
-      submissionFileUrl:row.submission_storage_path ? await getSubmissionSignedUrl(row.submission_storage_path) || undefined : row.submission_file_url,
-    })));
+      submissionFileUrl: row.submission_file_url,
+    }));
   }
 
   static async saveRemedial(remedial: RemedialAssignment): Promise<RemedialAssignment> {

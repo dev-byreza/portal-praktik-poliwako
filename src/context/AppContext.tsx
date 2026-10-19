@@ -68,6 +68,7 @@ interface AppContextType {
   setRole: (role: UserRole) => void;
   instructor: InstructorProfile;
   isInstructorLoggedIn: boolean;
+  isAdmin: boolean;
   isLiveBackend: boolean;
   loginInstructor: (email: string, password?: string) => Promise<{ success: boolean; message: string }>;
   signUpInstructor: (params: {
@@ -127,7 +128,7 @@ interface AppContextType {
     success: boolean;
     message: string;
   }>;
-  resetStudentPassword: (studentId: string) => Promise<void>;
+  resetStudentPassword: (studentId: string) => Promise<string>;
   setStudentIdentity: (studentId: string, courseSlug: string, periodId: string, sessionToken?: string) => void;
   clearStudentIdentity: (reason?: 'USER' | 'EXPIRED') => void;
 
@@ -218,6 +219,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [instructor, setInstructor] = useState<InstructorProfile>(() => (
     isLiveBackend ? { id: '', email: '', name: '', department: '' } : StorageService.getInstructor()
   ));
+  const isAdmin = isInstructorLoggedIn
+    && instructor.email.trim().toLowerCase() === 'rezaf@politekniksorowako.ac.id';
   const [instructorDirectory, setInstructorDirectory] = useState<Record<string, PublicInstructorProfile>>(() => {
     if (isLiveBackend) return {};
     const profile = StorageService.getInstructor();
@@ -528,7 +531,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     };
     const handleWindowFocus = () => { void refreshLiveData(); };
-    const refreshTimer = window.setInterval(() => { void refreshLiveData(); }, 30000);
+    // Refresh berkala setiap 3 menit (180 detik) untuk menghemat kuota egress Supabase
+    const refreshTimer = window.setInterval(() => { void refreshLiveData(); }, 180000);
 
     syncBackendData();
     window.addEventListener('focus', handleWindowFocus);
@@ -730,13 +734,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.warn('Supabase auth notice:', rawMessage);
         const message = normalizedMessage.includes('invalid login credentials') || normalizedMessage.includes('invalid_credentials')
           ? 'Email atau password salah. Silakan periksa kembali.'
-          : normalizedMessage.includes('email not confirmed') || normalizedMessage.includes('email_not_confirmed')
-            ? 'Email akun belum dikonfirmasi. Buka email verifikasi Supabase lalu coba masuk kembali.'
-            : normalizedMessage.includes('failed to fetch') || normalizedMessage.includes('network')
-              ? 'Supabase tidak dapat dihubungi. Periksa koneksi internet dan URL proyek.'
-              : normalizedMessage.includes('invalid api key') || normalizedMessage.includes('apikey')
-                ? 'Kunci Supabase tidak valid. Periksa VITE_SUPABASE_PUBLISHABLE_KEY pada environment aplikasi.'
-                : `Login Supabase gagal: ${rawMessage || 'penyebab tidak diketahui'}`;
+          : normalizedMessage.includes('exceed_egress_quota') || normalizedMessage.includes('restricted')
+            ? 'Server Supabase sedang dibatasi karena kuota transfer data (egress) terlampaui. Perlu upgrade plan atau migrasi project.'
+            : normalizedMessage.includes('email not confirmed') || normalizedMessage.includes('email_not_confirmed')
+              ? 'Email akun belum dikonfirmasi. Buka email verifikasi Supabase lalu coba masuk kembali.'
+              : normalizedMessage.includes('failed to fetch') || normalizedMessage.includes('network')
+                ? 'Supabase tidak dapat dihubungi. Periksa koneksi internet dan URL proyek.'
+                : normalizedMessage.includes('invalid api key') || normalizedMessage.includes('apikey')
+                  ? 'Kunci Supabase tidak valid. Periksa VITE_SUPABASE_PUBLISHABLE_KEY pada environment aplikasi.'
+                  : `Login Supabase gagal: ${rawMessage || 'penyebab tidak diketahui'}`;
         showToast('Login Gagal', message, 'error');
         return { success: false, message };
       }
@@ -929,7 +935,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           isEnrolled: false,
           periodId: undefined,
           hasCreatedPassword: false,
-          message: 'Data mahasiswa belum dapat diverifikasi ke Supabase. Coba lagi.'
+          message: (error as any)?.message || 'Data mahasiswa belum dapat diverifikasi ke server. Coba lagi.'
         };
       }
     }
@@ -1007,7 +1013,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return { success: true, message: result.message };
       } catch (error: any) {
         console.error('Student password persistence failed:', error);
-        return { success: false, message: 'Password belum tersimpan ke Supabase. Coba lagi.' };
+        return { success: false, message: 'Password belum tersimpan ke server. Coba lagi.' };
       }
     }
 
@@ -1068,7 +1074,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return { success: true, message: result.message };
       } catch (error: any) {
         console.error('Student password login failed:', error);
-        return { success: false, message: 'Login belum dapat diverifikasi ke Supabase. Coba lagi.' };
+        const errStr = String(error?.message || '').toLowerCase();
+        if (errStr.includes('exceed_egress_quota') || errStr.includes('restricted')) {
+          return { success: false, message: 'Server database Supabase dibatasi karena kuota transfer data habis. Hubungi instruktur.' };
+        }
+        return { success: false, message: (error as any)?.message || 'Login belum dapat diverifikasi ke server. Coba lagi.' };
       }
     }
 
@@ -1096,31 +1106,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { success: true, message: 'Login berhasil.' };
   };
 
-  const resetStudentPassword = async (studentId: string): Promise<void> => {
+  const resetStudentPassword = async (studentId: string): Promise<string> => {
+    if (!isAdmin) throw new Error('Hanya admin yang dapat menerbitkan token reset password mahasiswa.');
     const student = students.find(item => item.id === studentId);
     if (!student) throw new Error('Mahasiswa tidak ditemukan di daftar lokal.');
     if (isLiveBackend) {
-      await ApiService.resetStudentPassword(studentId);
-      setStudents(previous => previous.map(item => item.id === studentId
-        ? { ...item, password: undefined, hasCreatedPassword: false }
-        : item));
-      StorageService.saveStudents(StorageService.getStudents().map(item => item.id === studentId
-        ? { ...item, password: undefined, hasCreatedPassword: false }
-        : item));
-      showToast('Password Direset', `${student.name} dapat membuat password baru saat login berikutnya.`, 'success');
-      return;
+      const token = await ApiService.resetStudentPassword(studentId);
+      showToast('Token Reset Dibuat', `Berikan token reset kepada ${student.name}.`, 'success');
+      return token;
     }
-
-    const updatedStudents = students.map(s => {
-      if (s.id === studentId) {
-        return { ...s, password: '', hasCreatedPassword: false };
-      }
-      return s;
-    });
-    setStudents(updatedStudents);
-    StorageService.saveStudents(updatedStudents);
-
-    showToast('Password Direset', `Akun ${student.name} di mode lokal telah direset.`, 'info');
+    throw new Error('Penerbitan token reset memerlukan koneksi Supabase dan sesi instruktur.');
   };
 
   // Student Identity
@@ -1676,6 +1671,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Master Student Management
   const addStudent = (studentData: Omit<Student, 'id' | 'createdAt'>): Student => {
+    if (!isAdmin) {
+      showToast('Akses Ditolak', 'Hanya admin yang dapat menambahkan data mahasiswa.', 'error');
+      throw new Error('Hanya admin yang dapat menambahkan data mahasiswa.');
+    }
     const existing = students.find(s => s.nim.toLowerCase() === studentData.nim.toLowerCase());
     if (existing) {
       showToast('NIM Duplikat', `Mahasiswa dengan NIM ${studentData.nim} sudah ada di Database Mahasiswa.`, 'error');
@@ -1700,6 +1699,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const deleteStudent = (studentId: string) => {
+    if (!isAdmin) {
+      showToast('Akses Ditolak', 'Hanya admin yang dapat menghapus data mahasiswa.', 'error');
+      return;
+    }
     const list = students.filter(s => s.id !== studentId);
     setStudents(list);
     void runServerSave('hapus mahasiswa', () => ApiService.deleteStudent(studentId)).catch(error => {
@@ -1709,6 +1712,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const importStudentsCSV = (parsedStudents: Omit<Student, 'id' | 'createdAt'>[]) => {
+    if (!isAdmin) {
+      showToast('Akses Ditolak', 'Hanya admin yang dapat mengimpor data mahasiswa.', 'error');
+      return { importedCount: 0, duplicateCount: 0 };
+    }
     const existingNims = new Set(students.map(s => s.nim.toLowerCase()));
     let importedCount = 0;
     let duplicateCount = 0;
@@ -2341,6 +2348,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setRole,
         instructor,
         isInstructorLoggedIn,
+        isAdmin,
         isLiveBackend,
         isInitialDataLoaded,
         initialDataError,

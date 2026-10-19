@@ -53,6 +53,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   // Form states for password
   const [passwordInput, setPasswordInput] = useState('');
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
+  const [resetTokenInput, setResetTokenInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -60,7 +61,6 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isResetSessionReady, setIsResetSessionReady] = useState(false);
   const verificationRequestRef = useRef(0);
   const dialogRef = useRef<HTMLDivElement>(null);
   // The NIM lookup returns the database-derived program label without exposing
@@ -74,37 +74,6 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
     ? periods.find(p => p.courseId === activeCourse.id && p.status === 'ACTIVE') ||
       periods.find(p => p.courseId === activeCourse.id)
     : undefined;
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('student_reset') !== '1' || !supabase) return;
-
-    setStep('RESET_PASSWORD');
-    let isCurrent = true;
-    setIsSubmitting(true);
-    setErrorMessage(null);
-    void (async () => {
-      try {
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        if (!data.session) throw new Error('Token reset tidak valid atau sudah kedaluwarsa. Silakan minta tautan baru.');
-        const email = data.session.user.email?.trim().toLowerCase() || '';
-        if (!email.endsWith('@politekniksorowako.ac.id')) {
-          throw new Error('Tautan reset harus dibuka menggunakan email resmi mahasiswa.');
-        }
-        setIsResetSessionReady(true);
-      } catch (error) {
-        await supabase.auth.signOut();
-        if (isCurrent) {
-          setErrorMessage(error instanceof Error ? error.message : 'Token reset tidak dapat diverifikasi.');
-        }
-      } finally {
-        if (isCurrent) setIsSubmitting(false);
-      }
-    })();
-
-    return () => { isCurrent = false; };
-  }, []);
 
   useEffect(() => {
     if (isEmbedded || !isOpen) return;
@@ -294,35 +263,22 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
   };
 
   const handleRequestPasswordReset = async () => {
-    if (!targetStudent || !supabase) {
-      setErrorMessage('Layanan email reset belum tersedia. Silakan hubungi instruktur.');
-      return;
-    }
-    setIsSubmitting(true);
     setErrorMessage(null);
     setSuccessMessage(null);
-    try {
-      const email = `${targetStudent.nim.trim()}@politekniksorowako.ac.id`.toLowerCase();
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/mahasiswa?student_reset=1`,
-          shouldCreateUser: true,
-        },
-      });
-      if (error) throw error;
-      setSuccessMessage('Jika akun terkait dapat menerima email, tautan untuk mengatur ulang kata sandi telah dikirim ke alamat email institusi Anda. Silakan periksa kotak masuk atau folder spam.');
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Email reset gagal dikirim. Silakan coba kembali.');
-    } finally {
-      setIsSubmitting(false);
-    }
+    setPasswordInput('');
+    setConfirmPasswordInput('');
+    setResetTokenInput('');
+    setStep('RESET_PASSWORD');
   };
 
   const handleResetStudentPassword = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!supabase || !isResetSessionReady) return;
+    if (!supabase || !targetStudent) return;
     setErrorMessage(null);
+    if (resetTokenInput.trim().length !== 24) {
+      setErrorMessage('Masukkan token reset 24 karakter yang diberikan instruktur.');
+      return;
+    }
     if (passwordInput.trim().length < 8) {
       setErrorMessage('Password baru minimal harus 8 karakter.');
       return;
@@ -333,19 +289,20 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
     }
     setIsSubmitting(true);
     try {
-      const { data, error } = await supabase.rpc('student_auth_reset_own_password', {
+      const { data, error } = await supabase.rpc('student_auth_reset_password_with_token', {
+        p_nim: targetStudent.nim,
+        p_token: resetTokenInput.trim().toUpperCase(),
         p_password: passwordInput,
+        p_course_slug: targetCourseSlug || courseSlug || null,
+        p_period_id: targetPeriodId || activePeriod?.id || null,
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.message || 'Password belum dapat direset.');
-      await supabase.auth.signOut();
-      window.history.replaceState(null, '', '/mahasiswa');
-      window.dispatchEvent(new PopStateEvent('popstate'));
-      setIsResetSessionReady(false);
       setPasswordInput('');
       setConfirmPasswordInput('');
-      setStep('NIM');
-      setSuccessMessage('Password berhasil direset. Silakan masuk menggunakan NIM dan password baru.');
+      setResetTokenInput('');
+      setStep('LOGIN_PASSWORD');
+      setSuccessMessage('Password berhasil diperbarui. Silakan masuk dengan password baru.');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Password belum dapat direset.');
     } finally {
@@ -637,7 +594,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
                 </button>
               </div>
               <button type="button" onClick={() => void handleRequestPasswordReset()} disabled={isSubmitting} className="mt-2 min-h-10 text-left text-xs font-semibold text-blue-800 underline decoration-blue-300 underline-offset-2 hover:text-blue-950 disabled:opacity-60">
-                {isSubmitting ? 'Mengirim tautan reset…' : 'Lupa password? Kirim token reset ke email NIM Anda'}
+                Lupa password? Gunakan token reset dari instruktur
               </button>
             </div>
 
@@ -665,18 +622,25 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
         {step === 'RESET_PASSWORD' && (
           <form onSubmit={handleResetStudentPassword}>
             <p className="mb-5 text-sm leading-5 text-slate-600">
-              Token email telah diverifikasi. Buat password baru minimal 8 karakter.
+              Minta token reset kepada instruktur, lalu masukkan token dan buat password baru minimal 8 karakter.
             </p>
             <div className="mb-3">
+              <label htmlFor="student-reset-token" className="mb-1.5 block text-xs font-semibold text-slate-700">Token Reset dari Instruktur</label>
+              <input id="student-reset-token" type="text" value={resetTokenInput} onChange={event => setResetTokenInput(event.target.value.toUpperCase())} autoComplete="one-time-code" className="ui-field w-full border-slate-300 bg-white px-4 py-3 font-mono text-sm uppercase tracking-widest text-slate-900" required maxLength={24} minLength={24} disabled={isSubmitting} />
+            </div>
+            <div className="mb-3">
               <label htmlFor="student-reset-password" className="mb-1.5 block text-xs font-semibold text-slate-700">Password Baru</label>
-              <input id="student-reset-password" type="password" value={passwordInput} onChange={event => setPasswordInput(event.target.value)} autoComplete="new-password" className="ui-field w-full border-slate-300 bg-white px-4 py-3 text-sm text-slate-900" required minLength={8} disabled={!isResetSessionReady || isSubmitting} />
+              <input id="student-reset-password" type="password" value={passwordInput} onChange={event => setPasswordInput(event.target.value)} autoComplete="new-password" className="ui-field w-full border-slate-300 bg-white px-4 py-3 text-sm text-slate-900" required minLength={8} disabled={isSubmitting} />
             </div>
             <div className="mb-5">
               <label htmlFor="student-reset-password-confirm" className="mb-1.5 block text-xs font-semibold text-slate-700">Konfirmasi Password Baru</label>
-              <input id="student-reset-password-confirm" type="password" value={confirmPasswordInput} onChange={event => setConfirmPasswordInput(event.target.value)} autoComplete="new-password" className="ui-field w-full border-slate-300 bg-white px-4 py-3 text-sm text-slate-900" required minLength={8} disabled={!isResetSessionReady || isSubmitting} />
+              <input id="student-reset-password-confirm" type="password" value={confirmPasswordInput} onChange={event => setConfirmPasswordInput(event.target.value)} autoComplete="new-password" className="ui-field w-full border-slate-300 bg-white px-4 py-3 text-sm text-slate-900" required minLength={8} disabled={isSubmitting} />
             </div>
-            <button type="submit" disabled={!isResetSessionReady || isSubmitting || !passwordInput || passwordInput !== confirmPasswordInput} className="ui-button ui-button-primary w-full text-sm disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="submit" disabled={isSubmitting || !resetTokenInput || !passwordInput || passwordInput !== confirmPasswordInput} className="ui-button ui-button-primary w-full text-sm disabled:cursor-not-allowed disabled:opacity-50">
               {isSubmitting ? 'Memproses…' : 'Simpan Password Baru'}
+            </button>
+            <button type="button" onClick={() => { setStep('LOGIN_PASSWORD'); setResetTokenInput(''); setPasswordInput(''); setConfirmPasswordInput(''); setErrorMessage(null); }} className="ui-button ui-button-secondary mt-3 w-full" disabled={isSubmitting}>
+              Kembali ke Login
             </button>
           </form>
         )}
