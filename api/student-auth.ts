@@ -29,10 +29,10 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { action, nim, password, courseSlug, periodId } = req.body || {};
+  const { action, nim, password, courseSlug, periodId, sessionToken } = req.body || {};
   const cleanNim = String(nim || '').trim().toLowerCase();
 
-  if (!cleanNim) {
+  if (!['restore_session', 'list_enrollments', 'create_period_session'].includes(action) && !cleanNim) {
     return res.status(400).json({ exists: false, isEnrolled: false, message: 'NIM wajib diisi.' });
   }
 
@@ -70,9 +70,29 @@ export default async function handler(req: any, res: any) {
         return res.status(400).json({ success: false, message: 'Password wajib diisi.' });
       }
 
+      let resolvedCourseSlug = courseSlug || null;
+      let resolvedPeriodId = periodId || null;
+      if (!resolvedPeriodId) {
+        const enrRes = await client.query(`
+          SELECT pp.period_id, c.slug as course_slug
+          FROM public.practice_participants pp
+          JOIN public.practice_periods p ON p.id = pp.period_id
+          JOIN public.courses c ON c.id = p.course_id
+          JOIN public.students s ON s.id = pp.student_id
+          WHERE lower(trim(s.nim)) = $1
+            AND ($2::text IS NULL OR c.slug = $2)
+          ORDER BY (p.status = 'ACTIVE') DESC, p.period_number ASC
+          LIMIT 1
+        `, [cleanNim, resolvedCourseSlug]);
+        if (enrRes.rows[0]) {
+          resolvedPeriodId = enrRes.rows[0].period_id;
+          resolvedCourseSlug = enrRes.rows[0].course_slug;
+        }
+      }
+
       const loginRes = await client.query(
         'SELECT public.student_auth_login($1, $2, $3, $4) as result',
-        [cleanNim, password, courseSlug || '', periodId || null]
+        [cleanNim, password, resolvedCourseSlug, resolvedPeriodId]
       );
       const result = loginRes.rows[0]?.result || { success: false, message: 'Login gagal.' };
       return res.status(200).json(result);
@@ -92,21 +112,55 @@ export default async function handler(req: any, res: any) {
       }
 
       const studentId = stdRes.rows[0].id;
+      let resolvedCourseSlug = courseSlug || null;
+      let resolvedPeriodId = periodId || null;
+      if (!resolvedPeriodId) {
+        const enrRes = await client.query(`
+          SELECT pp.period_id, c.slug as course_slug
+          FROM public.practice_participants pp
+          JOIN public.practice_periods p ON p.id = pp.period_id
+          JOIN public.courses c ON c.id = p.course_id
+          WHERE pp.student_id = $1
+            AND ($2::text IS NULL OR c.slug = $2)
+          ORDER BY (p.status = 'ACTIVE') DESC, p.period_number ASC
+          LIMIT 1
+        `, [studentId, resolvedCourseSlug]);
+        if (enrRes.rows[0]) {
+          resolvedPeriodId = enrRes.rows[0].period_id;
+          resolvedCourseSlug = enrRes.rows[0].course_slug;
+        }
+      }
+
       const setRes = await client.query(
         'SELECT public.student_auth_set_password($1, $2, $3, $4, $5) as result',
-        [studentId, cleanNim, password, courseSlug || '', periodId || null]
+        [studentId, cleanNim, password, resolvedCourseSlug, resolvedPeriodId]
       );
       const result = setRes.rows[0]?.result || { success: false, message: 'Gagal membuat password.' };
       return res.status(200).json(result);
     }
 
     if (action === 'create_period_session') {
-      const { sessionToken } = req.body || {};
       const sessRes = await client.query(
         'SELECT public.student_create_period_session($1, $2, $3) as result',
         [sessionToken, courseSlug, periodId]
       );
       return res.status(200).json({ sessionToken: sessRes.rows[0]?.result || sessionToken });
+    }
+
+    if (action === 'restore_session') {
+      const sessRes = await client.query(
+        'SELECT public.student_restore_session_profile($1) as result',
+        [sessionToken]
+      );
+      return res.status(200).json(sessRes.rows[0]?.result || null);
+    }
+
+    if (action === 'list_enrollments') {
+      const enrRes = await client.query(
+        'SELECT public.student_list_course_enrollments($1) as result',
+        [sessionToken]
+      );
+      return res.status(200).json(enrRes.rows[0]?.result || []);
     }
 
     return res.status(400).json({ error: 'Aksi tidak valid' });

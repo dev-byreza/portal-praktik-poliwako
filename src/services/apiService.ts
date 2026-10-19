@@ -111,16 +111,20 @@ let lastNeonFetchTime = 0;
 async function getNeonBootstrapData(): Promise<any> {
   if (typeof window === 'undefined') return null;
   const now = Date.now();
-  if (neonBootstrapPromise && (now - lastNeonFetchTime < 60000)) {
+  if (neonBootstrapPromise && (now - lastNeonFetchTime < 10000)) {
     return neonBootstrapPromise;
   }
   neonBootstrapPromise = fetch('/api/data')
     .then(async res => {
-      if (!res.ok) return null;
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       lastNeonFetchTime = Date.now();
       return await res.json();
     })
-    .catch(() => null);
+    .catch((err) => {
+      neonBootstrapPromise = null;
+      console.warn('Neon data fetch error:', err);
+      return null;
+    });
   return neonBootstrapPromise;
 }
 
@@ -211,6 +215,12 @@ export class ApiService {
   // Public, minimal instructor directory used by the student course catalog.
   // The database view intentionally exposes only name, department, and avatar.
   static async getInstructorDirectory(): Promise<Record<string, PublicInstructorProfile>> {
+    try {
+      const neon = await getNeonBootstrapData();
+      if (neon?.instructorDirectory && Object.keys(neon.instructorDirectory).length > 0) {
+        return neon.instructorDirectory;
+      }
+    } catch {}
     if (!this.isLiveBackend() || !supabase) {
       const profile = StorageService.getInstructor();
       return profile?.id
@@ -238,6 +248,17 @@ export class ApiService {
   // COURSES
   // ====================================================================
   static async getCourses(instructorId?: string): Promise<Course[]> {
+    try {
+      const neon = await getNeonBootstrapData();
+      if (neon?.courses && neon.courses.length > 0) {
+        if (instructorId) {
+          return neon.courses.filter((c: any) => c.instructorId === instructorId);
+        }
+        return neon.courses.filter((c: any) => c.status === 'PUBLISHED');
+      }
+    } catch (e) {
+      console.warn('Neon getCourses fallback:', e);
+    }
     if (!this.isLiveBackend()) {
       return StorageService.getCourses();
     }
@@ -395,6 +416,14 @@ export class ApiService {
   // MASTER STUDENTS
   // ====================================================================
   static async getStudents(): Promise<Student[]> {
+    try {
+      const neon = await getNeonBootstrapData();
+      if (neon?.students && neon.students.length > 0) {
+        return neon.students;
+      }
+    } catch (e) {
+      console.warn('Neon getStudents fallback:', e);
+    }
     if (!this.isLiveBackend() || !supabase) {
       return StorageService.getStudents();
     }
@@ -637,6 +666,17 @@ export class ApiService {
   }
 
   static async studentCreatePeriodSession(sessionToken: string, courseSlug: string, periodId: string): Promise<string> {
+    try {
+      const res = await fetch('/api/student-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create_period_session', sessionToken, courseSlug, periodId }),
+      });
+      const data = await res.json().catch(() => null);
+      if (data?.sessionToken) return data.sessionToken;
+    } catch (neonErr) {
+      console.warn('Neon studentCreatePeriodSession error:', neonErr);
+    }
     if (!this.isLiveBackend() || !supabase || !sessionToken) {
       throw new Error('Sesi mahasiswa belum terverifikasi ke Supabase. Silakan masuk kembali.');
     }
@@ -653,7 +693,30 @@ export class ApiService {
   }
 
   static async studentRestoreSessionProfile(sessionToken: string): Promise<Student | null> {
-    if (!this.isLiveBackend() || !supabase || !sessionToken) return null;
+    if (!sessionToken) return null;
+    try {
+      const res = await fetch('/api/student-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'restore_session', sessionToken }),
+      });
+      const data = await res.json().catch(() => null);
+      const rawStudent = data?.student;
+      if (data?.success && rawStudent?.id && rawStudent?.nim) {
+        return {
+          id: rawStudent.id,
+          nim: rawStudent.nim,
+          name: rawStudent.name || '',
+          className: rawStudent.className ?? rawStudent.class_name ?? '',
+          email: rawStudent.email || undefined,
+          hasCreatedPassword: true,
+          createdAt: rawStudent.createdAt || rawStudent.created_at || new Date().toISOString(),
+        };
+      }
+    } catch (neonErr) {
+      console.warn('Neon studentRestoreSessionProfile error:', neonErr);
+    }
+    if (!this.isLiveBackend() || !supabase) return null;
     const { data, error } = await supabase.rpc('student_restore_session_profile', {
       p_session_token: sessionToken,
     });
@@ -704,6 +767,17 @@ export class ApiService {
   // PRACTICE PERIODS
   // ====================================================================
   static async getPeriods(courseId?: string): Promise<PracticePeriod[]> {
+    try {
+      const neon = await getNeonBootstrapData();
+      if (neon?.periods && neon.periods.length > 0) {
+        if (courseId) {
+          return neon.periods.filter((p: any) => p.courseId === courseId);
+        }
+        return neon.periods;
+      }
+    } catch (e) {
+      console.warn('Neon getPeriods fallback:', e);
+    }
     if (!this.isLiveBackend()) {
       return StorageService.getPeriods();
     }
@@ -859,6 +933,17 @@ export class ApiService {
   // PRACTICE PARTICIPANTS
   // ====================================================================
   static async getParticipants(periodId?: string): Promise<PracticeParticipant[]> {
+    try {
+      const neon = await getNeonBootstrapData();
+      if (neon?.participants && neon.participants.length > 0) {
+        if (periodId) {
+          return neon.participants.filter((p: any) => p.periodId === periodId);
+        }
+        return neon.participants;
+      }
+    } catch (e) {
+      console.warn('Neon getParticipants fallback:', e);
+    }
     if (!this.isLiveBackend() || !supabase) {
       return StorageService.getParticipants();
     }
@@ -1029,6 +1114,17 @@ export class ApiService {
   }
 
   static async getLearningUnits(periodId?: string): Promise<LearningUnit[]> {
+    try {
+      const neon = await getNeonBootstrapData();
+      if (neon?.learningUnits && neon.learningUnits.length > 0) {
+        if (periodId) {
+          return neon.learningUnits.filter((u: any) => u.periodId === periodId);
+        }
+        return neon.learningUnits;
+      }
+    } catch (e) {
+      console.warn('Neon getLearningUnits fallback:', e);
+    }
     if (!this.isLiveBackend() || !supabase) {
       return StorageService.getLearningUnits();
     }
@@ -1486,6 +1582,14 @@ export class ApiService {
   // SUBMISSIONS & ASSESSMENTS
   // ====================================================================
   static async getSubmissions(): Promise<Submission[]> {
+    try {
+      const neon = await getNeonBootstrapData();
+      if (neon?.submissions) {
+        return neon.submissions;
+      }
+    } catch (e) {
+      console.warn('Neon getSubmissions fallback:', e);
+    }
     if (!this.isLiveBackend() || !supabase) return StorageService.getSubmissions();
 
     const { data, error } = await supabase.from('submissions').select('*').order('submitted_at', { ascending: false });
@@ -1510,6 +1614,14 @@ export class ApiService {
   }
 
   static async getAssessments(): Promise<Assessment[]> {
+    try {
+      const neon = await getNeonBootstrapData();
+      if (neon?.assessments) {
+        return neon.assessments;
+      }
+    } catch (e) {
+      console.warn('Neon getAssessments fallback:', e);
+    }
     if (!this.isLiveBackend()) return StorageService.getAssessments();
     if (!supabase) throw new Error('Supabase belum tersedia; nilai server tidak dapat dimuat.');
     const { data, error } = await supabase.from('assessments').select('*');
@@ -1541,6 +1653,14 @@ export class ApiService {
   }
 
   static async getRemedials(): Promise<RemedialAssignment[]> {
+    try {
+      const neon = await getNeonBootstrapData();
+      if (neon?.remedials) {
+        return neon.remedials;
+      }
+    } catch (e) {
+      console.warn('Neon getRemedials fallback:', e);
+    }
     if (!this.isLiveBackend()) return StorageService.getRemedials();
     if (!supabase) throw new Error('Supabase belum tersedia; remedial server tidak dapat dimuat.');
       const {data,error} = await supabase.from('remedial_assignments').select('*');
@@ -1716,6 +1836,17 @@ export class ApiService {
   // ATTENDANCE RECORDS (Presensi 5 Hari)
   // ====================================================================
   static async getAttendance(periodId?: string): Promise<AttendanceRecord[]> {
+    try {
+      const neon = await getNeonBootstrapData();
+      if (neon?.attendance) {
+        if (periodId) {
+          return neon.attendance.filter((a: any) => a.periodId === periodId);
+        }
+        return neon.attendance;
+      }
+    } catch (e) {
+      console.warn('Neon getAttendance fallback:', e);
+    }
     if (!this.isLiveBackend()) {
       return StorageService.getAttendance();
     }
@@ -1797,6 +1928,17 @@ export class ApiService {
   // ANNOUNCEMENTS
   // ====================================================================
   static async getAnnouncements(courseId?: string): Promise<Announcement[]> {
+    try {
+      const neon = await getNeonBootstrapData();
+      if (neon?.announcements) {
+        if (courseId) {
+          return neon.announcements.filter((a: any) => a.courseId === courseId);
+        }
+        return neon.announcements;
+      }
+    } catch (e) {
+      console.warn('Neon getAnnouncements fallback:', e);
+    }
     if (!this.isLiveBackend()) {
       const cached = StorageService.getAnnouncements();
       return courseId ? cached.filter(item => item.courseId === courseId) : cached;
