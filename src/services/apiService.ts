@@ -132,7 +132,27 @@ export class ApiService {
   // ====================================================================
   // AUTH
   // ====================================================================
-  static async loginInstructor(email: string, password?: string): Promise<{ error: Error | null }> {
+    static async loginInstructor(email: string, password?: string): Promise<{ error: Error | null }> {
+    if (password) {
+      try {
+        const res = await fetch('/api/instructor-auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success && data.user) {
+          StorageService.saveInstructor(data.user);
+          StorageService.setInstructorLoggedIn(true);
+          return { error: null };
+        }
+        if (res.status === 401 || data.message) {
+          return { error: new Error(data.message || 'Login gagal') };
+        }
+      } catch (e) {
+        console.warn('Neon instructor auth endpoint error:', e);
+      }
+    }
     return authSignInInstructor(email, password);
   }
 
@@ -415,8 +435,40 @@ export class ApiService {
     student?: Student;
     message?: string;
   }> {
+    try {
+      const res = await fetch('/api/student-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'lookup', nim, courseSlug, periodId }),
+      });
+      const result = await res.json().catch(() => null);
+      if (result && typeof result.exists === 'boolean') {
+        const rawStudent = result.student;
+        return {
+          exists: Boolean(result.exists),
+          isEnrolled: Boolean(result.isEnrolled),
+          periodId: result.periodId || undefined,
+          courseSlug: result.courseSlug || undefined,
+          hasCreatedPassword: Boolean(result.hasCreatedPassword),
+          studyProgramName: result.studyProgramName || undefined,
+          studyProgramCode: result.studyProgramCode || undefined,
+          student: rawStudent ? {
+            id: rawStudent.id,
+            nim: rawStudent.nim,
+            name: rawStudent.name,
+            className: rawStudent.className ?? rawStudent.class_name ?? '',
+            email: rawStudent.email || undefined,
+            createdAt: rawStudent.createdAt || new Date().toISOString(),
+          } : undefined,
+          message: result.message || undefined,
+        };
+      }
+    } catch (neonErr) {
+      console.warn('Neon student-auth lookup error:', neonErr);
+    }
+
     if (!this.isLiveBackend() || !supabase) {
-      return { exists: false, isEnrolled: false, hasCreatedPassword: false, message: 'Backend Supabase belum terhubung.' };
+      return { exists: false, isEnrolled: false, hasCreatedPassword: false, message: 'Backend database sedang menghubungkan. Silakan coba sesaat lagi.' };
     }
     const { data, error } = await supabase.rpc('student_auth_lookup', {
       p_nim: nim,
@@ -453,8 +505,36 @@ export class ApiService {
     sessionToken?: string;
     student?: Student;
   }> {
+    try {
+      const res = await fetch('/api/student-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'set_password', nim, password, courseSlug, periodId }),
+      });
+      const result = await res.json().catch(() => null);
+      if (result && typeof result.success === 'boolean') {
+        const rawStudent = result.student;
+        return {
+          success: Boolean(result.success),
+          message: result.message || (result.success ? 'Password berhasil disimpan.' : 'Password gagal disimpan.'),
+          periodId: result.periodId || undefined,
+          sessionToken: result.sessionToken || undefined,
+          student: rawStudent ? {
+            id: rawStudent.id,
+            nim: rawStudent.nim,
+            name: rawStudent.name,
+            className: rawStudent.className ?? rawStudent.class_name ?? '',
+            email: rawStudent.email || undefined,
+            createdAt: rawStudent.createdAt || new Date().toISOString(),
+          } : undefined,
+        };
+      }
+    } catch (neonErr) {
+      console.warn('Neon studentAuthSetPassword error:', neonErr);
+    }
+
     if (!this.isLiveBackend() || !supabase) {
-      return { success: false, message: 'Backend Supabase belum terhubung.' };
+      return { success: false, message: 'Backend database sedang menghubungkan. Silakan coba sesaat lagi.' };
     }
     const { data, error } = await supabase.rpc('student_auth_set_password', {
       p_nim: nim,
@@ -500,8 +580,36 @@ export class ApiService {
     sessionToken?: string;
     student?: Student;
   }> {
+    try {
+      const res = await fetch('/api/student-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'login', nim, password, courseSlug, periodId }),
+      });
+      const result = await res.json().catch(() => null);
+      if (result && typeof result.success === 'boolean') {
+        const rawStudent = result.student;
+        return {
+          success: Boolean(result.success),
+          message: result.message || (result.success ? 'Login berhasil.' : 'Login gagal.'),
+          periodId: result.periodId || undefined,
+          sessionToken: result.sessionToken || undefined,
+          student: rawStudent ? {
+            id: rawStudent.id,
+            nim: rawStudent.nim,
+            name: rawStudent.name,
+            className: rawStudent.className ?? rawStudent.class_name ?? '',
+            email: rawStudent.email || undefined,
+            createdAt: rawStudent.createdAt || new Date().toISOString(),
+          } : undefined,
+        };
+      }
+    } catch (neonErr) {
+      console.warn('Neon studentAuthLogin error:', neonErr);
+    }
+
     if (!this.isLiveBackend() || !supabase) {
-      return { success: false, message: 'Backend Supabase belum terhubung.' };
+      return { success: false, message: 'Backend database sedang menghubungkan. Silakan coba sesaat lagi.' };
     }
     const { data, error } = await supabase.rpc('student_auth_login', {
       p_nim: nim,

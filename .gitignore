@@ -37,6 +37,7 @@ scripts/patch_api_service.mjs
 scripts/update_messages.mjs
 scripts/test_student_auth_neon.mjs
 scripts/test_neon_auth.mjs
+scripts/apply_neon_auth_routes.mjs
 scripts/finish_neon_import.mjs
 scripts/import_data_to_neon.mjs
 scripts/import_neon_clean.mjs

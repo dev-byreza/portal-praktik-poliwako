@@ -36,8 +36,9 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ exists: false, isEnrolled: false, message: 'NIM wajib diisi.' });
   }
 
-  const client = await getPool().connect();
+  let client: pg.PoolClient | null = null;
   try {
+    client = await getPool().connect();
     if (action === 'lookup') {
       const lookupRes = await client.query(
         'SELECT public.student_auth_lookup($1, $2, $3) as result',
@@ -118,6 +119,6 @@ export default async function handler(req: any, res: any) {
       message: 'Gagal memverifikasi ke database Neon: ' + error.message,
     });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 }

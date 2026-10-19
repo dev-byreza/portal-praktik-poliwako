@@ -35,8 +35,9 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ success: false, message: 'Email dan password wajib diisi.' });
   }
 
-  const client = await getPool().connect();
+  let client: pg.PoolClient | null = null;
   try {
+    client = await getPool().connect();
     // 1. Verify credentials from auth.users
     const userRes = await client.query(`
       SELECT 
@@ -93,6 +94,6 @@ export default async function handler(req: any, res: any) {
       message: 'Gagal memverifikasi akun ke database Neon: ' + error.message,
     });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 }
