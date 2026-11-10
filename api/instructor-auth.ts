@@ -1,4 +1,4 @@
-import { getDbPool } from './_db.ts';
+import { getDbPool } from './_db.js';
 import type pg from 'pg';
 
 export default async function handler(req: any, res: any) {

@@ -77,8 +77,16 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5173,
-      host: true
-    }
+      host: true,
+      proxy: {
+        '/api/auth': {
+          target: 'https://ep-quiet-lab-b39rfs7j.neonauth.c-4.ap-southeast-1.aws.neon.tech/neondb/auth',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/auth/, ''),
+          secure: true,
+        },
+      },
+    },
   };
 });
 

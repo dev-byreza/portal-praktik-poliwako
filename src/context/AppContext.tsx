@@ -367,6 +367,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setInstructor(updatedInstructor);
       setIsInstructorLoggedIn(true);
       setRole('INSTRUCTOR');
+      StorageService.setCacheScope(`instructor:${canonicalId}`);
+
+      // Load instructor-scoped courses and students immediately
+      ApiService.getCourses(canonicalId).then((scopedCourses) => {
+        if (scopedCourses && scopedCourses.length > 0) {
+          setCourses(scopedCourses);
+          const activeId = StorageService.getActiveCourseId(canonicalId, scopedCourses) || scopedCourses[0].id;
+          setActiveCourseIdState(activeId);
+          StorageService.setActiveCourseId(activeId, canonicalId);
+        }
+      }).catch(err => console.warn('Error loading scoped courses on Neon auth:', err));
+
+      ApiService.getStudents().then((liveStudents) => {
+        if (liveStudents && liveStudents.length > 0) {
+          setStudents(liveStudents);
+        }
+      }).catch(err => console.warn('Error loading students on Neon auth:', err));
     }).catch((err) => {
       console.warn('Neon auth session check failed:', err);
     });
@@ -403,7 +420,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setIsInstructorLoggedIn(true);
           setRole('INSTRUCTOR');
         } else if (isInstructorLoggedIn || role === 'INSTRUCTOR') {
-          clearLiveInstructorSession();
+          const hasVerifier = typeof window !== 'undefined' && window.location.search.includes('neon_auth_session_verifier');
+          if (!hasVerifier) {
+            clearLiveInstructorSession();
+          }
         }
         const unitsFetchRevision = learningUnitRevisionRef.current;
         const profilePromise = authInstructorId

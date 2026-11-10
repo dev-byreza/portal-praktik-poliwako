@@ -3,8 +3,7 @@
 // Target: https://ep-quiet-lab-b39rfs7j.neonauth.c-4.ap-southeast-1.aws.neon.tech/neondb/auth
 
 const NEON_AUTH_URL =
-  import.meta.env.VITE_NEON_AUTH_URL ||
-  'https://ep-quiet-lab-b39rfs7j.neonauth.c-4.ap-southeast-1.aws.neon.tech/neondb/auth';
+  import.meta.env.VITE_NEON_AUTH_URL || '/api/auth';
 
 export interface NeonUser {
   id: string;
@@ -40,6 +39,7 @@ export async function signInInstructorWithGoogleNeon(): Promise<{ error: Error |
     const res = await fetch(`${NEON_AUTH_URL}/sign-in/social`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({
         provider: 'google',
         callbackURL,

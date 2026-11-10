@@ -1,5 +1,5 @@
-import { getDbPool } from './_db.ts';
-import { invalidateDataCache } from './data.ts';
+import { getDbPool } from './_db.js';
+import { invalidateDataCache } from './data.js';
 import type pg from 'pg';
 
 export default async function handler(req: any, res: any) {

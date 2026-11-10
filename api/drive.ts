@@ -1,4 +1,4 @@
-import { getDbPool } from './_db.ts';
+import { getDbPool } from './_db.js';
 import {
   ensureCourseFolders,
   ensureCourseAndPeriodFolders,
@@ -6,8 +6,8 @@ import {
   resolveTaskFolderName,
   getOrCreateFolder,
   getDriveAccessToken,
-} from './_drive.ts';
-import { invalidateDataCache } from './data.ts';
+} from './_drive.js';
+import { invalidateDataCache } from './data.js';
 
 function extractDriveId(url?: string): string | null {
   if (!url) return null;

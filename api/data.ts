@@ -1,4 +1,4 @@
-import { getDbPool } from './_db.ts';
+import { getDbPool } from './_db.js';
 
 let cachedData: any = null;
 let lastCacheTime = 0;

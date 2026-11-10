@@ -147,6 +147,25 @@ export const InstructorLoginGate: React.FC = () => {
     }
   };
 
+  if (isVerifyingGoogle) {
+    return (
+      <div className="instructor-login-shell relative flex min-h-0 h-full w-full flex-1 flex-col items-center justify-center overflow-y-auto overflow-x-hidden px-4 py-6 text-slate-800 sm:px-8 sm:py-10">
+        <div className="instructor-login-card relative w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-xl shadow-slate-900/10">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm">
+            <img src="/logo-poliwako.webp" alt="Logo Politeknik Sorowako" className="h-full w-full object-contain" />
+          </div>
+          <div className="mb-4 inline-flex items-center justify-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+            <span className="text-base font-semibold text-slate-800">Memverifikasi Sesi Akun...</span>
+          </div>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Menghubungkan akun Google SSO Anda dengan basis data Politeknik Sorowako. Mengalihkan ke dashboard instruktur...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="instructor-login-shell relative flex min-h-0 h-full w-full flex-1 flex-col items-center justify-center overflow-y-auto overflow-x-hidden px-4 py-6 text-slate-800 sm:px-8 sm:py-10"
