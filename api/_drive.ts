@@ -184,6 +184,54 @@ export async function ensureCourseFolders(
 }
 
 /**
+ * Resolves a clean folder name for tasks inside 02_Pengumpulan_Tugas_Mahasiswa (Option A: Subfolder per Task)
+ */
+export function resolveTaskFolderName(
+  submissionType?: string,
+  taskTitle?: string
+): string {
+  const cleanType = String(submissionType || 'ASSIGNMENT').toUpperCase();
+  let cleanTitle = (taskTitle || '')
+    .trim()
+    .replace(/[:\/\\|]/g, ' - ')
+    .replace(/[*?"<>]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (cleanTitle.length > 120) {
+    cleanTitle = cleanTitle.substring(0, 117) + '...';
+  }
+
+  if (cleanType === 'FINAL_PROJECT') {
+    return cleanTitle && cleanTitle.toLowerCase() !== 'proyek akhir'
+      ? `Proyek Akhir - ${cleanTitle}`
+      : 'Proyek Akhir';
+  }
+
+  if (cleanType === 'REMEDIAL') {
+    return cleanTitle ? `Remedial - ${cleanTitle}` : 'Tugas Tambahan (Remedial)';
+  }
+
+  if (cleanType === 'REPORT') {
+    return cleanTitle ? `Laporan - ${cleanTitle}` : 'Laporan Praktik';
+  }
+
+  if (cleanType === 'POST_TEST') {
+    return cleanTitle ? `Post Test - ${cleanTitle}` : 'Post Test';
+  }
+
+  // ASSIGNMENT / default
+  if (cleanTitle) {
+    if (/^(tugas|unit|modul|praktik|task)/i.test(cleanTitle)) {
+      return cleanTitle;
+    }
+    return `Tugas - ${cleanTitle}`;
+  }
+
+  return 'Tugas Praktik';
+}
+
+/**
  * Ensures the full folder structure exists for Academic Year, Course, and Period:
  * Root
  * └── [Tahun Ajaran] (e.g. "TA 2026-2027")
@@ -192,6 +240,7 @@ export async function ensureCourseFolders(
  *         └── [Period Name]
  *             ├── 01_Tugas_dan_Instruksi_Instruktur
  *             └── 02_Pengumpulan_Tugas_Mahasiswa
+ *                 └── Proyek Akhir
  */
 export async function ensureCourseAndPeriodFolders(
   courseName: string,
@@ -211,6 +260,9 @@ export async function ensureCourseAndPeriodFolders(
 
   // 5b. 02_Pengumpulan_Tugas_Mahasiswa (Student Submissions)
   const studentSubmissionFolder = await getOrCreateFolder(token, periodFolder.id, '02_Pengumpulan_Tugas_Mahasiswa');
+
+  // 5c. Pre-create default 'Proyek Akhir' subfolder inside student submission folder
+  await getOrCreateFolder(token, studentSubmissionFolder.id, 'Proyek Akhir');
 
   return {
     yearFolder,

@@ -1213,6 +1213,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           periodId,
           studentId,
           assignmentId,
+          taskTitle: assignment?.title,
           submissionType,
           allowedFileType: allowedFileType as 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY',
           replaceStoragePath: existing?.storagePath,
@@ -1276,7 +1277,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!remedial || !period || !['PENDING_SUBMISSION', 'BELUM_LULUS'].includes(remedial.status)) throw new Error('Tugas tambahan tidak tersedia.');
     if (isSubmissionClosed(remedial.deadline)) throw new Error('Batas waktu remedial sudah lewat. Hubungi instruktur.');
     await runServerSave('pengumpulan remedial', async () => {
-      const upload = await uploadSubmissionPDF(file, {courseId: period.courseId, periodId: period.id, studentId: studentSession.studentId, assignmentId: remedial.id, submissionType:'REMEDIAL', allowedFileType:'PDF', replaceStoragePath: remedial.submissionStoragePath, deferSignedUrl: true});
+      const upload = await uploadSubmissionPDF(file, {courseId: period.courseId, periodId: period.id, studentId: studentSession.studentId, assignmentId: remedial.id, taskTitle: remedial.title, submissionType:'REMEDIAL', allowedFileType:'PDF', replaceStoragePath: remedial.submissionStoragePath, deferSignedUrl: true});
       if (upload.error || !upload.storagePath) throw upload.error || new Error('Berkas gagal diunggah.');
       const updated: RemedialAssignment = {...remedial, submissionFileName: file.name, submissionFileUrl: upload.storagePath, submissionStoragePath: upload.storagePath, submittedAt: new Date().toISOString(), status: 'SUBMITTED'};
       const saved = await ApiService.saveRemedial(updated);

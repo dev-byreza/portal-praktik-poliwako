@@ -1,5 +1,12 @@
 import { getDbPool } from './_db.ts';
-import { ensureCourseFolders, ensureCourseAndPeriodFolders, uploadFileToDrive } from './_drive.ts';
+import {
+  ensureCourseFolders,
+  ensureCourseAndPeriodFolders,
+  uploadFileToDrive,
+  resolveTaskFolderName,
+  getOrCreateFolder,
+  getDriveAccessToken,
+} from './_drive.ts';
 import { invalidateDataCache } from './data.ts';
 
 function extractDriveId(url?: string): string | null {
@@ -120,6 +127,20 @@ export default async function handler(req: any, res: any) {
         client.release();
       }
 
+      // Pre-create task subfolders for existing assignments in this period (Option A)
+      try {
+        const assignRows = await pool.query('SELECT title FROM public.assignments WHERE period_id = $1', [periodId]);
+        const token = await getDriveAccessToken();
+        for (const a of assignRows.rows) {
+          if (a.title) {
+            const taskFolderName = resolveTaskFolderName('ASSIGNMENT', a.title);
+            await getOrCreateFolder(token, structure.studentSubmissionFolder.id, taskFolderName);
+          }
+        }
+      } catch (subErr: any) {
+        console.warn('Warning pre-creating assignment subfolders:', subErr.message);
+      }
+
       invalidateDataCache();
       return res.status(200).json({
         success: true,
@@ -178,6 +199,20 @@ export default async function handler(req: any, res: any) {
               row.course_id
             ]);
 
+            // Pre-create task subfolders for existing assignments in this period (Option A)
+            try {
+              const assignRows = await client.query('SELECT title FROM public.assignments WHERE period_id = $1', [row.period_id]);
+              const token = await getDriveAccessToken();
+              for (const a of assignRows.rows) {
+                if (a.title) {
+                  const taskFolderName = resolveTaskFolderName('ASSIGNMENT', a.title);
+                  await getOrCreateFolder(token, structure.studentSubmissionFolder.id, taskFolderName);
+                }
+              }
+            } catch (subErr: any) {
+              console.warn('Warning pre-creating assignment subfolders in sync:', subErr.message);
+            }
+
             results.push({
               courseName: row.course_name,
               periodName: row.period_name,
@@ -214,6 +249,7 @@ export default async function handler(req: any, res: any) {
         periodId,
         studentId,
         assignmentId,
+        taskTitle,
         fileName,
         fileBase64,
         mimeType,
@@ -271,7 +307,41 @@ export default async function handler(req: any, res: any) {
           ]);
         }
 
-        // Clean file buffer from base64
+        // 2. Resolve task title if not directly passed (Option A: Subfolder per Task)
+        let resolvedTaskTitle = (taskTitle || '').trim();
+        if (!resolvedTaskTitle && assignmentId) {
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(assignmentId);
+          if (isUuid) {
+            if (submissionType === 'REMEDIAL') {
+              const remRes = await client.query('SELECT title FROM public.remedial_assignments WHERE id = $1 LIMIT 1', [assignmentId]);
+              resolvedTaskTitle = remRes.rows[0]?.title || '';
+            } else {
+              const assignRes = await client.query('SELECT title FROM public.assignments WHERE id = $1 LIMIT 1', [assignmentId]);
+              resolvedTaskTitle = assignRes.rows[0]?.title || '';
+            }
+          }
+        }
+
+        // 3. Resolve the task subfolder name
+        const taskFolderName = resolveTaskFolderName(submissionType, resolvedTaskTitle);
+
+        // 4. Resolve or create task subfolder inside 02_Pengumpulan_Tugas_Mahasiswa
+        let destinationFolderId = targetFolderId;
+        let taskFolderInfo = null;
+
+        if (targetFolderId) {
+          try {
+            const token = await getDriveAccessToken();
+            taskFolderInfo = await getOrCreateFolder(token, targetFolderId, taskFolderName);
+            if (taskFolderInfo?.id) {
+              destinationFolderId = taskFolderInfo.id;
+            }
+          } catch (folderErr: any) {
+            console.warn('Could not ensure task subfolder, falling back to period submission folder:', folderErr.message);
+          }
+        }
+
+        // 5. Clean file buffer from base64
         const base64Data = fileBase64.replace(/^data:[^;]+;base64,/, '');
         const fileBuffer = Buffer.from(base64Data, 'base64');
         const cleanStudentNim = String(info.nim || '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
@@ -283,10 +353,10 @@ export default async function handler(req: any, res: any) {
         let driveFile: any = null;
         let storageProvider = 'local_data';
 
-        if (targetFolderId) {
+        if (destinationFolderId) {
           try {
             driveFile = await uploadFileToDrive(
-              targetFolderId,
+              destinationFolderId,
               driveFileName,
               mimeType || 'application/octet-stream',
               fileBuffer
@@ -320,6 +390,8 @@ export default async function handler(req: any, res: any) {
           fileUrl: finalFileUrl,
           driveUrl: driveFile?.webViewLink || null,
           driveFileId: driveFile?.id || null,
+          taskFolderName,
+          taskFolderUrl: taskFolderInfo?.webViewLink || null,
           fileName: driveFileName,
           storageProvider,
         });

@@ -1,5 +1,5 @@
 import { getDbPool } from '../api/_db.ts';
-import { ensureCourseAndPeriodFolders } from '../api/_drive.ts';
+import { ensureCourseAndPeriodFolders, resolveTaskFolderName, getOrCreateFolder, getDriveAccessToken } from '../api/_drive.ts';
 
 async function syncAll() {
   const pool = getDbPool();
@@ -18,11 +18,23 @@ async function syncAll() {
       ORDER BY c.academic_year, c.name, pp.period_number
     `);
 
-    console.log(`Found ${rowsRes.rows.length} course periods to sync with Academic Year hierarchy...`);
+    console.log(`Found ${rowsRes.rows.length} course periods to sync with Academic Year & Option A Task Folders...`);
+
+    const token = await getDriveAccessToken();
 
     for (const row of rowsRes.rows) {
       console.log(`\nSyncing [${row.academic_year || 'TA 2026-2027'}] -> [${row.course_name}] -> [${row.period_name}]...`);
       const structure = await ensureCourseAndPeriodFolders(row.course_name, row.period_name, row.academic_year);
+
+      // Pre-create task subfolders for assignments in this period (Option A)
+      const assignRows = await pool.query('SELECT title FROM public.assignments WHERE period_id = $1', [row.period_id]);
+      for (const a of assignRows.rows) {
+        if (a.title) {
+          const taskFolderName = resolveTaskFolderName('ASSIGNMENT', a.title);
+          await getOrCreateFolder(token, structure.studentSubmissionFolder.id, taskFolderName);
+          console.log(`    📁 Task Subfolder: ${taskFolderName}`);
+        }
+      }
 
       await pool.query(`
         UPDATE public.practice_periods
@@ -56,7 +68,7 @@ async function syncAll() {
       console.log(`  ✓ Student Submissions: ${structure.studentSubmissionFolder.webViewLink}`);
     }
 
-    console.log('\nAll courses and periods successfully organized by Academic Year in Google Drive!');
+    console.log('\nAll courses, periods, and Option A task subfolders successfully organized in Google Drive!');
   } finally {
     await pool.end();
   }

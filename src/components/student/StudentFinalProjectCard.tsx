@@ -43,6 +43,7 @@ export const StudentFinalProjectCard: React.FC = () => {
         periodId: period.id,
         studentId: studentSession.studentId,
         submissionType: 'FINAL_PROJECT',
+        taskTitle: 'Proyek Akhir',
         allowedFileType: 'ANY',
       });
 

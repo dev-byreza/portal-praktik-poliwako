@@ -6,6 +6,7 @@ export interface UploadSubmissionOptions {
   periodId: string;
   studentId: string;
   assignmentId?: string;
+  taskTitle?: string;
   submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST' | 'REMEDIAL' | 'FINAL_PROJECT';
   allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' | 'AUTOCAD_LINK';
   replaceStoragePath?: string;
@@ -77,6 +78,7 @@ export async function uploadSubmissionFile(
             periodId: options.periodId,
             studentId: options.studentId,
             assignmentId: options.assignmentId,
+            taskTitle: options.taskTitle,
             fileName: file.name,
             fileBase64: dataUrl,
             mimeType: file.type || 'application/octet-stream',
