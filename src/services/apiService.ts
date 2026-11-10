@@ -561,12 +561,12 @@ export class ApiService {
           } : undefined,
           message: result.message || undefined,
         };
-      } else if (result && result.message) {
+      } else if (result && (result.message || result.error)) {
         return {
           exists: false,
           isEnrolled: false,
           hasCreatedPassword: false,
-          message: result.message,
+          message: result.message || result.error,
         };
       }
     } catch (neonErr: any) {

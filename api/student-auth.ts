@@ -1,6 +1,13 @@
 import { getDbPool } from './_db.ts';
 import type pg from 'pg';
 
+function toValidUuid(val?: any): string | null {
+  if (!val) return null;
+  const str = String(val).trim();
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str) ? str : null;
+}
+
 export default async function handler(req: any, res: any) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -26,9 +33,10 @@ export default async function handler(req: any, res: any) {
   try {
     client = await getDbPool().connect();
     if (action === 'lookup') {
+      const validPeriodId = toValidUuid(periodId);
       const lookupRes = await client.query(
         'SELECT public.student_auth_lookup($1, $2, $3) as result',
-        [cleanNim, courseSlug || null, periodId || null]
+        [cleanNim, courseSlug || null, validPeriodId]
       );
       const result = lookupRes.rows[0]?.result || { exists: false, isEnrolled: false, hasCreatedPassword: false };
 
@@ -57,7 +65,7 @@ export default async function handler(req: any, res: any) {
       }
 
       let resolvedCourseSlug = courseSlug || null;
-      let resolvedPeriodId = periodId || null;
+      let resolvedPeriodId = toValidUuid(periodId);
       if (!resolvedPeriodId) {
         const enrRes = await client.query(`
           SELECT pp.period_id, c.slug as course_slug
@@ -99,7 +107,7 @@ export default async function handler(req: any, res: any) {
 
       const studentId = stdRes.rows[0].id;
       let resolvedCourseSlug = courseSlug || null;
-      let resolvedPeriodId = periodId || null;
+      let resolvedPeriodId = toValidUuid(periodId);
       if (!resolvedPeriodId) {
         const enrRes = await client.query(`
           SELECT pp.period_id, c.slug as course_slug
