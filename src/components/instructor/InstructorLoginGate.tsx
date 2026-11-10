@@ -20,7 +20,29 @@ import {
 
 export const InstructorLoginGate: React.FC = () => {
   const { loginInstructor, signUpInstructor } = useApp();
-  const [activeTab, setActiveTab] = useState<'LOGIN' | 'SIGNUP'>('LOGIN');
+  const [activeTab, setActiveTab] = useState<'LOGIN' | 'SIGNUP'>(() => {
+    if (typeof window === 'undefined') return 'LOGIN';
+    const storedTab = sessionStorage.getItem('poliwako_auth_tab');
+    if (storedTab === 'SIGNUP') {
+      sessionStorage.removeItem('poliwako_auth_tab');
+      return 'SIGNUP';
+    }
+    const notice = sessionStorage.getItem('poliwako_auth_notice');
+    if (notice === 'ACCOUNT_NOT_LINKED') {
+      return 'SIGNUP';
+    }
+    return 'LOGIN';
+  });
+
+  const [authNotice, setAuthNotice] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const notice = sessionStorage.getItem('poliwako_auth_notice');
+    if (notice === 'ACCOUNT_NOT_LINKED') {
+      sessionStorage.removeItem('poliwako_auth_notice');
+      return 'Akun Google Anda belum terdaftar sebagai instruktur. Silakan lengkapi formulir pendaftaran di bawah ini.';
+    }
+    return null;
+  });
 
   // Login State
   const [loginEmail, setLoginEmail] = useState('');
@@ -169,6 +191,14 @@ export const InstructorLoginGate: React.FC = () => {
                 <span>Daftar Akun</span>
               </button>
             </div>
+
+            {/* Notice Alert Box */}
+            {authNotice && (
+              <div role="status" className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-sm text-amber-900 animate-fadeIn">
+                <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <div className="flex-1 font-medium">{authNotice}</div>
+              </div>
+            )}
 
             {/* Error Alert Box */}
             {errorMsg && (

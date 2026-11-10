@@ -32,7 +32,29 @@ type AuthTab = 'LOGIN' | 'SIGNUP';
 
 export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({ isOpen, onClose }) => {
   const { loginInstructor, signUpInstructor } = useApp();
-  const [activeTab, setActiveTab] = useState<AuthTab>('LOGIN');
+  const [activeTab, setActiveTab] = useState<AuthTab>(() => {
+    if (typeof window === 'undefined') return 'LOGIN';
+    const storedTab = sessionStorage.getItem('poliwako_auth_tab');
+    if (storedTab === 'SIGNUP') {
+      sessionStorage.removeItem('poliwako_auth_tab');
+      return 'SIGNUP';
+    }
+    const notice = sessionStorage.getItem('poliwako_auth_notice');
+    if (notice === 'ACCOUNT_NOT_LINKED') {
+      return 'SIGNUP';
+    }
+    return 'LOGIN';
+  });
+
+  const [authNotice, setAuthNotice] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const notice = sessionStorage.getItem('poliwako_auth_notice');
+    if (notice === 'ACCOUNT_NOT_LINKED') {
+      sessionStorage.removeItem('poliwako_auth_notice');
+      return 'Akun Google Anda belum terdaftar sebagai instruktur. Silakan lengkapi formulir pendaftaran di bawah ini.';
+    }
+    return null;
+  });
 
   // Login State
   const [loginEmail, setLoginEmail] = useState('');

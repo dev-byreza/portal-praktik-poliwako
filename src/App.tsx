@@ -99,7 +99,28 @@ export const App: React.FC = () => {
         return;
       }
 
-      // Case 4: Match instructor portal routes (e.g. /instruktur, /instructor, /dosen)
+      // Case 4: Match instructor portal routes & Auth callbacks
+      const isAuthCallbackRedirect =
+        path.includes('account-not-link') ||
+        path.includes('auth-error') ||
+        path === 'signup' ||
+        path === 'daftar' ||
+        Boolean(params.get('error')?.toLowerCase().includes('account_not_link')) ||
+        window.location.hash.toLowerCase().includes('account_not_link');
+
+      if (isAuthCallbackRedirect) {
+        if (path.includes('account-not-link') || params.get('error')?.toLowerCase().includes('account_not_link') || window.location.hash.toLowerCase().includes('account_not_link')) {
+          sessionStorage.setItem('poliwako_auth_notice', 'ACCOUNT_NOT_LINKED');
+          sessionStorage.setItem('poliwako_auth_tab', 'SIGNUP');
+        } else if (path === 'signup' || path === 'daftar') {
+          sessionStorage.setItem('poliwako_auth_tab', 'SIGNUP');
+        }
+        window.history.replaceState({}, '', '/instruktur');
+        setActiveRoute('INSTRUCTOR');
+        setRole('INSTRUCTOR');
+        return;
+      }
+
       if (
         path === 'instruktur' ||
         path === 'instructor' ||
