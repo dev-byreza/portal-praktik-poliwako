@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { signInInstructorWithGoogle } from '../../services/supabaseClient';
+import { signInInstructorWithGoogleNeon as signInInstructorWithGoogle } from '../../services/neonAuthClient';
 import { GoogleLogo } from './GoogleLogo';
 import {
   GraduationCap,

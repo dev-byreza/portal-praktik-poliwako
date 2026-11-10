@@ -612,22 +612,34 @@ export const LearningContentStudio: React.FC = () => {
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
                     <ExternalLink className="w-3.5 h-3.5" />
-                    Project Akhir {activeSelectedPeriod.finalProjectEnabled ? '(Aktif)' : '(Nonaktif)'}
+                    Google Drive Gelombang {activeSelectedPeriod.finalProjectEnabled ? '(Berkas Akhir Aktif)' : ''}
                   </div>
-                  {activeSelectedPeriod.finalProjectDriveUrl ? (
-                    <a
-                      href={activeSelectedPeriod.finalProjectDriveUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={e => e.stopPropagation()}
-                      className="mt-1 block truncate text-[11px] font-semibold text-emerald-800 hover:underline"
-                      title={activeSelectedPeriod.finalProjectDriveUrl}
-                    >
-                      Buka folder Google Drive
-                    </a>
-                  ) : (
-                    <p className="mt-1 text-[11px] text-emerald-700">Link Drive belum diatur</p>
-                  )}
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                    {activeSelectedPeriod.instructorDriveUrl && (
+                      <a
+                        href={activeSelectedPeriod.instructorDriveUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        className="font-semibold text-blue-800 hover:underline flex items-center gap-1"
+                        title="Buka folder backup tugas dan instruksi instruktur di Google Drive"
+                      >
+                        <span>📂 01. Soal & Tugas Instruktur</span>
+                      </a>
+                    )}
+                    {activeSelectedPeriod.finalProjectDriveUrl && (
+                      <a
+                        href={activeSelectedPeriod.finalProjectDriveUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        className="font-semibold text-emerald-800 hover:underline flex items-center gap-1"
+                        title="Buka folder pengumpulan mahasiswa di Google Drive"
+                      >
+                        <span>📁 02. Pengumpulan Mahasiswa</span>
+                      </a>
+                    )}
+                  </div>
                   {activeSelectedPeriod.finalProjectDescription && (
                     <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-emerald-800/80">
                       {activeSelectedPeriod.finalProjectDescription}

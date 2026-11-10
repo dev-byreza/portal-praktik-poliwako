@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "test": "node scripts/test-course-rubrics.cjs && node scripts/test-rpm-schedule.cjs && node scripts/test-lms-regressions.cjs && node scripts/test-supabase-integration.mjs",
+    "test": "node scripts/test-course-rubrics.cjs && node scripts/test-rpm-schedule.cjs && node scripts/test-lms-regressions.cjs",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -24,7 +24,7 @@ import {
   StudentSession,
 } from '../types';
 import { StorageService } from '../services/storageService';
-import { uploadSubmissionPDF } from '../services/supabaseClient';
+import { uploadSubmissionPDF } from '../services/driveStorageService';
 import { getNeonAuthSession, signOutNeonAuth } from '../services/neonAuthClient';
 import { ApiService } from '../services/apiService';
 import { computeAttendanceStats, calculateWeightedFinalScore, getFeedbackForScore } from '../utils/gradeCalculators';

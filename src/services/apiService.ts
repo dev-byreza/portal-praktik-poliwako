@@ -1,16 +1,23 @@
-// Hybrid API Service: Supabase Backend with Fallback to LocalStorage
+// Application API Service: Neon Database Backend & Google Drive Storage
 // Implements Application Layer as specified in PRD Section 75
 
 import {
-  supabase,
-  isSupabaseConfigured,
   signInInstructor as authSignInInstructor,
   signUpInstructor as authSignUpInstructor,
-  signOutInstructor as authSignOutInstructor,
+  signOutNeonAuth as authSignOutInstructor,
   getCurrentAuthUser,
+  mockClient as injectedClient,
+} from './neonAuthClient';
+import {
   getSubmissionSignedUrl,
   uploadQuizImage,
-} from './supabaseClient';
+} from './driveStorageService';
+
+export const isSupabaseConfigured = (): boolean =>
+  typeof (injectedClient as any)?.isConfigured === 'function'
+    ? (injectedClient as any).isConfigured()
+    : Boolean(injectedClient);
+export const supabase: any = injectedClient || null;
 import { StorageService } from './storageService';
 import {
   Course,
@@ -438,12 +445,12 @@ export class ApiService {
       }
 
       // Prune only removed rows from this course, after every upsert succeeds.
-      const removedRubrics = (previousRubrics || []).filter(r => !qualityRubrics.some(current => current.id === r.id)).map(r => r.id);
+      const removedRubrics = (previousRubrics || []).filter((r: any) => !qualityRubrics.some(current => current.id === r.id)).map((r: any) => r.id);
       if (removedRubrics.length) {
         const { error } = await supabase.from('rubric_criteria').delete().eq('course_id', course.id).in('id', removedRubrics);
         if (error) throw error;
       }
-      const removedSubCpmks = (previousSubCpmks || []).filter(s => !subCpmks.some(current => current.id === s.id)).map(s => s.id);
+      const removedSubCpmks = (previousSubCpmks || []).filter((s: any) => !subCpmks.some(current => current.id === s.id)).map((s: any) => s.id);
       if (removedSubCpmks.length) {
         const { error } = await supabase.from('course_sub_cpmk').delete().eq('course_id', course.id).in('id', removedSubCpmks);
         if (error) throw error;
@@ -1036,7 +1043,7 @@ export class ApiService {
       let query = supabase.from('practice_participants').select('*, students(*)');
       if (periodId) query = query.eq('period_id', periodId);
       const { data, error } = await query;
-      if (!error && data && data.length > 0) return data.map(p => mapParticipant(p));
+      if (!error && data && data.length > 0) return data.map((p: any) => mapParticipant(p));
 
       // Resolve the auth role only when the direct query was empty or failed.
       // The normal catalog path therefore avoids a second Auth request.
@@ -1061,7 +1068,7 @@ export class ApiService {
         if (hasStudentServerSession && publicError) throw publicError;
         return [];
       }
-      return publicData.map(p => mapParticipant(p, false));
+      return publicData.map((p: any) => mapParticipant(p, false));
     } catch (error) {
       console.error('Error loading participants from Supabase:', error);
       if (hasStudentServerSession) throw error;
@@ -1452,7 +1459,7 @@ export class ApiService {
         }
         const persistedMaterialsById = new Map((persistedMaterials || []).map((material: any) => [material.id, material]));
         for (const material of materialRows) {
-          const persistedMaterial = persistedMaterialsById.get(material.id);
+          const persistedMaterial: any = persistedMaterialsById.get(material.id);
           if (!persistedMaterial
             || persistedMaterial.unit_id !== unitId
             || persistedMaterial.title !== material.title
@@ -2121,5 +2128,56 @@ export class ApiService {
       throw new Error('Supabase belum tersedia; pengumuman belum dihapus.');
     }
     StorageService.saveAnnouncements(StorageService.getAnnouncements().filter(item => item.id !== announcementId));
+  }
+
+  // ====================================================================
+  // GOOGLE DRIVE INTEGRATION
+  // ====================================================================
+  static async ensurePeriodDriveFolder(
+    courseId: string,
+    courseName: string,
+    periodId: string,
+    periodName: string
+  ): Promise<{ success: boolean; structure?: any; error?: string }> {
+    try {
+      const res = await fetch('/api/drive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'ensure_period_folder',
+          payload: { courseId, courseName, periodId, periodName },
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || `Gagal membuat folder Google Drive (HTTP ${res.status})`);
+      }
+      invalidateNeonBootstrapData();
+      return data;
+    } catch (err: any) {
+      console.warn('ensurePeriodDriveFolder error:', err);
+      return { success: false, error: err.message };
+    }
+  }
+
+  static async syncAllDriveFolders(): Promise<{ success: boolean; results?: any[]; error?: string }> {
+    try {
+      const res = await fetch('/api/drive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'sync_all_courses_and_periods',
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || `Gagal sinkronisasi Google Drive (HTTP ${res.status})`);
+      }
+      invalidateNeonBootstrapData();
+      return data;
+    } catch (err: any) {
+      console.warn('syncAllDriveFolders error:', err);
+      return { success: false, error: err.message };
+    }
   }
 }

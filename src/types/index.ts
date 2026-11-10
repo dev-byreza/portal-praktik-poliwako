@@ -83,6 +83,8 @@ export interface Course {
   subCpmks: SubCPMK[];
   qualityRubrics: RubricCriterion[];
   qualityComponents?: QualityComponent[];
+  driveFolderUrl?: string;
+  masterDriveUrl?: string;
 }
 
 export type PeriodStatus = 'UPCOMING' | 'ACTIVE' | 'COMPLETED';
@@ -97,6 +99,7 @@ export interface PracticePeriod {
   status: PeriodStatus;
   autoStatus?: boolean; // If true (or undefined), status is automatically calculated based on internet realtime date
   finalProjectDriveUrl?: string;
+  instructorDriveUrl?: string;
   finalProjectDescription?: string;
   finalProjectEnabled?: boolean;
   createdAt: string;

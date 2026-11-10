@@ -106,3 +106,62 @@ export async function signOutNeonAuth(): Promise<void> {
     console.warn('Neon Better Auth signOut error:', err);
   }
 }
+
+export async function signInInstructor(
+  email: string,
+  _password?: string
+): Promise<{ error: Error | null }> {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail.endsWith('@politekniksorowako.ac.id')) {
+    return {
+      error: new Error(
+        'Akses ditolak: Hanya email resmi dengan domain @politekniksorowako.ac.id yang diizinkan.'
+      ),
+    };
+  }
+  return { error: null };
+}
+
+export async function signUpInstructor(
+  email: string,
+  password: string,
+  name: string,
+  department: string = 'Rekayasa Perancangan Mekanik',
+  nip?: string
+): Promise<{ user: any; session: any; error: Error | null }> {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail.endsWith('@politekniksorowako.ac.id')) {
+    return {
+      user: null,
+      session: null,
+      error: new Error(
+        'Akses ditolak: Hanya email resmi dengan domain @politekniksorowako.ac.id yang diizinkan.'
+      ),
+    };
+  }
+
+  if (password.length < 6) {
+    return {
+      user: null,
+      session: null,
+      error: new Error('Password minimal harus terdiri dari 6 karakter.'),
+    };
+  }
+
+  return {
+    user: {
+      id: 'inst-' + Date.now(),
+      email: cleanEmail,
+      user_metadata: { name, department, nip },
+    },
+    session: null,
+    error: null,
+  };
+}
+
+export async function getCurrentAuthUser(): Promise<any | null> {
+  const session = await getNeonAuthSession();
+  return session?.user || null;
+}
+
+export const mockClient: any = null;

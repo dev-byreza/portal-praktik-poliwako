@@ -38,9 +38,9 @@ export default async function handler(req: any, res: any) {
         try {
           await client.query(`
             INSERT INTO public.courses (
-              id, instructor_id, name, code, academic_year, semester, slug, description, department, status, quality_components, updated_at
+              id, instructor_id, name, code, academic_year, semester, slug, description, department, status, quality_components, drive_folder_url, master_drive_url, updated_at
             ) VALUES (
-              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, NOW()
+              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13, NOW()
             )
             ON CONFLICT (id) DO UPDATE SET
               instructor_id = EXCLUDED.instructor_id,
@@ -53,6 +53,8 @@ export default async function handler(req: any, res: any) {
               department = EXCLUDED.department,
               status = EXCLUDED.status,
               quality_components = EXCLUDED.quality_components,
+              drive_folder_url = COALESCE(EXCLUDED.drive_folder_url, public.courses.drive_folder_url),
+              master_drive_url = COALESCE(EXCLUDED.master_drive_url, public.courses.master_drive_url),
               updated_at = NOW();
           `, [
             c.id,
@@ -66,6 +68,8 @@ export default async function handler(req: any, res: any) {
             c.department,
             c.status || 'DRAFT',
             JSON.stringify(c.qualityComponents || []),
+            c.driveFolderUrl || null,
+            c.masterDriveUrl || null,
           ]);
 
           if (Array.isArray(c.subCpmks)) {
@@ -183,9 +187,9 @@ export default async function handler(req: any, res: any) {
         await client.query(`
           INSERT INTO public.practice_periods (
             id, course_id, name, period_number, start_date, end_date, status,
-            final_project_drive_url, final_project_description, final_project_enabled, updated_at
+            final_project_drive_url, instructor_drive_url, final_project_description, final_project_enabled, updated_at
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW()
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW()
           )
           ON CONFLICT (id) DO UPDATE SET
             course_id = EXCLUDED.course_id,
@@ -195,6 +199,7 @@ export default async function handler(req: any, res: any) {
             end_date = EXCLUDED.end_date,
             status = EXCLUDED.status,
             final_project_drive_url = EXCLUDED.final_project_drive_url,
+            instructor_drive_url = COALESCE(EXCLUDED.instructor_drive_url, public.practice_periods.instructor_drive_url),
             final_project_description = EXCLUDED.final_project_description,
             final_project_enabled = EXCLUDED.final_project_enabled,
             updated_at = NOW();
@@ -207,6 +212,7 @@ export default async function handler(req: any, res: any) {
           p.endDate,
           p.status || 'UPCOMING',
           p.finalProjectDriveUrl || null,
+          p.instructorDriveUrl || null,
           p.finalProjectDescription || null,
           Boolean(p.finalProjectEnabled),
         ]);
@@ -222,9 +228,9 @@ export default async function handler(req: any, res: any) {
             await client.query(`
               INSERT INTO public.practice_periods (
                 id, course_id, name, period_number, start_date, end_date, status,
-                final_project_drive_url, final_project_description, final_project_enabled, updated_at
+                final_project_drive_url, instructor_drive_url, final_project_description, final_project_enabled, updated_at
               ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW()
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW()
               )
               ON CONFLICT (id) DO UPDATE SET
                 course_id = EXCLUDED.course_id,
@@ -234,6 +240,7 @@ export default async function handler(req: any, res: any) {
                 end_date = EXCLUDED.end_date,
                 status = EXCLUDED.status,
                 final_project_drive_url = EXCLUDED.final_project_drive_url,
+                instructor_drive_url = COALESCE(EXCLUDED.instructor_drive_url, public.practice_periods.instructor_drive_url),
                 final_project_description = EXCLUDED.final_project_description,
                 final_project_enabled = EXCLUDED.final_project_enabled,
                 updated_at = NOW();
@@ -246,6 +253,7 @@ export default async function handler(req: any, res: any) {
               p.endDate,
               p.status || 'UPCOMING',
               p.finalProjectDriveUrl || null,
+              p.instructorDriveUrl || null,
               p.finalProjectDescription || null,
               Boolean(p.finalProjectEnabled),
             ]);

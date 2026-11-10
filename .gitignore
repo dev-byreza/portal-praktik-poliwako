@@ -56,3 +56,9 @@ outputs
 codebase-memory-mcp
 
 .neon
+
+# Credentials & Service Accounts
+google-service-account*.json
+*service-account*.json
+*.pem
+*.key

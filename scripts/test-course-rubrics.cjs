@@ -135,7 +135,13 @@ const fakeClient = {
   },
 };
 const { ApiService } = loadSource('src/services/apiService.ts', {
-  './supabaseClient': { supabase: fakeClient, isSupabaseConfigured: () => live, getCurrentAuthUser: async () => currentAuthUser },
+  './neonAuthClient': {
+    getCurrentAuthUser: async () => currentAuthUser,
+    signInInstructor: async () => ({ error: null }),
+    signUpInstructor: async () => ({ user: null, session: null, error: null }),
+    mockClient: Object.assign(fakeClient, { isConfigured: () => live }),
+  },
+  './driveStorageService': { getSubmissionSignedUrl: async () => null, uploadQuizImage: async () => ({ publicUrl: null, error: null }) },
   './storageService': { StorageService: {
     getCourses: () => cached,
     saveCourses: courses => { cached = courses; },
@@ -144,6 +150,8 @@ const { ApiService } = loadSource('src/services/apiService.ts', {
     getAttendance: () => cachedAttendance,
     saveAttendance: attendance => { cachedAttendance = attendance; },
     getStudentSession: () => storedStudentSession,
+    getParticipants: () => [],
+    saveParticipants: () => {},
   } },
   '../utils/learningAssignments': { getUnitAssignments: () => [] },
   '../utils/learningUnitOrdering': { normalizeLearningUnitNumbers: units => units },

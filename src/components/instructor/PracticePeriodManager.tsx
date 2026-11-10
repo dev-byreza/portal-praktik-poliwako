@@ -21,8 +21,12 @@ import {
   Edit3,
   Zap,
   Check,
-  RotateCcw
+  RotateCcw,
+  FolderUp,
+  RefreshCw,
+  ExternalLink
 } from 'lucide-react';
+import { ApiService } from '../../services/apiService';
 import { Badge } from '../common/Badge';
 import { ModalPortal } from '../common/ModalPortal';
 import { ConfirmDialog } from '../common/ConfirmDialog';
@@ -82,6 +86,7 @@ export const PracticePeriodManager: React.FC = () => {
   const [startDateInput, setStartDateInput] = useState<string>(getWitaDateString());
   const [periodNameInput, setPeriodNameInput] = useState<string>('');
   const [driveUrlInput, setDriveUrlInput] = useState<string>('');
+  const [instructorDriveUrlInput, setInstructorDriveUrlInput] = useState<string>('');
   const [projectDescriptionInput, setProjectDescriptionInput] = useState<string>('');
   const [projectEnabledInput, setProjectEnabledInput] = useState(false);
 
@@ -91,9 +96,11 @@ export const PracticePeriodManager: React.FC = () => {
   const [editEndDateInput, setEditEndDateInput] = useState<string>('');
   const [editStatusInput, setEditStatusInput] = useState<'UPCOMING' | 'ACTIVE' | 'COMPLETED'>('UPCOMING');
   const [editDriveUrlInput, setEditDriveUrlInput] = useState<string>('');
+  const [editInstructorDriveUrlInput, setEditInstructorDriveUrlInput] = useState<string>('');
   const [editProjectDescriptionInput, setEditProjectDescriptionInput] = useState<string>('');
   const [editProjectEnabledInput, setEditProjectEnabledInput] = useState(false);
   const [autoCalculateEndDate, setAutoCalculateEndDate] = useState<boolean>(true);
+  const [isSyncingDrive, setIsSyncingDrive] = useState(false);
 
   // Bulk NIM states (PRD Section 27)
   const [rawNimText, setRawNimText] = useState<string>('');
@@ -163,26 +170,43 @@ export const PracticePeriodManager: React.FC = () => {
     setStartDateInput(suggestedStartDate);
     setPeriodNameInput(`Minggu Praktik ke-${nextNum}`);
     setDriveUrlInput('');
+    setInstructorDriveUrlInput('');
     setProjectDescriptionInput('');
     setProjectEnabledInput(false);
     setIsCreateModalOpen(true);
   };
 
-  const handleSaveNewPeriod = (e: React.FormEvent) => {
+  const handleSaveNewPeriod = async (e: React.FormEvent) => {
     e.preventDefault();
+    const periodName = periodNameInput || `Minggu Praktik ke-${coursePeriods.length + 1}`;
     const newPeriod = createPeriod({
       courseId: activeCourseId,
-      name: periodNameInput || `Minggu Praktik ke-${coursePeriods.length + 1}`,
+      name: periodName,
       startDate: startDateInput,
       endDate: calculatedEndDate,
       finalProjectDriveUrl: driveUrlInput
         ? driveUrlInput.trim()
         : undefined,
+      instructorDriveUrl: instructorDriveUrlInput.trim() || undefined,
       finalProjectDescription: projectDescriptionInput.trim() || undefined,
       finalProjectEnabled: projectEnabledInput
     });
     if (newPeriod) {
       setSelectedPeriodId(newPeriod.id);
+      // Auto-provision Google Drive folders for new period in background
+      if (activeCourse) {
+        ApiService.ensurePeriodDriveFolder(activeCourse.id, activeCourse.name, newPeriod.id, periodName)
+          .then(res => {
+            if (res.success && res.structure) {
+              updatePeriod({
+                ...newPeriod,
+                finalProjectDriveUrl: res.structure.studentSubmissionFolder.webViewLink,
+                instructorDriveUrl: res.structure.instructorAssignmentFolder.webViewLink,
+              });
+            }
+          })
+          .catch(() => {});
+      }
     }
     setIsCreateModalOpen(false);
   };
@@ -196,6 +220,7 @@ export const PracticePeriodManager: React.FC = () => {
     setEditEndDateInput(target.endDate);
     setEditStatusInput(target.status || computePeriodStatus(target.startDate, target.endDate, getWitaDateString()));
     setEditDriveUrlInput(target.finalProjectDriveUrl || '');
+    setEditInstructorDriveUrlInput(target.instructorDriveUrl || '');
     setEditProjectDescriptionInput(target.finalProjectDescription || '');
     setEditProjectEnabledInput(target.finalProjectEnabled === true);
     setAutoCalculateEndDate(true);
@@ -237,11 +262,40 @@ export const PracticePeriodManager: React.FC = () => {
       status: editStatusInput,
       autoStatus: true,
       finalProjectDriveUrl: editDriveUrlInput.trim() || undefined,
+      instructorDriveUrl: editInstructorDriveUrlInput.trim() || undefined,
       finalProjectDescription: editProjectDescriptionInput.trim() || undefined,
       finalProjectEnabled: editProjectEnabledInput
     };
     updatePeriod(updated);
     setIsEditModalOpen(false);
+  };
+
+  // Google Drive Folder Synchronization
+  const handleSyncDrive = async () => {
+    if (!activeSelectedPeriod || !activeCourse) return;
+    setIsSyncingDrive(true);
+    try {
+      const res = await ApiService.ensurePeriodDriveFolder(
+        activeCourse.id,
+        activeCourse.name,
+        activeSelectedPeriod.id,
+        activeSelectedPeriod.name
+      );
+      if (res.success && res.structure) {
+        updatePeriod({
+          ...activeSelectedPeriod,
+          finalProjectDriveUrl: res.structure.studentSubmissionFolder.webViewLink,
+          instructorDriveUrl: res.structure.instructorAssignmentFolder.webViewLink,
+        });
+        showToast('Google Drive Terhubung', 'Folder tugas instruktur & pengumpulan mahasiswa berhasil disinkronkan!', 'success');
+      } else {
+        showToast('Gagal Sinkronisasi', res.error || 'Terjadi kesalahan saat membuat folder Google Drive.', 'error');
+      }
+    } catch (err: any) {
+      showToast('Gagal Sinkronisasi', err.message, 'error');
+    } finally {
+      setIsSyncingDrive(false);
+    }
   };
 
   // Quick activate period
@@ -550,6 +604,78 @@ export const PracticePeriodManager: React.FC = () => {
                 </div>
               </div>
 
+              {/* Google Drive Managed Storage Card */}
+              <div className="bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-slate-50 border border-blue-200/80 rounded-2xl p-4 sm:p-5 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-sm shadow-blue-500/20">
+                      <FolderUp className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                        Penyimpanan Google Drive Terorganisir
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        Folder backup tugas instruktur & pengumpulan tugas mahasiswa terkelola otomatis di Google Drive
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSyncDrive}
+                    disabled={isSyncingDrive}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-blue-200 hover:bg-blue-50 text-blue-700 text-xs font-bold rounded-xl transition-all shadow-xs shrink-0 cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncingDrive ? 'animate-spin' : ''}`} />
+                    <span>{isSyncingDrive ? 'Menyinkronkan...' : 'Sinkronkan Folder Drive'}</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                  {/* Instructor Assignments Backup */}
+                  <div className="bg-white/90 border border-slate-200/90 rounded-xl p-3 flex items-center justify-between gap-2 shadow-xs">
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">01. Soal & Tugas Instruktur</div>
+                      <div className="text-xs font-semibold text-slate-800 truncate">Backup Soal & Instruksi Praktik</div>
+                    </div>
+                    {activeSelectedPeriod.instructorDriveUrl ? (
+                      <a
+                        href={activeSelectedPeriod.instructorDriveUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-lg border border-blue-200 shrink-0 transition-colors"
+                      >
+                        <span>Buka Drive</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ) : (
+                      <span className="text-[10px] text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-200 shrink-0">Belum disinkron</span>
+                    )}
+                  </div>
+
+                  {/* Student Submissions */}
+                  <div className="bg-white/90 border border-slate-200/90 rounded-xl p-3 flex items-center justify-between gap-2 shadow-xs">
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">02. Pengumpulan Mahasiswa</div>
+                      <div className="text-xs font-semibold text-slate-800 truncate">Folder Berkas Tugas & Projek Akhir</div>
+                    </div>
+                    {activeSelectedPeriod.finalProjectDriveUrl ? (
+                      <a
+                        href={activeSelectedPeriod.finalProjectDriveUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-200 shrink-0 transition-colors"
+                      >
+                        <span>Buka Drive</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ) : (
+                      <span className="text-[10px] text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-200 shrink-0">Belum disinkron</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Participants Table */}
               <div>
                 <div className="flex items-center justify-between mb-3">
@@ -682,17 +808,31 @@ export const PracticePeriodManager: React.FC = () => {
                 </p>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                  Link Google Drive Final Project
-                </label>
-                <input
-                  type="url"
-                  value={driveUrlInput}
-                  onChange={e => setDriveUrlInput(e.target.value)}
-                  placeholder="https://drive.google.com/drive/folders/..."
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Link Folder Pengumpulan Mahasiswa
+                  </label>
+                  <input
+                    type="url"
+                    value={driveUrlInput}
+                    onChange={e => setDriveUrlInput(e.target.value)}
+                    placeholder="https://drive.google.com/drive/folders/... (Otomatis dibuat jika kosong)"
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Link Folder Backup Soal Instruktur
+                  </label>
+                  <input
+                    type="url"
+                    value={instructorDriveUrlInput}
+                    onChange={e => setInstructorDriveUrlInput(e.target.value)}
+                    placeholder="https://drive.google.com/drive/folders/... (Otomatis dibuat jika kosong)"
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
               </div>
 
               <div>
@@ -858,17 +998,31 @@ export const PracticePeriodManager: React.FC = () => {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                  Link Google Drive Final Project
-                </label>
-                <input
-                  type="url"
-                  value={editDriveUrlInput}
-                  onChange={e => setEditDriveUrlInput(e.target.value)}
-                  placeholder="https://drive.google.com/drive/folders/..."
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Link Folder Pengumpulan Mahasiswa
+                  </label>
+                  <input
+                    type="url"
+                    value={editDriveUrlInput}
+                    onChange={e => setEditDriveUrlInput(e.target.value)}
+                    placeholder="https://drive.google.com/drive/folders/..."
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Link Folder Backup Soal Instruktur
+                  </label>
+                  <input
+                    type="url"
+                    value={editInstructorDriveUrlInput}
+                    onChange={e => setEditInstructorDriveUrlInput(e.target.value)}
+                    placeholder="https://drive.google.com/drive/folders/..."
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
               </div>
 
               <div>

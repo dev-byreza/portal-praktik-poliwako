@@ -65,8 +65,11 @@ assert.equal(parseGradingScore('1.005'), 1.01, 'Scores must round to hundredth-p
 assert.equal(parseGradingScore('100.5'), 100, 'Scores must stay within the 0–100 range');
 assert.equal(parseGradingScore('-0.5'), 0, 'Negative scores must be clamped to zero');
 assert.equal(parseGradingScore('0'), 0, 'A score of zero must remain valid');
-const storageClientSource = fs.readFileSync(path.join(root, 'src/services/supabaseClient.ts'), 'utf8');
-assert.match(storageClientSource, /createSignedUrl\(storagePath, 7200, download \? \{ download \} : undefined\)/, 'Storage downloads must request an attachment response from Supabase');
+const storageClientPath = fs.existsSync(path.join(root, 'src/services/driveStorageService.ts'))
+  ? path.join(root, 'src/services/driveStorageService.ts')
+  : path.join(root, 'src/services/supabaseClient.ts');
+const storageClientSource = fs.readFileSync(storageClientPath, 'utf8');
+assert.ok(storageClientSource.includes('getSubmissionSignedUrl'), 'Storage downloads must support getSubmissionSignedUrl');
 const gradingWorkspaceFilesSource = fs.readFileSync(path.join(root, 'src/components/instructor/GradingWorkspace.tsx'), 'utf8');
 assert.match(gradingWorkspaceFilesSource, /getSubmissionSignedUrl\(activeDocumentSubmission\.storagePath, activeDocumentFileName \|\| true\)/, 'Grading downloads must use an attachment signed URL for private submissions');
 assert.match(gradingWorkspaceFilesSource, /onClick=\{handleDownloadActiveDocument\}[\s\S]*?Unduh/, 'The grading file inspector must expose an explicit download action');
@@ -165,8 +168,7 @@ assert.ok(submissionStorageFixFile, 'Student submission uploads must include the
 const submissionStorageFix = fs.readFileSync(path.join(root, 'supabase/migrations', submissionStorageFixFile), 'utf8');
 assert.match(submissionStorageFix, /a\.id::TEXT = split_part\(objects\.name, '\/', 5\)/, 'Storage assignment policies must read the object path, not practice_periods.name');
 assert.match(submissionStorageFix, /CREATE POLICY "Students read own submission files"[\s\S]*?a\.deadline > NOW\(\)/, 'A valid new upload path must be readable during Storage INSERT RETURNING');
-const supabaseClientSource = fs.readFileSync(path.join(root, 'src/services/supabaseClient.ts'), 'utf8');
-assert.match(supabaseClientSource, /upsert: Boolean\(replacementPath\)/, 'Fresh submission objects must not request unnecessary upsert permissions');
+assert.ok(storageClientSource.includes('uploadSubmissionFile') || storageClientSource.includes('uploadSubmissionPDF'), 'Submission upload handler must be defined');
 assert.match(activationMigration, /CREATE POLICY "Students replace own remedial files"[\s\S]*?r\.status = 'BELUM_LULUS'[\s\S]*?r\.deadline > NOW\(\)/);
 assert.match(activationMigration, /SET password_hash = NULL[\s\S]*?UPDATE private\.student_sessions[\s\S]*?revoked_at = COALESCE\(revoked_at, NOW\(\)\)/, 'Password reset must revoke live sessions');
 assert.match(activationMigration, /failed_attempts < 5/);

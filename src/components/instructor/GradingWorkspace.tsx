@@ -47,7 +47,7 @@ import {
 import { Badge } from '../common/Badge';
 import { getUnitAssignments } from '../../utils/learningAssignments';
 import { parseGradingScore } from '../../utils/gradingScoreInput';
-import { getSubmissionSignedUrl } from '../../services/supabaseClient';
+import { getSubmissionSignedUrl } from '../../services/driveStorageService';
 
 const canInlinePreview = (fileName?: string): boolean =>
   !!fileName && /\.(pdf|jpe?g|png|webp|gif)$/i.test(fileName);
