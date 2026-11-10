@@ -34,13 +34,14 @@ export default async function handler(req: any, res: any) {
     for (const [key, value] of Object.entries(req.headers || {})) {
       if (!value) continue;
       const lower = key.toLowerCase();
-      if (lower === 'host') {
-        forwardHeaders['host'] = NEON_AUTH_HOST;
+      if (lower === 'host' || lower === 'x-forwarded-host') {
+        forwardHeaders[lower] = NEON_AUTH_HOST;
       } else if (lower !== 'content-length') {
         forwardHeaders[lower] = String(value);
       }
     }
     forwardHeaders['host'] = NEON_AUTH_HOST;
+    forwardHeaders['x-forwarded-host'] = NEON_AUTH_HOST;
 
     // Prepare body
     let body: any = undefined;
