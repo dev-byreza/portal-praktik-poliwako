@@ -72,6 +72,7 @@ interface AppContextType {
   isAdmin: boolean;
   isLiveBackend: boolean;
   loginInstructor: (email: string, password?: string) => Promise<{ success: boolean; message: string }>;
+  loginWithVerifiedNeonUser: (user: any) => Promise<boolean>;
   signUpInstructor: (params: {
     email: string;
     password: string;
@@ -331,63 +332,71 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setActiveCourseIdState('');
   }, []);
 
+  const loginWithVerifiedNeonUser = useCallback(async (user: any): Promise<boolean> => {
+    const email = String(user.email || '').trim().toLowerCase();
+    if (!email.endsWith('@politekniksorowako.ac.id')) {
+      showToast(
+        'Akses Ditolak',
+        `Akun Google (${email}) bukan email resmi @politekniksorowako.ac.id.`,
+        'error'
+      );
+      void signOutNeonAuth();
+      return false;
+    }
+
+    const existingInstructor = StorageService.getInstructor();
+    let canonicalId = existingInstructor?.id || user.id || `inst-${Date.now()}`;
+    if (email === 'rezaf@politekniksorowako.ac.id') {
+      canonicalId = '4b83c7b0-6293-428c-8c6c-840ec3210e38';
+    }
+    const updatedInstructor = {
+      id: canonicalId,
+      name: user.name || existingInstructor?.name || 'Reza Febriadi',
+      email: email,
+      department: existingInstructor?.department || 'Rekayasa Perancangan Mekanik',
+      avatarUrl: user.image || existingInstructor?.avatarUrl,
+    };
+
+    StorageService.saveInstructor(updatedInstructor);
+    StorageService.setInstructorLoggedIn(true);
+    StorageService.setCacheScope(`instructor:${canonicalId}`);
+    setInstructor(updatedInstructor);
+    setIsInstructorLoggedIn(true);
+    setRole('INSTRUCTOR');
+
+    // Load instructor-scoped courses and students immediately
+    try {
+      const [scopedCourses, liveStudents] = await Promise.all([
+        ApiService.getCourses(canonicalId),
+        ApiService.getStudents(),
+      ]);
+      if (scopedCourses && scopedCourses.length > 0) {
+        setCourses(scopedCourses);
+        const activeId = StorageService.getActiveCourseId(canonicalId, scopedCourses) || scopedCourses[0].id;
+        setActiveCourseIdState(activeId);
+        StorageService.setActiveCourseId(activeId, canonicalId);
+      }
+      if (liveStudents && liveStudents.length > 0) {
+        setStudents(liveStudents);
+      }
+    } catch (err) {
+      console.warn('Error loading scoped courses on Neon auth:', err);
+    }
+    showToast('Login Berhasil', `Selamat datang, ${updatedInstructor.name}`, 'success');
+    return true;
+  }, []);
+
   // Check Neon Managed Better Auth session (Google OAuth & Social Login)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     getNeonAuthSession().then((result) => {
       if (!result?.user || !result.user.email) return;
-
-      const email = result.user.email.trim().toLowerCase();
-      if (!email.endsWith('@politekniksorowako.ac.id')) {
-        showToast(
-          'Akses Ditolak',
-          `Akun Google (${email}) bukan email resmi @politekniksorowako.ac.id.`,
-          'error'
-        );
-        void signOutNeonAuth();
-        return;
-      }
-
-      const existingInstructor = StorageService.getInstructor();
-      let canonicalId = existingInstructor?.id || result.user.id || `inst-${Date.now()}`;
-      if (email === 'rezaf@politekniksorowako.ac.id') {
-        canonicalId = '4b83c7b0-6293-428c-8c6c-840ec3210e38';
-      }
-      const updatedInstructor = {
-        id: canonicalId,
-        name: result.user.name || existingInstructor?.name || 'Reza Febriadi',
-        email: email,
-        department: existingInstructor?.department || 'Rekayasa Perancangan Mekanik',
-        avatarUrl: result.user.image || existingInstructor?.avatarUrl,
-      };
-
-      StorageService.saveInstructor(updatedInstructor);
-      StorageService.setInstructorLoggedIn(true);
-      setInstructor(updatedInstructor);
-      setIsInstructorLoggedIn(true);
-      setRole('INSTRUCTOR');
-      StorageService.setCacheScope(`instructor:${canonicalId}`);
-
-      // Load instructor-scoped courses and students immediately
-      ApiService.getCourses(canonicalId).then((scopedCourses) => {
-        if (scopedCourses && scopedCourses.length > 0) {
-          setCourses(scopedCourses);
-          const activeId = StorageService.getActiveCourseId(canonicalId, scopedCourses) || scopedCourses[0].id;
-          setActiveCourseIdState(activeId);
-          StorageService.setActiveCourseId(activeId, canonicalId);
-        }
-      }).catch(err => console.warn('Error loading scoped courses on Neon auth:', err));
-
-      ApiService.getStudents().then((liveStudents) => {
-        if (liveStudents && liveStudents.length > 0) {
-          setStudents(liveStudents);
-        }
-      }).catch(err => console.warn('Error loading students on Neon auth:', err));
+      void loginWithVerifiedNeonUser(result.user);
     }).catch((err) => {
       console.warn('Neon auth session check failed:', err);
     });
-  }, []);
+  }, [loginWithVerifiedNeonUser]);
 
   // Synchronize live data from Supabase backend & reconcile period statuses with realtime internet time
   useEffect(() => {
@@ -2396,6 +2405,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         serverSaveStatus,
         retryServerSave,
         loginInstructor,
+        loginWithVerifiedNeonUser,
         signUpInstructor,
         logoutInstructor,
         activeCourseId,

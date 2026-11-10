@@ -1,7 +1,7 @@
 // Instructor Authentication Full-Page Gate with Pointer-Reactive Cyber Mesh, Glassmorphism, & Presets
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { signInInstructorWithGoogleNeon as signInInstructorWithGoogle } from '../../services/neonAuthClient';
+import { signInInstructorWithGoogleNeon as signInInstructorWithGoogle, getNeonAuthSession } from '../../services/neonAuthClient';
 import { GoogleLogo } from './GoogleLogo';
 import {
   ShieldCheck,
@@ -19,20 +19,31 @@ import {
 } from 'lucide-react';
 
 export const InstructorLoginGate: React.FC = () => {
-  const { loginInstructor, signUpInstructor } = useApp();
+  const { loginInstructor, signUpInstructor, loginWithVerifiedNeonUser } = useApp();
   const [isVerifyingGoogle, setIsVerifyingGoogle] = useState(() => (
     typeof window !== 'undefined' && window.location.search.includes('neon_auth_session_verifier')
   ));
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (typeof window === 'undefined') return;
     if (window.location.search.includes('neon_auth_session_verifier')) {
-      const timer = setTimeout(() => {
+      setIsVerifyingGoogle(true);
+      getNeonAuthSession().then(async (result) => {
+        if (result?.user?.email) {
+          const success = await loginWithVerifiedNeonUser(result.user);
+          if (!success) {
+            setIsVerifyingGoogle(false);
+          }
+        } else {
+          setIsVerifyingGoogle(false);
+          setErrorMsg('Sesi verifikasi Google tidak menghasilkan akun aktif. Silakan coba masuk kembali.');
+        }
+      }).catch((err) => {
         setIsVerifyingGoogle(false);
-      }, 5000);
-      return () => clearTimeout(timer);
+        setErrorMsg('Gagal memverifikasi akun Google: ' + (err.message || 'Koneksi terputus'));
+      });
     }
-  }, []);
+  }, [loginWithVerifiedNeonUser]);
   const [activeTab, setActiveTab] = useState<'LOGIN' | 'SIGNUP'>(() => {
     if (typeof window === 'undefined') return 'LOGIN';
     const storedTab = sessionStorage.getItem('poliwako_auth_tab');

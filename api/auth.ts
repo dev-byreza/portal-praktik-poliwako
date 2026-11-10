@@ -13,18 +13,19 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    // Extract subpath
+    // Extract subpath and all query parameters
     let subpath = '';
+    const parsedUrl = new URL(req.url || '', 'http://localhost');
     if (req.query?.__subpath) {
       subpath = '/' + (Array.isArray(req.query.__subpath) ? req.query.__subpath.join('/') : req.query.__subpath);
-    } else if (req.url) {
-      const parsedUrl = new URL(req.url, 'http://localhost');
+    } else {
       subpath = parsedUrl.pathname.replace(/^\/api\/auth/, '');
-      parsedUrl.searchParams.delete('__subpath');
-      const remainingSearch = parsedUrl.searchParams.toString();
-      if (remainingSearch) {
-        subpath += '?' + remainingSearch;
-      }
+    }
+
+    parsedUrl.searchParams.delete('__subpath');
+    const remainingQuery = parsedUrl.searchParams.toString();
+    if (remainingQuery) {
+      subpath += (subpath.includes('?') ? '&' : '?') + remainingQuery;
     }
 
     const targetUrl = `${NEON_AUTH_BASE}${subpath}`;
@@ -65,16 +66,21 @@ export default async function handler(req: any, res: any) {
     // Forward response headers
     neonRes.headers.forEach((val, key) => {
       const lower = key.toLowerCase();
-      if (lower === 'set-cookie') {
-        // Better Auth sets cookies with Domain or SameSite attributes; strip domain so it binds to current origin
-        const cleanCookie = val.replace(/Domain=[^;]+;?\s*/gi, '');
-        res.setHeader('Set-Cookie', cleanCookie);
-      } else if (lower === 'location') {
-        res.setHeader('Location', val);
-      } else if (lower !== 'transfer-encoding') {
+      if (lower !== 'set-cookie' && lower !== 'transfer-encoding') {
         res.setHeader(key, val);
       }
     });
+
+    const setCookies = typeof (neonRes.headers as any).getSetCookie === 'function'
+      ? (neonRes.headers as any).getSetCookie()
+      : neonRes.headers.get('set-cookie') ? [neonRes.headers.get('set-cookie')!] : [];
+
+    if (setCookies.length > 0) {
+      const cleanCookies = setCookies.map((c: string) =>
+        c.replace(/Domain=[^;]+;?\s*/gi, '')
+      );
+      res.setHeader('Set-Cookie', cleanCookies);
+    }
 
     const data = await neonRes.arrayBuffer();
     return res.end(Buffer.from(data));

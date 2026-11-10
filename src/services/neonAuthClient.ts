@@ -87,14 +87,17 @@ export async function getNeonAuthSession(): Promise<NeonAuthSessionResult | null
     });
 
     const data = await res.json().catch(() => null);
-    if (data?.user && data?.session) {
+    const user = data?.user || data?.data?.user;
+    const session = data?.session || data?.data?.session;
+
+    if (user && user.email) {
       if (verifier && typeof window.history?.replaceState === 'function') {
         searchParams.delete('neon_auth_session_verifier');
         const cleanQuery = searchParams.toString();
         const cleanUrl = window.location.pathname + (cleanQuery ? `?${cleanQuery}` : '') + window.location.hash;
         window.history.replaceState({}, '', cleanUrl);
       }
-      return data as NeonAuthSessionResult;
+      return { user, session: session || { id: 'neon-' + Date.now(), userId: user.id, expiresAt: '' } } as NeonAuthSessionResult;
     }
   } catch (err) {
     console.warn('Neon Better Auth getSession error:', err);
