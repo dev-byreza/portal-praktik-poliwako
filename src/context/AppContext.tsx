@@ -198,7 +198,7 @@ const newEntityId = (prefix: string): string => (
 );
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const isLiveBackend = useMemo(() => isSupabaseConfigured(), []);
+  const isLiveBackend = useMemo(() => ApiService.isLiveBackend(), []);
   const [studentSession, setStudentSessionState] = useState<StudentSession | null>(() => {
     const session = StorageService.getStudentSession();
     if (isLiveBackend) {
@@ -322,12 +322,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // session inside the protected dashboard.
   const clearLiveInstructorSession = useCallback(() => {
     StorageService.setInstructorLoggedIn(false);
-    StorageService.setCacheScope(studentSession ? `student:${studentSession.studentId}:${studentSession.periodId}` : 'public');
+    const session = StorageService.getStudentSession();
+    StorageService.setCacheScope(session ? `student:${session.studentId}:${session.periodId}` : 'public');
     setIsInstructorLoggedIn(false);
     setRole('STUDENT');
     setCourses([]);
     setActiveCourseIdState('');
-  }, [studentSession]);
+  }, []);
 
   // Keep React state aligned with Supabase Auth across refresh, token expiry,
   // sign-in from another tab, and explicit sign-out.
@@ -534,9 +535,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.warn('Refresh data portal notice:', error);
       }
     };
-    const handleWindowFocus = () => { void refreshLiveData(); };
-    // Refresh berkala setiap 3 menit (180 detik) untuk menghemat kuota egress Supabase
-    const refreshTimer = window.setInterval(() => { void refreshLiveData(); }, 180000);
+    let lastFocusRefresh = Date.now();
+    const handleWindowFocus = () => {
+      const now = Date.now();
+      // Throttle focus refetch to at least 90s to avoid hammering Neon database
+      if (now - lastFocusRefresh > 90000 && document.visibilityState === 'visible') {
+        lastFocusRefresh = now;
+        void refreshLiveData();
+      }
+    };
+    // Refresh berkala setiap 5 menit (300 detik) jika tab aktif untuk menghemat koneksi database Neon
+    const refreshTimer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void refreshLiveData();
+      }
+    }, 300000);
 
     syncBackendData();
     window.addEventListener('focus', handleWindowFocus);
@@ -549,7 +562,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   }, [
     isLiveBackend,
-    isInstructorLoggedIn,
     studentSession?.studentId,
     studentSession?.periodId,
     studentSession?.sessionToken,

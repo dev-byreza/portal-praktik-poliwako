@@ -108,6 +108,26 @@ const mapAssignmentRow = (row: any): Assignment => ({
 
 let neonBootstrapPromise: Promise<any> | null = null;
 let lastNeonFetchTime = 0;
+export function invalidateNeonBootstrapData(): void {
+  neonBootstrapPromise = null;
+  lastNeonFetchTime = 0;
+}
+
+export async function mutateNeon(action: string, payload: any): Promise<any> {
+  if (typeof window === 'undefined') return null;
+  const res = await fetch('/api/mutate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, payload }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.error || `Gagal memproses ke database Neon (HTTP ${res.status})`);
+  }
+  invalidateNeonBootstrapData();
+  return data;
+}
+
 async function getNeonBootstrapData(): Promise<any> {
   if (typeof window === 'undefined') return null;
   const now = Date.now();
@@ -130,6 +150,9 @@ async function getNeonBootstrapData(): Promise<any> {
 
 export class ApiService {
   static isLiveBackend(): boolean {
+    if (typeof window !== 'undefined') {
+      return true;
+    }
     return isSupabaseConfigured();
   }
 
@@ -348,28 +371,36 @@ export class ApiService {
   }
 
   static async saveCourse(course: Course): Promise<Course> {
-    if (this.isLiveBackend() && !supabase) throw new Error('Supabase belum tersedia; mata kuliah belum tersimpan.');
-    let savedCourse = course;
-    if (this.isLiveBackend() && supabase) {
-      // Legacy local IDs are not UUIDs. Deterministic IDs make failed saves retryable.
-      const databaseId = async (id: string, kind: string): Promise<string> => {
-        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return id;
-        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(course.id + ':' + kind + ':' + id));
-        const bytes = new Uint8Array(digest).slice(0, 16);
-        bytes[6] = (bytes[6] & 15) | 128;
-        bytes[8] = (bytes[8] & 63) | 128;
-        const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
-        return [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20)].join('-');
-      };
-      const subCpmks = await Promise.all(course.subCpmks.map(async s => ({ ...s, id: await databaseId(s.id, 'sub-cpmk') })));
-      const subIds = new Map(course.subCpmks.map((s, i) => [s.id, subCpmks[i].id]));
-      const qualityRubrics = await Promise.all(course.qualityRubrics.map(async r => ({
-        ...r,
-        id: await databaseId(r.id, 'rubric'),
-        subCpmkId: r.subCpmkId ? subIds.get(r.subCpmkId) : undefined,
-      })));
-      savedCourse = { ...course, subCpmks, qualityRubrics };
+    if (!this.isLiveBackend()) {
+      StorageService.saveCourses([
+        ...StorageService.getCourses().filter(c => c.id !== course.id), course,
+      ]);
+      return course;
+    }
 
+    let savedCourse = course;
+    // Legacy local IDs are not UUIDs. Deterministic IDs make failed saves retryable.
+    const databaseId = async (id: string, kind: string): Promise<string> => {
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return id;
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(course.id + ':' + kind + ':' + id));
+      const bytes = new Uint8Array(digest).slice(0, 16);
+      bytes[6] = (bytes[6] & 15) | 128;
+      bytes[8] = (bytes[8] & 63) | 128;
+      const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+      return [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20)].join('-');
+    };
+    const subCpmks = await Promise.all(course.subCpmks.map(async s => ({ ...s, id: await databaseId(s.id, 'sub-cpmk') })));
+    const subIds = new Map(course.subCpmks.map((s, i) => [s.id, subCpmks[i].id]));
+    const qualityRubrics = await Promise.all(course.qualityRubrics.map(async r => ({
+      ...r,
+      id: await databaseId(r.id, 'rubric'),
+      subCpmkId: r.subCpmkId ? subIds.get(r.subCpmkId) : undefined,
+    })));
+    savedCourse = { ...course, subCpmks, qualityRubrics };
+
+    if (typeof window !== 'undefined') {
+      await mutateNeon('save_course', { course: savedCourse });
+    } else if (supabase) {
       const { error: courseError } = await supabase.from('courses').upsert({
         id: course.id,
         instructor_id: course.instructorId,
@@ -417,6 +448,8 @@ export class ApiService {
         const { error } = await supabase.from('course_sub_cpmk').delete().eq('course_id', course.id).in('id', removedSubCpmks);
         if (error) throw error;
       }
+    } else {
+      throw new Error('Supabase belum tersedia; mata kuliah belum tersimpan.');
     }
 
     StorageService.saveCourses([
@@ -426,13 +459,16 @@ export class ApiService {
   }
 
   static async deleteCourse(courseId: string): Promise<void> {
-    if (this.isLiveBackend() && !supabase) throw new Error('Supabase belum tersedia; mata kuliah belum dihapus.');
-    if (this.isLiveBackend() && supabase) {
+    if (typeof window !== 'undefined') {
+      await mutateNeon('delete_course', { id: courseId });
+    } else if (this.isLiveBackend() && supabase) {
       const { error } = await supabase
         .from('courses')
         .delete()
         .eq('id', courseId);
       if (error) throw error;
+    } else if (this.isLiveBackend() && !supabase) {
+      throw new Error('Supabase belum tersedia; mata kuliah belum dihapus.');
     }
 
     StorageService.saveCourses(StorageService.getCourses().filter(course => course.id !== courseId));
@@ -761,8 +797,9 @@ export class ApiService {
   }
 
   static async saveStudent(student: Student, instructorId?: string): Promise<void> {
-    if (this.isLiveBackend() && (!supabase || !instructorId)) throw new Error('Sesi instruktur belum siap; mahasiswa belum tersimpan.');
-    if (this.isLiveBackend() && supabase && instructorId) {
+    if (typeof window !== 'undefined') {
+      await mutateNeon('save_student', { student });
+    } else if (this.isLiveBackend() && supabase && instructorId) {
       const { error } = await supabase.from('students').upsert({
           id: student.id,
           instructor_id: instructorId,
@@ -774,16 +811,21 @@ export class ApiService {
           updated_at: new Date().toISOString(),
         }).select('id').single();
       if (error) throw error;
+    } else if (this.isLiveBackend() && (!supabase || !instructorId)) {
+      throw new Error('Sesi instruktur belum siap; mahasiswa belum tersimpan.');
     }
     const list = StorageService.getStudents().filter((s) => s.id !== student.id);
     StorageService.saveStudents([...list, student]);
   }
 
   static async deleteStudent(studentId: string): Promise<void> {
-    if (this.isLiveBackend() && !supabase) throw new Error('Supabase belum tersedia; mahasiswa belum dihapus.');
-    if (this.isLiveBackend() && supabase) {
+    if (typeof window !== 'undefined') {
+      await mutateNeon('delete_student', { id: studentId });
+    } else if (this.isLiveBackend() && supabase) {
       const { error } = await supabase.from('students').delete().eq('id', studentId);
       if (error) throw error;
+    } else if (this.isLiveBackend() && !supabase) {
+      throw new Error('Supabase belum tersedia; mahasiswa belum dihapus.');
     }
     const students = StorageService.getStudents().filter(student => student.id !== studentId);
     StorageService.saveStudents(students);
@@ -839,17 +881,21 @@ export class ApiService {
   }
 
   static async deletePeriod(periodId: string): Promise<void> {
-    if (this.isLiveBackend() && !supabase) throw new Error('Supabase belum tersedia; periode belum dihapus.');
-    if (this.isLiveBackend() && supabase) {
+    if (typeof window !== 'undefined') {
+      await mutateNeon('delete_period', { id: periodId });
+    } else if (this.isLiveBackend() && supabase) {
       const { error } = await supabase.from('practice_periods').delete().eq('id', periodId);
       if (error) throw error;
+    } else if (this.isLiveBackend() && !supabase) {
+      throw new Error('Supabase belum tersedia; periode belum dihapus.');
     }
     StorageService.savePeriods(StorageService.getPeriods().filter(period => period.id !== periodId));
   }
 
   static async savePeriod(period: PracticePeriod): Promise<void> {
-    if (this.isLiveBackend() && !supabase) throw new Error('Supabase belum tersedia; periode belum tersimpan.');
-    if (this.isLiveBackend() && supabase) {
+    if (typeof window !== 'undefined') {
+      await mutateNeon('save_period', { period });
+    } else if (this.isLiveBackend() && supabase) {
       try {
         const { error } = await supabase.from('practice_periods').upsert({
           id: period.id,
@@ -869,14 +915,18 @@ export class ApiService {
         console.error('Error syncing period to Supabase:', err);
         throw err;
       }
+    } else if (this.isLiveBackend() && !supabase) {
+      throw new Error('Supabase belum tersedia; periode belum tersimpan.');
     }
     const periods = StorageService.getPeriods().filter((p) => p.id !== period.id);
     StorageService.savePeriods([...periods, period]);
   }
 
   static async savePeriodsBulk(periodsList: PracticePeriod[]): Promise<void> {
-    if (this.isLiveBackend() && !supabase) throw new Error('Supabase belum tersedia; perubahan periode belum tersimpan.');
-    if (this.isLiveBackend() && supabase && periodsList.length > 0) {
+    if (periodsList.length === 0) return;
+    if (typeof window !== 'undefined') {
+      await mutateNeon('save_periods_bulk', { periods: periodsList });
+    } else if (this.isLiveBackend() && supabase) {
       try {
         const rows = periodsList.map((p) => ({
           id: p.id,
@@ -897,26 +947,32 @@ export class ApiService {
         console.error('Error batch syncing periods to Supabase:', err);
         throw err;
       }
+    } else if (this.isLiveBackend() && !supabase) {
+      throw new Error('Supabase belum tersedia; perubahan periode belum tersimpan.');
     }
     StorageService.savePeriods(periodsList);
   }
 
   static async saveFinalProject(participant: PracticeParticipant): Promise<void> {
-    if (this.isLiveBackend() && !supabase) throw new Error('Supabase belum tersedia; proyek belum tersimpan.');
-    if (this.isLiveBackend() && supabase) {
+    if (typeof window !== 'undefined') {
+      await mutateNeon('save_participant', { participant });
+    } else if (this.isLiveBackend() && supabase) {
       const {error} = await supabase.from('practice_participants').update({
         final_project_confirmed: participant.finalProjectConfirmed, final_project_submitted_at: participant.finalProjectSubmittedAt,
         final_project_url: participant.finalProjectUrl, final_project_review_status: participant.finalProjectReviewStatus,
         final_project_feedback: participant.finalProjectFeedback || null, progress_status: participant.progressStatus,
       }).eq('id', participant.id).select('id').single();
       if (error) throw new Error(`Proyek belum tersimpan: ${error.message}`);
+    } else if (this.isLiveBackend() && !supabase) {
+      throw new Error('Supabase belum tersedia; proyek belum tersimpan.');
     }
     StorageService.saveParticipants(StorageService.getParticipants().map(p => p.id === participant.id ? participant : p));
   }
 
   static async saveParticipant(participant: PracticeParticipant): Promise<void> {
-    if (this.isLiveBackend() && !supabase) throw new Error('Supabase belum tersedia; peserta belum tersimpan.');
-    if (this.isLiveBackend() && supabase) {
+    if (typeof window !== 'undefined') {
+      await mutateNeon('save_participant', { participant });
+    } else if (this.isLiveBackend() && supabase) {
       const { error } = await supabase.from('practice_participants').upsert({
         id: participant.id,
         period_id: participant.periodId,
@@ -927,6 +983,8 @@ export class ApiService {
         final_project_confirmed: participant.finalProjectConfirmed,
       }, { onConflict: 'period_id,student_id' });
       if (error) throw error;
+    } else if (this.isLiveBackend() && !supabase) {
+      throw new Error('Supabase belum tersedia; peserta belum tersimpan.');
     }
 
     const stored = StorageService.getParticipants().filter(item => item.id !== participant.id && !(item.periodId === participant.periodId && item.studentId === participant.studentId));
@@ -934,10 +992,13 @@ export class ApiService {
   }
 
   static async deleteParticipant(participantId: string): Promise<void> {
-    if (this.isLiveBackend() && !supabase) throw new Error('Supabase belum tersedia; peserta belum dihapus.');
-    if (this.isLiveBackend() && supabase) {
+    if (typeof window !== 'undefined') {
+      await mutateNeon('delete_participant', { id: participantId });
+    } else if (this.isLiveBackend() && supabase) {
       const { error } = await supabase.from('practice_participants').delete().eq('id', participantId);
       if (error) throw error;
+    } else if (this.isLiveBackend() && !supabase) {
+      throw new Error('Supabase belum tersedia; peserta belum dihapus.');
     }
     StorageService.saveParticipants(StorageService.getParticipants().filter(item => item.id !== participantId));
   }
@@ -1333,22 +1394,25 @@ export class ApiService {
 
   /** Persist a unit and its related materials/assignment for instructor edits. */
   static async saveLearningUnit(unit: LearningUnit): Promise<LearningUnit> {
-    if (this.isLiveBackend() && !supabase) throw new Error('Supabase belum tersedia; unit pembelajaran belum tersimpan.');
-    if (this.isLiveBackend() && supabase) {
-      const unitId = await databaseId(unit.id, 'learning-unit');
-      const savedMaterials = await Promise.all(unit.materials.map(async (material, index) => ({
-        ...material,
-        id: await databaseId(material.id, `learning-material:${unit.id}`),
-        unitId,
-        // Reuse the existing timestamp column as the persisted display order.
-        // The list is rewritten in its current order whenever the unit is saved.
-        createdAt: new Date(Date.now() + index).toISOString(),
-      })));
-      const savedAssignments = await Promise.all(getUnitAssignments(unit).map(async assignment => ({
-        ...assignment,
-        id: await databaseId(assignment.id, `assignment:${unit.id}`),
-        unitId,
-      })));
+    const unitId = await databaseId(unit.id, 'learning-unit');
+    const savedMaterials = await Promise.all(unit.materials.map(async (material, index) => ({
+      ...material,
+      id: await databaseId(material.id, `learning-material:${unit.id}`),
+      unitId,
+      // Reuse the existing timestamp column as the persisted display order.
+      // The list is rewritten in its current order whenever the unit is saved.
+      createdAt: new Date(Date.now() + index).toISOString(),
+    })));
+    const savedAssignments = await Promise.all(getUnitAssignments(unit).map(async assignment => ({
+      ...assignment,
+      id: await databaseId(assignment.id, `assignment:${unit.id}`),
+      unitId,
+    })));
+    const savedUnit = { ...unit, id: unitId, materials: savedMaterials, assignments: savedAssignments, assignment: savedAssignments[0] };
+
+    if (typeof window !== 'undefined') {
+      await mutateNeon('save_learning_unit', { unit: savedUnit });
+    } else if (this.isLiveBackend() && supabase) {
       if (savedMaterials.some(material => material.type === 'QUIZ' && material.quiz)) {
         const { error: quizArchitectureError } = await supabase.from('quiz_definitions').select('id').limit(1);
         if (quizArchitectureError) {
@@ -1511,10 +1575,11 @@ export class ApiService {
           .eq('unit_id', unitId);
         if (assignmentDeleteError) throw assignmentDeleteError;
       }
-      const savedUnit = { ...unit, id: unitId, materials: savedMaterials, assignments: savedAssignments, assignment: savedAssignments[0] };
       const units = StorageService.getLearningUnits().filter(existing => existing.id !== unit.id && existing.id !== unitId);
       StorageService.saveLearningUnits([...units, savedUnit]);
       return savedUnit;
+    } else if (this.isLiveBackend() && !supabase) {
+      throw new Error('Supabase belum tersedia; unit pembelajaran belum tersimpan.');
     }
     const units = StorageService.getLearningUnits().filter(existing => existing.id !== unit.id);
     StorageService.saveLearningUnits([...units, unit]);
@@ -1522,10 +1587,13 @@ export class ApiService {
   }
 
   static async deleteLearningUnit(unitId: string): Promise<void> {
-    if (this.isLiveBackend() && !supabase) throw new Error('Supabase belum tersedia; unit pembelajaran belum dihapus.');
-    if (this.isLiveBackend() && supabase) {
+    if (typeof window !== 'undefined') {
+      await mutateNeon('delete_learning_unit', { id: await databaseId(unitId, 'learning-unit') });
+    } else if (this.isLiveBackend() && supabase) {
       const { error } = await supabase.from('learning_units').delete().eq('id', await databaseId(unitId, 'learning-unit'));
       if (error) throw error;
+    } else if (this.isLiveBackend() && !supabase) {
+      throw new Error('Supabase belum tersedia; unit pembelajaran belum dihapus.');
     }
     StorageService.saveLearningUnits(StorageService.getLearningUnits().filter(unit => unit.id !== unitId));
   }
@@ -1553,7 +1621,25 @@ export class ApiService {
     periodId: string;
     answers: Record<string, string>;
   }): Promise<QuizAttemptResult | null> {
-    if (!this.isLiveBackend() || !supabase || !params.sessionToken) return null;
+    if (!params.sessionToken) return null;
+    if (typeof window !== 'undefined') {
+      const result = await mutateNeon('submit_quiz', params);
+      if (!result) return null;
+      return {
+        attemptId: result.attemptId || undefined,
+        score: Number(result.score || 0),
+        correct: Number(result.correct || 0),
+        total: Number(result.total || 0),
+        passed: result.passed == null ? undefined : Boolean(result.passed),
+        submittedAt: new Date().toISOString(),
+        answers: Array.isArray(result.answers) ? result.answers.map((answer: any) => ({
+          questionId: answer.questionId,
+          correctOptionId: answer.correctOptionId || undefined,
+          isCorrect: Boolean(answer.isCorrect),
+        })) : [],
+      };
+    }
+    if (!this.isLiveBackend() || !supabase) return null;
     const { data, error } = await supabase.rpc('submit_quiz_attempt', {
       p_session_token: params.sessionToken,
       p_material_id: params.materialId,
@@ -1582,7 +1668,24 @@ export class ApiService {
     materialId: string;
     periodId: string;
   }): Promise<QuizAttemptResult | null> {
-    if (!this.isLiveBackend() || !supabase || !params.sessionToken) return null;
+    if (!params.sessionToken) return null;
+    if (typeof window !== 'undefined') {
+      const data = await mutateNeon('get_quiz_attempt', params);
+      if (!data) return null;
+      return {
+        attemptId: data.attemptId || undefined,
+        score: Number(data.score || 0),
+        correct: Number(data.correct || 0),
+        total: Number(data.total || 0),
+        submittedAt: data.submittedAt || new Date().toISOString(),
+        answers: Array.isArray(data.answers) ? data.answers.map((answer: any) => ({
+          questionId: answer.questionId,
+          correctOptionId: answer.correctOptionId || undefined,
+          isCorrect: Boolean(answer.isCorrect),
+        })) : [],
+      };
+    }
+    if (!this.isLiveBackend() || !supabase) return null;
     const { data, error } = await supabase.rpc('get_student_quiz_attempt', {
       p_session_token: params.sessionToken,
       p_material_id: params.materialId,
@@ -1700,18 +1803,21 @@ export class ApiService {
   }
 
   static async saveRemedial(remedial: RemedialAssignment): Promise<RemedialAssignment> {
-    if (this.isLiveBackend() && !supabase) throw new Error('Supabase belum tersedia; remedial tidak disimpan.');
-    if (this.isLiveBackend() && supabase) {
+    if (typeof window !== 'undefined') {
+      await mutateNeon('save_remedial', { remedial });
+    } else if (this.isLiveBackend() && supabase) {
       const {error} = await supabase.from('remedial_assignments').update({
         submission_file_name: remedial.submissionFileName, submission_file_url: remedial.submissionStoragePath || remedial.submissionFileUrl,
         submission_storage_path: remedial.submissionStoragePath || null, submitted_at: remedial.submittedAt, status: remedial.status,
       }).eq('id', remedial.id).select('id').single();
       if (error) throw new Error(`Bukti remedial gagal disimpan: ${error.message}`);
+    } else if (this.isLiveBackend() && !supabase) {
+      throw new Error('Supabase belum tersedia; remedial tidak disimpan.');
     }
     const signedUrl = remedial.submissionStoragePath
       ? await getSubmissionSignedUrl(remedial.submissionStoragePath)
       : null;
-    if (this.isLiveBackend() && remedial.submissionStoragePath && !signedUrl) {
+    if (this.isLiveBackend() && supabase && remedial.submissionStoragePath && !signedUrl) {
       throw new Error('Bukti tersimpan tetapi tautan aman belum dapat dibuat. Coba muat ulang sebelum mengirim ulang.');
     }
     const savedRemedial = signedUrl ? { ...remedial, submissionFileUrl: signedUrl } : remedial;
@@ -1720,8 +1826,9 @@ export class ApiService {
   }
 
   static async saveRemedialDefinition(remedial: RemedialAssignment): Promise<void> {
-    if (this.isLiveBackend() && !supabase) throw new Error('Supabase belum tersedia; remedial tidak disimpan.');
-    if (this.isLiveBackend() && supabase) {
+    if (typeof window !== 'undefined') {
+      await mutateNeon('save_remedial', { remedial });
+    } else if (this.isLiveBackend() && supabase) {
       const {error} = await supabase.from('remedial_assignments').upsert({
         id: remedial.id, period_id: remedial.periodId, student_id: remedial.studentId,
         title: remedial.title, description: remedial.description, deadline: remedial.deadline,
@@ -1729,6 +1836,8 @@ export class ApiService {
         submission_storage_path: remedial.submissionStoragePath || null, submitted_at: remedial.submittedAt || null, status: remedial.status, reviewed_at: remedial.reviewedAt || null,
       });
       if (error) throw new Error(`Remedial gagal disimpan: ${error.message}`);
+    } else if (this.isLiveBackend() && !supabase) {
+      throw new Error('Supabase belum tersedia; remedial tidak disimpan.');
     }
     StorageService.saveRemedials([...StorageService.getRemedials().filter(r => r.id !== remedial.id), remedial]);
   }
@@ -1740,8 +1849,10 @@ export class ApiService {
       ...submission,
       submittedAt: new Date().toISOString(),
     };
-    if (this.isLiveBackend() && !supabase) throw new Error('Supabase belum tersedia; pengumpulan tidak disimpan.');
-    if (this.isLiveBackend() && supabase) {
+    if (typeof window !== 'undefined') {
+      const res = await mutateNeon('save_submission', { submission: persistedSubmission });
+      if (res?.submittedAt) persistedSubmission.submittedAt = res.submittedAt;
+    } else if (this.isLiveBackend() && supabase) {
       const submissionClient = supabase;
       const submissionPayload = {
         id: persistedSubmission.id, assignment_id: persistedSubmission.assignmentId, student_id: persistedSubmission.studentId, period_id: persistedSubmission.periodId,
@@ -1773,6 +1884,8 @@ export class ApiService {
         if (!signedUrl) throw new Error('Pengumpulan tersimpan tetapi tautan aman berkas belum dapat dibuat.');
         persistedSubmission.fileUrl = signedUrl;
       }
+    } else if (this.isLiveBackend() && !supabase) {
+      throw new Error('Supabase belum tersedia; pengumpulan tidak disimpan.');
     }
     const stored = StorageService.getSubmissions().filter((item) => !(item.assignmentId === persistedSubmission.assignmentId && item.studentId === persistedSubmission.studentId && item.periodId === persistedSubmission.periodId));
     StorageService.saveSubmissions([...stored, persistedSubmission]);
@@ -1780,7 +1893,18 @@ export class ApiService {
   }
 
   static async reviewSubmission(submission: Submission): Promise<Submission> {
-    if (this.isLiveBackend() && supabase) {
+    if (typeof window !== 'undefined') {
+      const res = await mutateNeon('review_submission', {
+        id: submission.id,
+        status: submission.status,
+        reviewFeedback: submission.reviewFeedback,
+        reviewedAt: submission.reviewedAt,
+        revisionNumber: submission.revisionNumber,
+      });
+      if (res?.submission) {
+        submission = { ...submission, ...res.submission };
+      }
+    } else if (this.isLiveBackend() && supabase) {
       const { data, error } = await supabase
         .from('submissions')
         .update({
@@ -1804,6 +1928,8 @@ export class ApiService {
         reviewedAt: data.reviewed_at || undefined,
         revisionNumber: Number(data.revision_number || submission.revisionNumber || 1),
       };
+    } else if (this.isLiveBackend() && !supabase) {
+      throw new Error('Supabase belum tersedia; hasil periksa tugas belum disimpan.');
     }
     const stored = StorageService.getSubmissions().map(item => item.id === submission.id ? submission : item);
     StorageService.saveSubmissions(stored);
@@ -1816,8 +1942,9 @@ export class ApiService {
 
   static async saveAssessmentsBulk(assessments: Assessment[]): Promise<void> {
     if (assessments.length === 0) return;
-    if (this.isLiveBackend() && !supabase) throw new Error('Supabase belum tersedia; nilai belum dikonfirmasi tersimpan.');
-    if (this.isLiveBackend() && supabase) {
+    if (typeof window !== 'undefined') {
+      await mutateNeon('save_assessments_bulk', { assessments });
+    } else if (this.isLiveBackend() && supabase) {
       try {
         const { error } = await supabase.from('assessments').upsert(assessments.map(assessment => ({
           id: assessment.id,
@@ -1848,6 +1975,8 @@ export class ApiService {
         console.error('Error syncing assessment to Supabase:', err);
         throw err;
       }
+    } else if (this.isLiveBackend() && !supabase) {
+      throw new Error('Supabase belum tersedia; nilai belum dikonfirmasi tersimpan.');
     }
 
     const saved = StorageService.getAssessments();
@@ -1900,8 +2029,9 @@ export class ApiService {
   }
 
   static async saveAttendanceRecord(record: AttendanceRecord): Promise<void> {
-    if (this.isLiveBackend() && !supabase) throw new Error('Supabase belum tersedia; presensi tidak disimpan.');
-    if (this.isLiveBackend() && supabase) {
+    if (typeof window !== 'undefined') {
+      await mutateNeon('save_attendance', { attendance: record });
+    } else if (this.isLiveBackend() && supabase) {
       const { error } = await supabase.from('attendance_records').upsert({
           period_id: record.periodId,
           student_id: record.studentId,
@@ -1915,6 +2045,8 @@ export class ApiService {
           updated_at: new Date().toISOString(),
         }, { onConflict: 'period_id,student_id' });
       if (error) throw error;
+    } else if (this.isLiveBackend() && !supabase) {
+      throw new Error('Supabase belum tersedia; presensi tidak disimpan.');
     }
     const list = StorageService.getAttendance().filter(
       (a) => !(a.periodId === record.periodId && a.studentId === record.studentId)
@@ -1924,8 +2056,9 @@ export class ApiService {
 
   static async saveAttendanceBulk(records: AttendanceRecord[]): Promise<void> {
     if (records.length === 0) return;
-    if (this.isLiveBackend() && !supabase) throw new Error('Supabase belum tersedia; presensi tidak disimpan.');
-    if (this.isLiveBackend() && supabase) {
+    if (typeof window !== 'undefined') {
+      await mutateNeon('save_attendance_bulk', { attendance: records });
+    } else if (this.isLiveBackend() && supabase) {
         const rows = records.map((r) => ({
           period_id: r.periodId,
           student_id: r.studentId,
@@ -1940,6 +2073,8 @@ export class ApiService {
         }));
         const { error } = await supabase.from('attendance_records').upsert(rows, { onConflict: 'period_id,student_id' });
         if (error) throw error;
+    } else if (this.isLiveBackend() && !supabase) {
+      throw new Error('Supabase belum tersedia; presensi tidak disimpan.');
     }
     const existing = StorageService.getAttendance();
     const updatedMap = new Map<string, AttendanceRecord>(records.map(r => [`${r.periodId}_${r.studentId}`, r]));
@@ -1996,9 +2131,10 @@ export class ApiService {
   }
 
   static async saveAnnouncement(announcement: Announcement): Promise<Announcement> {
-    if (this.isLiveBackend() && !supabase) throw new Error('Supabase belum tersedia; pengumuman belum tersimpan.');
     let saved = announcement;
-    if (this.isLiveBackend() && supabase) {
+    if (typeof window !== 'undefined') {
+      await mutateNeon('save_announcement', { announcement });
+    } else if (this.isLiveBackend() && supabase) {
       const databaseAnnouncementId = await databaseId(announcement.id, 'announcement');
       const { data, error } = await supabase.from('announcements').upsert({
         id: databaseAnnouncementId,
@@ -2017,6 +2153,8 @@ export class ApiService {
         id: data.id,
         publishedAt: data.published_at,
       };
+    } else if (this.isLiveBackend() && !supabase) {
+      throw new Error('Supabase belum tersedia; pengumuman belum tersimpan.');
     }
 
     StorageService.saveAnnouncements([
@@ -2027,10 +2165,13 @@ export class ApiService {
   }
 
   static async deleteAnnouncement(announcementId: string): Promise<void> {
-    if (this.isLiveBackend() && !supabase) throw new Error('Supabase belum tersedia; pengumuman belum dihapus.');
-    if (this.isLiveBackend() && supabase) {
+    if (typeof window !== 'undefined') {
+      await mutateNeon('delete_announcement', { id: await databaseId(announcementId, 'announcement') });
+    } else if (this.isLiveBackend() && supabase) {
       const { error } = await supabase.from('announcements').delete().eq('id', await databaseId(announcementId, 'announcement'));
       if (error) throw new Error(`Pengumuman gagal dihapus: ${error.message}`);
+    } else if (this.isLiveBackend() && !supabase) {
+      throw new Error('Supabase belum tersedia; pengumuman belum dihapus.');
     }
     StorageService.saveAnnouncements(StorageService.getAnnouncements().filter(item => item.id !== announcementId));
   }

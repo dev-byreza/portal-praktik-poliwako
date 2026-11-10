@@ -41,6 +41,10 @@ function neonApiPlugin() {
             const { default: handler } = await server.ssrLoadModule('./api/data.ts');
             return await handler(req, customRes);
           }
+          if (req.url.startsWith('/api/mutate')) {
+            const { default: handler } = await server.ssrLoadModule('./api/mutate.ts');
+            return await handler(req, customRes);
+          }
         } catch (err: any) {
           console.error('Neon dev API error:', err);
           return customRes.status(500).json({ error: err.message });

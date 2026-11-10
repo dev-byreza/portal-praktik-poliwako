@@ -1,19 +1,5 @@
-import pg from 'pg';
-
-const connectionString = process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_7yzdZokMS8gw@ep-quiet-lab-b39rfs7j-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
-
-let pool: pg.Pool | null = null;
-function getPool() {
-  if (!pool) {
-    pool = new pg.Pool({
-      connectionString,
-      ssl: { rejectUnauthorized: false },
-      max: 10,
-      idleTimeoutMillis: 30000,
-    });
-  }
-  return pool;
-}
+import { getDbPool } from './_db.ts';
+import type pg from 'pg';
 
 export default async function handler(req: any, res: any) {
   // Set CORS headers
@@ -38,7 +24,7 @@ export default async function handler(req: any, res: any) {
 
   let client: pg.PoolClient | null = null;
   try {
-    client = await getPool().connect();
+    client = await getDbPool().connect();
     if (action === 'lookup') {
       const lookupRes = await client.query(
         'SELECT public.student_auth_lookup($1, $2, $3) as result',

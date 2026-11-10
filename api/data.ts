@@ -1,30 +1,32 @@
-import pg from 'pg';
+import { getDbPool } from './_db.ts';
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_7yzdZokMS8gw@ep-quiet-lab-b39rfs7j-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
+let cachedData: any = null;
+let lastCacheTime = 0;
+const CACHE_TTL_MS = 4000; // 4 seconds in-memory cache to coalesce bursts
 
-let pool: pg.Pool | null = null;
-function getPool() {
-  if (!pool) {
-    pool = new pg.Pool({
-      connectionString,
-      ssl: { rejectUnauthorized: false },
-      max: 10,
-      idleTimeoutMillis: 30000,
-    });
-  }
-  return pool;
+export function invalidateDataCache() {
+  cachedData = null;
+  lastCacheTime = 0;
 }
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Cache-Control');
+  res.setHeader('Cache-Control', 'public, max-age=3, s-maxage=5, stale-while-revalidate=15');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  const pool = getPool();
+  const now = Date.now();
+  const forceFresh = req.query?.fresh === 'true' || req.headers?.['cache-control'] === 'no-cache';
+  if (!forceFresh && cachedData && now - lastCacheTime < CACHE_TTL_MS) {
+    res.setHeader('X-Cache', 'HIT');
+    return res.status(200).json(cachedData);
+  }
+
+  const pool = getDbPool();
   try {
     const [
       coursesRes,
@@ -279,7 +281,7 @@ export default async function handler(req: any, res: any) {
       };
     }
 
-    return res.status(200).json({
+    const responseData = {
       courses,
       periods,
       participants,
@@ -309,7 +311,13 @@ export default async function handler(req: any, res: any) {
         deadline: r.deadline,
         createdAt: r.created_at,
       })),
-    });
+    };
+
+    cachedData = responseData;
+    lastCacheTime = Date.now();
+    res.setHeader('X-Cache', 'MISS');
+
+    return res.status(200).json(responseData);
   } catch (error: any) {
     console.error('Neon data error:', error);
     return res.status(500).json({ error: 'Gagal mengambil data dari Neon: ' + error.message });
