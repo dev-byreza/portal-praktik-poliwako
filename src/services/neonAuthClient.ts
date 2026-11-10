@@ -74,7 +74,13 @@ export async function getNeonAuthSession(): Promise<NeonAuthSessionResult | null
   if (typeof window === 'undefined') return null;
 
   try {
-    const res = await fetch(`${NEON_AUTH_URL}/get-session`, {
+    const searchParams = new URLSearchParams(window.location.search);
+    const verifier = searchParams.get('neon_auth_session_verifier');
+    const endpoint = verifier
+      ? `${NEON_AUTH_URL}/get-session?neon_auth_session_verifier=${encodeURIComponent(verifier)}`
+      : `${NEON_AUTH_URL}/get-session`;
+
+    const res = await fetch(endpoint, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -82,6 +88,12 @@ export async function getNeonAuthSession(): Promise<NeonAuthSessionResult | null
 
     const data = await res.json().catch(() => null);
     if (data?.user && data?.session) {
+      if (verifier && typeof window.history?.replaceState === 'function') {
+        searchParams.delete('neon_auth_session_verifier');
+        const cleanQuery = searchParams.toString();
+        const cleanUrl = window.location.pathname + (cleanQuery ? `?${cleanQuery}` : '') + window.location.hash;
+        window.history.replaceState({}, '', cleanUrl);
+      }
       return data as NeonAuthSessionResult;
     }
   } catch (err) {

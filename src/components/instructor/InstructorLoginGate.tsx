@@ -20,6 +20,19 @@ import {
 
 export const InstructorLoginGate: React.FC = () => {
   const { loginInstructor, signUpInstructor } = useApp();
+  const [isVerifyingGoogle, setIsVerifyingGoogle] = useState(() => (
+    typeof window !== 'undefined' && window.location.search.includes('neon_auth_session_verifier')
+  ));
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.location.search.includes('neon_auth_session_verifier')) {
+      const timer = setTimeout(() => {
+        setIsVerifyingGoogle(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
   const [activeTab, setActiveTab] = useState<'LOGIN' | 'SIGNUP'>(() => {
     if (typeof window === 'undefined') return 'LOGIN';
     const storedTab = sessionStorage.getItem('poliwako_auth_tab');
