@@ -139,7 +139,10 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
       if (requestId !== verificationRequestRef.current) return;
 
       if (!verification.exists || !verification.isEnrolled) {
-        setErrorMessage(verification.message || `NIM "${nim}" tidak terdaftar dalam pangkalan data mahasiswa Politeknik Sorowako.`);
+        const msg = verification.message?.includes('Failed to fetch')
+          ? 'Tidak dapat terhubung ke server backend. Pastikan server dev ("npm run dev") aktif atau periksa koneksi internet.'
+          : verification.message;
+        setErrorMessage(msg || `NIM "${nim}" tidak terdaftar dalam pangkalan data mahasiswa Politeknik Sorowako.`);
         return;
       }
 
@@ -173,6 +176,14 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
         setStep('LOGIN_PASSWORD');
       } else {
         setStep('CREATE_PASSWORD');
+      }
+    } catch (err: any) {
+      if (requestId === verificationRequestRef.current) {
+        setErrorMessage(
+          err?.message?.includes('Failed to fetch')
+            ? 'Tidak dapat terhubung ke server backend. Pastikan server dev ("npm run dev") aktif atau periksa koneksi internet.'
+            : err?.message || 'Gagal memverifikasi NIM ke server.'
+        );
       }
     } finally {
       if (requestId === verificationRequestRef.current) setIsSubmitting(false);

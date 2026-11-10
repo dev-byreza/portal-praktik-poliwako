@@ -553,40 +553,57 @@ export class ApiService {
           } : undefined,
           message: result.message || undefined,
         };
+      } else if (result && result.message) {
+        return {
+          exists: false,
+          isEnrolled: false,
+          hasCreatedPassword: false,
+          message: result.message,
+        };
       }
     } catch (neonErr) {
       console.warn('Neon student-auth lookup error:', neonErr);
     }
 
     if (!this.isLiveBackend() || !supabase) {
-      return { exists: false, isEnrolled: false, hasCreatedPassword: false, message: 'Backend database sedang menghubungkan. Silakan coba sesaat lagi.' };
+      return { exists: false, isEnrolled: false, hasCreatedPassword: false, message: 'Gagal terhubung ke backend server. Pastikan server dev ("npm run dev") aktif atau cek koneksi.' };
     }
-    const { data, error } = await supabase.rpc('student_auth_lookup', {
-      p_nim: nim,
-      p_course_slug: courseSlug || null,
-      p_period_id: periodId || null,
-    });
-    if (error) throw error;
-    const result = data || {};
-    const rawStudent = result.student;
-    return {
-      exists: Boolean(result.exists),
-      isEnrolled: Boolean(result.isEnrolled),
-      periodId: result.periodId || undefined,
-      courseSlug: result.courseSlug || undefined,
-      hasCreatedPassword: Boolean(result.hasCreatedPassword),
-      studyProgramName: result.studyProgramName || undefined,
-      studyProgramCode: result.studyProgramCode || undefined,
-      student: rawStudent ? {
-        id: rawStudent.id,
-        nim: rawStudent.nim,
-        name: rawStudent.name,
-        className: rawStudent.className ?? rawStudent.class_name ?? '',
-        email: rawStudent.email || undefined,
-        createdAt: rawStudent.createdAt || new Date().toISOString(),
-      } : undefined,
-      message: result.message || undefined,
-    };
+    try {
+      const { data, error } = await supabase.rpc('student_auth_lookup', {
+        p_nim: nim,
+        p_course_slug: courseSlug || null,
+        p_period_id: periodId || null,
+      });
+      if (error) throw error;
+      const result = data || {};
+      const rawStudent = result.student;
+      return {
+        exists: Boolean(result.exists),
+        isEnrolled: Boolean(result.isEnrolled),
+        periodId: result.periodId || undefined,
+        courseSlug: result.courseSlug || undefined,
+        hasCreatedPassword: Boolean(result.hasCreatedPassword),
+        studyProgramName: result.studyProgramName || undefined,
+        studyProgramCode: result.studyProgramCode || undefined,
+        student: rawStudent ? {
+          id: rawStudent.id,
+          nim: rawStudent.nim,
+          name: rawStudent.name,
+          className: rawStudent.className ?? rawStudent.class_name ?? '',
+          email: rawStudent.email || undefined,
+          createdAt: rawStudent.createdAt || new Date().toISOString(),
+        } : undefined,
+        message: result.message || undefined,
+      };
+    } catch (supaErr: any) {
+      console.warn('Supabase student_auth_lookup fallback error:', supaErr);
+      return {
+        exists: false,
+        isEnrolled: false,
+        hasCreatedPassword: false,
+        message: 'Gagal menghubungi database server. Pastikan koneksi atau server dev aktif.',
+      };
+    }
   }
 
   static async studentAuthSetPassword(nim: string, password: string, courseSlug: string, periodId: string): Promise<{
@@ -627,29 +644,34 @@ export class ApiService {
     if (!this.isLiveBackend() || !supabase) {
       return { success: false, message: 'Backend database sedang menghubungkan. Silakan coba sesaat lagi.' };
     }
-    const { data, error } = await supabase.rpc('student_auth_set_password', {
-      p_nim: nim,
-      p_password: password,
-      p_course_slug: courseSlug || null,
-      p_period_id: periodId || null,
-    });
-    if (error) throw error;
-    const result = data || {};
-    const rawStudent = result.student;
-    return {
-      success: Boolean(result.success),
-      message: result.message || (result.success ? 'Password berhasil disimpan.' : 'Password gagal disimpan.'),
-      periodId: result.periodId || undefined,
-      sessionToken: result.sessionToken || undefined,
-      student: rawStudent ? {
-        id: rawStudent.id,
-        nim: rawStudent.nim,
-        name: rawStudent.name,
-        className: rawStudent.className ?? rawStudent.class_name ?? '',
-        email: rawStudent.email || undefined,
-        createdAt: rawStudent.createdAt || new Date().toISOString(),
-      } : undefined,
-    };
+    try {
+      const { data, error } = await supabase.rpc('student_auth_set_password', {
+        p_nim: nim,
+        p_password: password,
+        p_course_slug: courseSlug || null,
+        p_period_id: periodId || null,
+      });
+      if (error) throw error;
+      const result = data || {};
+      const rawStudent = result.student;
+      return {
+        success: Boolean(result.success),
+        message: result.message || (result.success ? 'Password berhasil disimpan.' : 'Password gagal disimpan.'),
+        periodId: result.periodId || undefined,
+        sessionToken: result.sessionToken || undefined,
+        student: rawStudent ? {
+          id: rawStudent.id,
+          nim: rawStudent.nim,
+          name: rawStudent.name,
+          className: rawStudent.className ?? rawStudent.class_name ?? '',
+          email: rawStudent.email || undefined,
+          createdAt: rawStudent.createdAt || new Date().toISOString(),
+        } : undefined,
+      };
+    } catch (e: any) {
+      console.warn('Supabase student_auth_set_password fallback error:', e);
+      return { success: false, message: 'Gagal menghubungi database server untuk membuat password.' };
+    }
   }
 
   static async resetStudentPassword(studentId: string): Promise<string> {
@@ -702,29 +724,34 @@ export class ApiService {
     if (!this.isLiveBackend() || !supabase) {
       return { success: false, message: 'Backend database sedang menghubungkan. Silakan coba sesaat lagi.' };
     }
-    const { data, error } = await supabase.rpc('student_auth_login', {
-      p_nim: nim,
-      p_password: password,
-      p_course_slug: courseSlug,
-      p_period_id: periodId,
-    });
-    if (error) throw error;
-    const result = data || {};
-    const rawStudent = result.student;
-    return {
-      success: Boolean(result.success),
-      message: result.message || (result.success ? 'Login berhasil.' : 'Login gagal.'),
-      periodId: result.periodId || undefined,
-      sessionToken: result.sessionToken || undefined,
-      student: rawStudent ? {
-        id: rawStudent.id,
-        nim: rawStudent.nim,
-        name: rawStudent.name,
-        className: rawStudent.className ?? rawStudent.class_name ?? '',
-        email: rawStudent.email || undefined,
-        createdAt: rawStudent.createdAt || new Date().toISOString(),
-      } : undefined,
-    };
+    try {
+      const { data, error } = await supabase.rpc('student_auth_login', {
+        p_nim: nim,
+        p_password: password,
+        p_course_slug: courseSlug,
+        p_period_id: periodId,
+      });
+      if (error) throw error;
+      const result = data || {};
+      const rawStudent = result.student;
+      return {
+        success: Boolean(result.success),
+        message: result.message || (result.success ? 'Login berhasil.' : 'Login gagal.'),
+        periodId: result.periodId || undefined,
+        sessionToken: result.sessionToken || undefined,
+        student: rawStudent ? {
+          id: rawStudent.id,
+          nim: rawStudent.nim,
+          name: rawStudent.name,
+          className: rawStudent.className ?? rawStudent.class_name ?? '',
+          email: rawStudent.email || undefined,
+          createdAt: rawStudent.createdAt || new Date().toISOString(),
+        } : undefined,
+      };
+    } catch (e: any) {
+      console.warn('Supabase student_auth_login fallback error:', e);
+      return { success: false, message: 'Gagal menghubungi database server untuk login.' };
+    }
   }
 
   static async studentCreatePeriodSession(sessionToken: string, courseSlug: string, periodId: string): Promise<string> {
