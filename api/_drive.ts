@@ -22,7 +22,7 @@ let cachedToken: { token: string; expiresAt: number } | null = null;
 export function getServiceAccountCredentials() {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
-  const rootFolderId = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID || '10o89IBj4FBAJIKwNffD7KfC0ad44r4M0';
+  const rootFolderId = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID || '1W6lbpj5u8VK8lPME3t_rrK3xKIwI6Cp6';
 
   if (email && privateKey) {
     return {
@@ -101,7 +101,7 @@ export async function getOrCreateFolder(
   const q = `'${parentId}' in parents and mimeType = 'application/vnd.google-apps.folder' and name = '${safeName}' and trashed = false`;
   
   const listRes = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,webViewLink)&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+    `https://www.googleapis.com/drive/v3/files?corpora=allDrives&includeItemsFromAllDrives=true&supportsAllDrives=true&q=${encodeURIComponent(q)}&fields=files(id,name,webViewLink)`,
     {
       headers: { Authorization: `Bearer ${token}` },
     }

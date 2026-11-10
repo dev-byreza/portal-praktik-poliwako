@@ -3,9 +3,8 @@ import { ensureCourseAndPeriodFolders } from '../api/_drive.ts';
 
 async function syncAll() {
   const pool = getDbPool();
-  const client = await pool.connect();
   try {
-    const rowsRes = await client.query(`
+    const rowsRes = await pool.query(`
       SELECT
         c.id as course_id,
         c.name as course_name,
@@ -25,7 +24,7 @@ async function syncAll() {
       console.log(`\nSyncing [${row.academic_year || 'TA 2026-2027'}] -> [${row.course_name}] -> [${row.period_name}]...`);
       const structure = await ensureCourseAndPeriodFolders(row.course_name, row.period_name, row.academic_year);
 
-      await client.query(`
+      await pool.query(`
         UPDATE public.practice_periods
         SET
           final_project_drive_url = $1,
@@ -38,7 +37,7 @@ async function syncAll() {
         row.period_id
       ]);
 
-      await client.query(`
+      await pool.query(`
         UPDATE public.courses
         SET
           drive_folder_url = $1,
@@ -59,7 +58,6 @@ async function syncAll() {
 
     console.log('\nAll courses and periods successfully organized by Academic Year in Google Drive!');
   } finally {
-    client.release();
     await pool.end();
   }
 }
