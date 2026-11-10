@@ -27,6 +27,10 @@ function neonApiPlugin() {
       };
 
       try {
+        if (req.url.startsWith('/api/auth')) {
+          const { default: handler } = await server.ssrLoadModule('./api/auth.ts');
+          return await handler(req, customRes);
+        }
         if (req.url.startsWith('/api/student-auth')) {
           const { default: handler } = await server.ssrLoadModule('./api/student-auth.ts');
           return await handler(req, customRes);
