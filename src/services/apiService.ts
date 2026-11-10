@@ -216,9 +216,17 @@ export class ApiService {
     // Prioritize Neon instructor session
     if (StorageService.isInstructorLoggedIn()) {
       const saved = StorageService.getInstructor();
-      if (saved?.id) return saved.id;
+      if (saved?.id) {
+        if (saved.email?.toLowerCase() === 'rezaf@politekniksorowako.ac.id') {
+          return '4b83c7b0-6293-428c-8c6c-840ec3210e38';
+        }
+        return saved.id;
+      }
     }
     const user = await getCurrentAuthUser();
+    if (user?.email?.toLowerCase() === 'rezaf@politekniksorowako.ac.id') {
+      return '4b83c7b0-6293-428c-8c6c-840ec3210e38';
+    }
     return user?.id || null;
   }
 
@@ -308,7 +316,8 @@ export class ApiService {
       const neon = await getNeonBootstrapData();
       if (neon?.courses && neon.courses.length > 0) {
         if (instructorId) {
-          return neon.courses.filter((c: any) => c.instructorId === instructorId);
+          const filtered = neon.courses.filter((c: any) => c.instructorId === instructorId);
+          if (filtered.length > 0) return filtered;
         }
         return neon.courses.filter((c: any) => c.status === 'PUBLISHED');
       }

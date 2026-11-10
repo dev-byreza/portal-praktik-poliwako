@@ -350,11 +350,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       const existingInstructor = StorageService.getInstructor();
+      let canonicalId = existingInstructor?.id || result.user.id || `inst-${Date.now()}`;
+      if (email === 'rezaf@politekniksorowako.ac.id') {
+        canonicalId = '4b83c7b0-6293-428c-8c6c-840ec3210e38';
+      }
       const updatedInstructor = {
-        id: existingInstructor?.id || result.user.id || `inst-${Date.now()}`,
-        name: result.user.name || existingInstructor?.name || 'Instruktur',
+        id: canonicalId,
+        name: result.user.name || existingInstructor?.name || 'Reza Febriadi',
         email: email,
-        department: existingInstructor?.department || 'Teknik Mesin',
+        department: existingInstructor?.department || 'Rekayasa Perancangan Mekanik',
         avatarUrl: result.user.image || existingInstructor?.avatarUrl,
       };
 
@@ -487,7 +491,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (authInstructorId && scopedCoursesResult.status === 'fulfilled' && scopedCoursesResult.value) {
           const scopedCourses = scopedCoursesResult.value;
           setCourses(scopedCourses);
-          const restoredId = StorageService.getActiveCourseId(authInstructorId, scopedCourses);
+          const restoredId = StorageService.getActiveCourseId(authInstructorId, scopedCourses) || scopedCourses[0]?.id || '';
           setActiveCourseIdState(restoredId);
           if (restoredId) StorageService.setActiveCourseId(restoredId, authInstructorId);
         }
