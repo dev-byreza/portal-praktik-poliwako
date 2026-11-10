@@ -1,5 +1,5 @@
 import { getDbPool } from './_db.ts';
-import { ensureCourseAndPeriodFolders, uploadFileToDrive } from './_drive.ts';
+import { ensureCourseFolders, ensureCourseAndPeriodFolders, uploadFileToDrive } from './_drive.ts';
 import { invalidateDataCache } from './data.ts';
 
 function extractDriveId(url?: string): string | null {
@@ -28,6 +28,37 @@ export default async function handler(req: any, res: any) {
 
   try {
     const pool = getDbPool();
+
+    // ================================================================
+    // ACTION: ensure_course_folder
+    // ================================================================
+    if (action === 'ensure_course_folder') {
+      const { courseId, courseName, academicYear } = payload || {};
+      if (!courseId || !courseName) {
+        return res.status(400).json({ error: 'courseId and courseName are required' });
+      }
+
+      const structure = await ensureCourseFolders(courseName, academicYear);
+
+      await pool.query(`
+        UPDATE public.courses
+        SET
+          drive_folder_url = $1,
+          master_drive_url = $2,
+          updated_at = NOW()
+        WHERE id = $3
+      `, [
+        structure.courseFolder.webViewLink,
+        structure.courseMasterFolder.webViewLink,
+        courseId
+      ]);
+
+      invalidateDataCache();
+      return res.status(200).json({
+        success: true,
+        structure,
+      });
+    }
 
     // ================================================================
     // ACTION: ensure_period_folder

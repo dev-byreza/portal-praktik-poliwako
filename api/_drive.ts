@@ -8,6 +8,12 @@ export interface DriveFolderInfo {
   webViewLink: string;
 }
 
+export interface CourseDriveStructure {
+  yearFolder: DriveFolderInfo;
+  courseFolder: DriveFolderInfo;
+  courseMasterFolder: DriveFolderInfo;
+}
+
 export interface PeriodDriveStructure {
   yearFolder: DriveFolderInfo;
   courseFolder: DriveFolderInfo;
@@ -144,20 +150,16 @@ export async function getOrCreateFolder(
 }
 
 /**
- * Ensures the full folder structure exists for Academic Year, Course, and Period:
+ * Ensures the folder structure exists for Academic Year and Course:
  * Root
  * └── [Tahun Ajaran] (e.g. "TA 2026-2027")
  *     └── [Course Name]
- *         ├── 00_Master_Dokumen_dan_Tugas_Instruktur
- *         └── [Period Name]
- *             ├── 01_Tugas_dan_Instruksi_Instruktur
- *             └── 02_Pengumpulan_Tugas_Mahasiswa
+ *         └── 00_Master_Dokumen_dan_Tugas_Instruktur
  */
-export async function ensureCourseAndPeriodFolders(
+export async function ensureCourseFolders(
   courseName: string,
-  periodName: string,
   academicYear?: string
-): Promise<PeriodDriveStructure> {
+): Promise<CourseDriveStructure> {
   const token = await getDriveAccessToken();
   const sa = getServiceAccountCredentials();
   const rootId = sa.root_folder_id;
@@ -173,6 +175,31 @@ export async function ensureCourseAndPeriodFolders(
 
   // 3. Course Master Instructor Folder
   const courseMasterFolder = await getOrCreateFolder(token, courseFolder.id, '00_Master_Dokumen_dan_Tugas_Instruktur');
+
+  return {
+    yearFolder,
+    courseFolder,
+    courseMasterFolder,
+  };
+}
+
+/**
+ * Ensures the full folder structure exists for Academic Year, Course, and Period:
+ * Root
+ * └── [Tahun Ajaran] (e.g. "TA 2026-2027")
+ *     └── [Course Name]
+ *         ├── 00_Master_Dokumen_dan_Tugas_Instruktur
+ *         └── [Period Name]
+ *             ├── 01_Tugas_dan_Instruksi_Instruktur
+ *             └── 02_Pengumpulan_Tugas_Mahasiswa
+ */
+export async function ensureCourseAndPeriodFolders(
+  courseName: string,
+  periodName: string,
+  academicYear?: string
+): Promise<PeriodDriveStructure> {
+  const token = await getDriveAccessToken();
+  const { yearFolder, courseFolder, courseMasterFolder } = await ensureCourseFolders(courseName, academicYear);
 
   // 4. Period Folder inside Course Folder
   const cleanPeriodName = (periodName || 'Gelombang Praktik').trim();

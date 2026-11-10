@@ -407,6 +407,7 @@ export class ApiService {
 
     if (typeof window !== 'undefined') {
       await mutateNeon('save_course', { course: savedCourse });
+      void this.ensureCourseDriveFolder(savedCourse.id, savedCourse.name, savedCourse.academicYear).catch(() => {});
     } else if (supabase) {
       const { error: courseError } = await supabase.from('courses').upsert({
         id: course.id,
@@ -849,6 +850,10 @@ export class ApiService {
   static async savePeriod(period: PracticePeriod): Promise<void> {
     if (typeof window !== 'undefined') {
       await mutateNeon('save_period', { period });
+      const currentCourse = StorageService.getCourses().find(c => c.id === period.courseId);
+      if (currentCourse) {
+        void this.ensurePeriodDriveFolder(currentCourse.id, currentCourse.name, period.id, period.name).catch(() => {});
+      }
     } else if (this.isLiveBackend() && supabase) {
       try {
         const { error } = await supabase.from('practice_periods').upsert({
@@ -880,6 +885,15 @@ export class ApiService {
     if (periodsList.length === 0) return;
     if (typeof window !== 'undefined') {
       await mutateNeon('save_periods_bulk', { periods: periodsList });
+      const courses = StorageService.getCourses();
+      for (const p of periodsList) {
+        if (!p.finalProjectDriveUrl) {
+          const currentCourse = courses.find(c => c.id === p.courseId);
+          if (currentCourse) {
+            void this.ensurePeriodDriveFolder(currentCourse.id, currentCourse.name, p.id, p.name).catch(() => {});
+          }
+        }
+      }
     } else if (this.isLiveBackend() && supabase) {
       try {
         const rows = periodsList.map((p) => ({
@@ -2133,6 +2147,32 @@ export class ApiService {
   // ====================================================================
   // GOOGLE DRIVE INTEGRATION
   // ====================================================================
+  static async ensureCourseDriveFolder(
+    courseId: string,
+    courseName: string,
+    academicYear?: string
+  ): Promise<{ success: boolean; structure?: any; error?: string }> {
+    try {
+      const res = await fetch('/api/drive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'ensure_course_folder',
+          payload: { courseId, courseName, academicYear },
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || `Gagal membuat folder Google Drive (HTTP ${res.status})`);
+      }
+      invalidateNeonBootstrapData();
+      return data;
+    } catch (err: any) {
+      console.warn('ensureCourseDriveFolder error:', err);
+      return { success: false, error: err.message };
+    }
+  }
+
   static async ensurePeriodDriveFolder(
     courseId: string,
     courseName: string,
