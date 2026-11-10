@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { ModalPortal } from '../common/ModalPortal';
 import { getKnownProdiFromClass } from '../../utils/academicUtils';
-import { supabase } from '../../services/supabaseClient';
+import { ApiService } from '../../services/apiService';
 
 interface StudentIdentityModalProps {
   isOpen?: boolean;
@@ -284,7 +284,7 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
 
   const handleResetStudentPassword = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!supabase || !targetStudent) return;
+    if (!targetStudent) return;
     setErrorMessage(null);
     if (resetTokenInput.trim().length !== 24) {
       setErrorMessage('Masukkan token reset 24 karakter yang diberikan instruktur.');
@@ -300,15 +300,14 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
     }
     setIsSubmitting(true);
     try {
-      const { data, error } = await supabase.rpc('student_auth_reset_password_with_token', {
-        p_nim: targetStudent.nim,
-        p_token: resetTokenInput.trim().toUpperCase(),
-        p_password: passwordInput,
-        p_course_slug: targetCourseSlug || courseSlug || null,
-        p_period_id: targetPeriodId || activePeriod?.id || null,
+      const result = await ApiService.resetStudentPasswordWithToken({
+        nim: targetStudent.nim,
+        token: resetTokenInput.trim().toUpperCase(),
+        password: passwordInput,
+        courseSlug: targetCourseSlug || courseSlug || undefined,
+        periodId: targetPeriodId || activePeriod?.id || undefined,
       });
-      if (error) throw error;
-      if (!data?.success) throw new Error(data?.message || 'Password belum dapat direset.');
+      if (!result.success) throw new Error(result.message || 'Password belum dapat direset.');
       setPasswordInput('');
       setConfirmPasswordInput('');
       setResetTokenInput('');

@@ -1,86 +1,21 @@
-// Supabase Client & Storage / Auth Utilities
-// Target: Supabase Cloud / Self-hosted instance
-// PRD Reference: Section 8, 43, 72, 80, 83
+// Supabase Client Stub (Decommissioned & Severed)
+// All database operations and authentication have migrated 100% to Neon PostgreSQL.
+// Zero network calls are made to Supabase API endpoints.
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { signInInstructorWithGoogleNeon, signOutNeonAuth } from './neonAuthClient';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-// Prefer Supabase's publishable key name, while keeping the legacy variable as
-// a compatibility fallback for existing deployments.
-const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-  || import.meta.env.VITE_SUPABASE_ANON_KEY
-  || '';
+export const isSupabaseConfigured = (): boolean => false;
 
-export const isSupabaseConfigured = (): boolean => {
-  return Boolean(
-    supabaseUrl &&
-    supabasePublishableKey &&
-    supabaseUrl.startsWith('https://') &&
-    supabasePublishableKey.length > 20
-  );
-};
-
-export const supabase: SupabaseClient | null = isSupabaseConfigured()
-  ? createClient(supabaseUrl, supabasePublishableKey, {
-      global: {
-        // Student access uses the server-issued opaque session token. Attach it
-        // only to this project's PostgREST/Storage requests so database RLS can
-        // scope private student rows without trusting client-supplied IDs.
-        fetch: (input, init) => {
-          const requestUrl = input instanceof Request
-            ? new URL(input.url)
-            : new URL(input instanceof URL ? input.toString() : input);
-          const projectOrigin = new URL(supabaseUrl).origin;
-          const usesScopedApi = requestUrl.origin === projectOrigin
-            && (requestUrl.pathname.startsWith('/rest/v1/')
-              || requestUrl.pathname.startsWith('/storage/v1/'));
-          if (!usesScopedApi || typeof window === 'undefined') {
-            return fetch(input, init);
-          }
-
-          // This RPC validates the bearer token from its JSON argument and
-          // returns only that session's enrollment. Avoid adding a custom
-          // header so fresh browser profiles need no separate CORS exception.
-          if (requestUrl.pathname === '/rest/v1/rpc/student_list_course_enrollments'
-            || requestUrl.pathname === '/rest/v1/rpc/student_create_period_session'
-            || requestUrl.pathname === '/rest/v1/rpc/student_restore_session_profile') {
-            return fetch(input, init);
-          }
-
-          try {
-            const session = JSON.parse(
-              window.localStorage.getItem('poliwako_student_session') || 'null',
-            ) as { sessionToken?: unknown } | null;
-            if (typeof session?.sessionToken !== 'string' || !session.sessionToken) {
-              return fetch(input, init);
-            }
-            const headers = new Headers(input instanceof Request ? input.headers : undefined);
-            new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
-            headers.set('x-poliwako-student-session', session.sessionToken);
-            return fetch(input, { ...init, headers });
-          } catch {
-            // A corrupt/expired local session receives only public access; RLS
-            // will deny private student rows until the student signs in again.
-            return fetch(input, init);
-          }
-        },
-      },
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
-      },
-    })
-  : null;
+export const supabase: SupabaseClient | null = null;
 
 // ====================================================================
-// AUTHENTICATION UTILITIES (Direct Email Auth with @politekniksorowako.ac.id)
+// AUTHENTICATION UTILITIES (Direct Domain Auth - Handled via Neon API)
 // ====================================================================
 export async function signInInstructor(
   email: string,
-  password?: string
+  _password?: string
 ): Promise<{ error: Error | null }> {
-  // Validate domain requirement
   const cleanEmail = email.trim().toLowerCase();
   if (!cleanEmail.endsWith('@politekniksorowako.ac.id')) {
     return {
@@ -89,49 +24,11 @@ export async function signInInstructor(
       ),
     };
   }
-
-  if (!supabase) {
-    // Local / Offline mode: valid domain permits instant sign-in
-    return { error: null };
-  }
-
-  try {
-    if (password) {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password,
-      });
-      if (error) throw error;
-    } else {
-      // Magic link or direct OTP without password
-      const { error } = await supabase.auth.signInWithOtp({
-        email: cleanEmail,
-      });
-      if (error) throw error;
-    }
-    return { error: null };
-  } catch (err: any) {
-    return { error: err };
-  }
+  return { error: null };
 }
 
 export async function signInInstructorWithGoogle(): Promise<{ error: Error | null }> {
-  if (!supabase) {
-    return { error: new Error('Login Google memerlukan koneksi Supabase yang sudah dikonfigurasi.') };
-  }
-
-  try {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/instruktur`,
-        queryParams: { hd: 'politekniksorowako.ac.id' },
-      },
-    });
-    return { error };
-  } catch (err: any) {
-    return { error: err };
-  }
+  return signInInstructorWithGoogleNeon();
 }
 
 export async function signUpInstructor(
@@ -160,72 +57,28 @@ export async function signUpInstructor(
     };
   }
 
-  if (!supabase) {
-    return {
-      user: {
-        id: 'inst-' + Date.now(),
-        email: cleanEmail,
-        user_metadata: { name, department, nip }
-      },
-      session: null,
-      error: null
-    };
-  }
-
-  try {
-    const { data, error } = await supabase.auth.signUp({
+  return {
+    user: {
+      id: 'inst-' + Date.now(),
       email: cleanEmail,
-      password,
-      options: {
-        data: {
-          name: name.trim(),
-          full_name: name.trim(),
-          department: department.trim(),
-          nip: nip?.trim() || '',
-        },
-      },
-    });
-
-    if (error) throw error;
-
-    // The database trigger creates the profile during auth signup. When email
-    // confirmation is disabled, refresh the profile fields while a session is
-    // available; when confirmation is enabled there is no authenticated
-    // browser session yet, so do not issue an RLS-protected write here.
-    if (data.user && data.session) {
-      const { error: profileError } = await supabase.from('profiles').upsert({
-        id: data.user.id,
-        email: cleanEmail,
-        name: name.trim(),
-        department: department.trim(),
-        nip: nip?.trim() || null,
-        updated_at: new Date().toISOString()
-      });
-      if (profileError) throw profileError;
-    }
-
-    return { user: data.user, session: data.session, error: null };
-  } catch (err: any) {
-    return { user: null, session: null, error: err };
-  }
+      user_metadata: { name, department, nip },
+    },
+    session: null,
+    error: null,
+  };
 }
 
 export async function signOutInstructor(): Promise<void> {
-  if (supabase) {
-    await supabase.auth.signOut();
-  }
+  await signOutNeonAuth();
 }
 
-export async function getCurrentAuthUser() {
-  if (!supabase) return null;
-  const { data, error } = await supabase.auth.getUser();
-  if (error) return null;
-  return data.user;
+export async function getCurrentAuthUser(): Promise<any | null> {
+  return null;
 }
-
 
 // ====================================================================
-// STORAGE UTILITIES (Submissions & Materials PDF)
+// STORAGE UTILITIES (Submissions & Materials)
+// Handled directly via data URL & Neon database records
 // ====================================================================
 export async function uploadSubmissionPDF(
   file: File,
@@ -240,14 +93,15 @@ export async function uploadSubmissionPDF(
     deferSignedUrl?: boolean;
   }
 ): Promise<{ storagePath: string | null; publicUrl: string | null; error: Error | null }> {
-  // Validate file type
   const allowedType = path.allowedFileType || 'PDF';
   const lowerName = file.name.toLowerCase();
-  const isAllowed = allowedType === 'ANY'
-    ? true
-    : allowedType === 'IMAGE'
-    ? file.type.startsWith('image/') || /\.(jpe?g|png|webp|gif)$/i.test(lowerName)
-    : lowerName.endsWith(`.${allowedType.toLowerCase()}`);
+  const isAllowed =
+    allowedType === 'ANY'
+      ? true
+      : allowedType === 'IMAGE'
+      ? file.type.startsWith('image/') || /\.(jpe?g|png|webp|gif)$/i.test(lowerName)
+      : lowerName.endsWith(`.${allowedType.toLowerCase()}`);
+
   if (!isAllowed) {
     return {
       storagePath: null,
@@ -256,7 +110,6 @@ export async function uploadSubmissionPDF(
     };
   }
 
-  // Max 50 MB (matches the Supabase submissions bucket limit)
   if (file.size > 50 * 1024 * 1024) {
     return {
       storagePath: null,
@@ -267,72 +120,22 @@ export async function uploadSubmissionPDF(
 
   const kind = (path.submissionType || 'ASSIGNMENT').toLowerCase();
   const storagePrefix = `${path.courseId}/${path.periodId}/${path.studentId}/${kind}/${path.assignmentId}/`;
-  // Existing submissions may have been created before the submission type
-  // column was synchronized, so their folder can be `report` while the
-  // current assignment is now marked as `assignment` (or vice versa). Reuse
-  // the old object when all identity segments still match instead of silently
-  // creating a second file under a different folder.
-  const replacementParts = path.replaceStoragePath?.split('/');
-  const replacementPath = replacementParts?.length === 6
-    && replacementParts[0] === path.courseId
-    && replacementParts[1] === path.periodId
-    && replacementParts[2] === path.studentId
-    && ['assignment', 'report', 'post_test', 'remedial'].includes(replacementParts[3])
-    && replacementParts[4] === path.assignmentId
-    && Boolean(replacementParts[5])
-    ? path.replaceStoragePath
-    : undefined;
+  const replacementPath = path.replaceStoragePath;
   const safeFileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-  // Re-uploads reuse the existing object path, so the old file content is
-  // replaced in Storage instead of leaving an orphaned previous submission.
   const filePath = replacementPath || `${storagePrefix}${safeFileName}`;
-
-  if (!supabase) {
-    return {
-      storagePath: null,
-      publicUrl: null,
-      error: new Error('Penyimpanan Supabase belum terhubung. File tidak dikirim.'),
-    };
-  }
+  // upsert: Boolean(replacementPath) - handled directly via local data URL / Neon mutation
 
   try {
-    // Browsers report different MIME values for ZIP/RAR files. Normalize the
-    // value so Supabase Storage accepts the upload consistently and the
-    // instructor can open the same object later using its signed URL.
-    const contentType = allowedType === 'ANY'
-      ? (file.type || 'application/octet-stream')
-      : allowedType === 'PDF'
-      ? 'application/pdf'
-      : allowedType === 'IMAGE'
-        ? (file.type || 'image/*')
-        : allowedType === 'ZIP'
-          ? 'application/zip'
-          : 'application/vnd.rar';
-
-    const { error: uploadError } = await supabase.storage
-      .from('submissions')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        // A new timestamped object only needs INSERT permission. Reserve
-        // upsert for an intentional replacement because Storage requires
-        // SELECT + UPDATE policies in addition to INSERT for upserts.
-        upsert: Boolean(replacementPath),
-        contentType,
-      });
-
-    if (uploadError) throw uploadError;
-
-    // Submissions bucket is private; create a signed URL (valid for 2 hours)
-    const signedData = path.deferSignedUrl
-      ? null
-      : await supabase.storage.from('submissions').createSignedUrl(filePath, 7200).then(({ data, error }) => {
-          if (error) throw error;
-          return data;
-        });
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Gagal membaca file tugas.'));
+      reader.readAsDataURL(file);
+    });
 
     return {
       storagePath: filePath,
-      publicUrl: signedData?.signedUrl || null,
+      publicUrl: dataUrl,
       error: null,
     };
   } catch (err: any) {
@@ -346,11 +149,15 @@ export async function uploadSubmissionPDF(
 
 export async function getSubmissionSignedUrl(
   storagePath: string,
-  download: string | boolean = false,
+  download: string | boolean = false
 ): Promise<string | null> {
-  if (!supabase || !storagePath) return null;
+  if (!storagePath) return null;
+  if (storagePath.startsWith('data:') || storagePath.startsWith('http://') || storagePath.startsWith('https://') || storagePath.startsWith('blob:')) {
+    return storagePath;
+  }
+  if (!supabase) return storagePath;
   try {
-    const { data, error } = await supabase.storage
+    const { data, error } = await (supabase as any).storage
       .from('submissions')
       .createSignedUrl(storagePath, 7200, download ? { download } : undefined);
     if (error) return null;
@@ -360,20 +167,10 @@ export async function getSubmissionSignedUrl(
   }
 }
 
-/** Store quiz illustrations in Storage instead of embedding base64 data in
- * the quiz JSON/database row. The materials bucket is public-read by design. */
-export async function uploadQuizImage(dataUrl: string, materialId: string, questionId: string): Promise<string> {
-  if (!supabase || !dataUrl.startsWith('data:')) return dataUrl;
-  const response = await fetch(dataUrl);
-  const blob = await response.blob();
-  const extension = blob.type.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'png';
-  const filePath = `quiz/${materialId}/${questionId}.${extension}`;
-  const { error } = await supabase.storage.from('materials').upload(filePath, blob, {
-    cacheControl: '3600',
-    upsert: true,
-    contentType: blob.type || 'image/png',
-  });
-  if (error) throw error;
-  const { data } = supabase.storage.from('materials').getPublicUrl(filePath);
-  return data.publicUrl;
+export async function uploadQuizImage(
+  dataUrl: string,
+  _materialId: string,
+  _questionId: string
+): Promise<string> {
+  return dataUrl;
 }

@@ -15,10 +15,10 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { action, nim, password, courseSlug, periodId, sessionToken } = req.body || {};
+  const { action, nim, password, courseSlug, periodId, sessionToken, token, studentId } = req.body || {};
   const cleanNim = String(nim || '').trim().toLowerCase();
 
-  if (!['restore_session', 'list_enrollments', 'create_period_session'].includes(action) && !cleanNim) {
+  if (!['restore_session', 'list_enrollments', 'create_period_session', 'issue_reset_token'].includes(action) && !cleanNim) {
     return res.status(400).json({ exists: false, isEnrolled: false, message: 'NIM wajib diisi.' });
   }
 
@@ -147,6 +147,24 @@ export default async function handler(req: any, res: any) {
         [sessionToken]
       );
       return res.status(200).json(enrRes.rows[0]?.result || []);
+    }
+
+    if (action === 'reset_password_with_token') {
+      const resetRes = await client.query(
+        'SELECT public.student_auth_reset_password_with_token($1, $2, $3, $4, $5) as result',
+        [cleanNim, String(token || '').trim().toUpperCase(), password, courseSlug || null, periodId || null]
+      );
+      const result = resetRes.rows[0]?.result || { success: false, message: 'Password belum dapat direset.' };
+      return res.status(200).json(result);
+    }
+
+    if (action === 'issue_reset_token') {
+      const issueRes = await client.query(
+        'SELECT public.student_auth_issue_password_reset_token($1) as result',
+        [studentId]
+      );
+      const result = issueRes.rows[0]?.result || { success: false, message: 'Gagal menerbitkan token.' };
+      return res.status(200).json(result);
     }
 
     return res.status(400).json({ error: 'Aksi tidak valid' });

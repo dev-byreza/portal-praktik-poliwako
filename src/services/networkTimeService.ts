@@ -1,9 +1,8 @@
 // Real-time Internet Network Time Service (WITA - UTC+8, Asia/Makassar)
 // Fetches accurate real-time date & time from authoritative internet sources
-// with multi-level fallback (TimeAPI.io -> Supabase HTTP Date Header -> WorldTimeAPI -> Local Clock)
+// with multi-level fallback (TimeAPI.io -> Neon Server Header -> WorldTimeAPI -> Local Clock)
 
 import { useState, useEffect, useCallback } from 'react';
-import { isSupabaseConfigured } from './supabaseClient';
 
 export interface NetworkTimeInfo {
   currentDate: Date;           // In WITA (UTC+8)
@@ -11,7 +10,7 @@ export interface NetworkTimeInfo {
   timeString: string;          // HH:mm:ss
   formattedFull: string;       // e.g. "Senin, 07 September 2026, 14:50 WITA"
   isOnline: boolean;
-  source: 'timeapi.io' | 'supabase_server' | 'worldtimeapi' | 'local_fallback';
+  source: 'timeapi.io' | 'neon_server' | 'worldtimeapi' | 'local_fallback';
   driftMs: number;             // Offset in ms relative to client Date.now()
   lastSyncedAt: number;
 }
@@ -128,29 +127,24 @@ export async function fetchInternetNetworkTime(forceRefresh: boolean = false): P
       // Continue to next fallback
     }
 
-    // 2. Secondary: Supabase server HTTP Date response header
-    if (determinedUtcMs === null) {
+    // 2. Secondary: Neon server HTTP Date response header
+    if (determinedUtcMs === null && typeof window !== 'undefined') {
       try {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-        if (supabaseUrl && supabaseKey) {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3500);
-          const res = await fetch(`${supabaseUrl}/rest/v1/`, {
-            method: 'HEAD',
-            headers: { apikey: supabaseKey },
-            signal: controller.signal,
-            cache: 'no-store'
-          });
-          clearTimeout(timeoutId);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const res = await fetch('/api/data', {
+          method: 'HEAD',
+          signal: controller.signal,
+          cache: 'no-store'
+        });
+        clearTimeout(timeoutId);
 
-          const dateHeader = res.headers.get('date');
-          if (dateHeader) {
-            const parsed = new Date(dateHeader).getTime();
-            if (!isNaN(parsed) && parsed > 0) {
-              determinedUtcMs = parsed;
-              source = 'supabase_server';
-            }
+        const dateHeader = res.headers.get('date');
+        if (dateHeader) {
+          const parsed = new Date(dateHeader).getTime();
+          if (!isNaN(parsed) && parsed > 0) {
+            determinedUtcMs = parsed;
+            source = 'neon_server';
           }
         }
       } catch {

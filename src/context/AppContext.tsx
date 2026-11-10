@@ -24,7 +24,8 @@ import {
   StudentSession,
 } from '../types';
 import { StorageService } from '../services/storageService';
-import { isSupabaseConfigured, supabase, uploadSubmissionPDF } from '../services/supabaseClient';
+import { uploadSubmissionPDF } from '../services/supabaseClient';
+import { getNeonAuthSession, signOutNeonAuth } from '../services/neonAuthClient';
 import { ApiService } from '../services/apiService';
 import { computeAttendanceStats, calculateWeightedFinalScore, getFeedbackForScore } from '../utils/gradeCalculators';
 import { computePeriodEndDate, computePeriodStatus, getWitaDateString } from '../utils/dateUtils';
@@ -330,43 +331,42 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setActiveCourseIdState('');
   }, []);
 
-  // Keep React state aligned with Supabase Auth across refresh, token expiry,
-  // sign-in from another tab, and explicit sign-out.
+  // Check Neon Managed Better Auth session (Google OAuth & Social Login)
   useEffect(() => {
-    if (!isLiveBackend || !supabase) return;
-    const authClient = supabase;
+    if (typeof window === 'undefined') return;
 
-    const { data: { subscription } } = authClient.auth.onAuthStateChange((event, session) => {
-      // If logged in via Neon, do not let Supabase empty session reset the instructor
-      if (StorageService.isInstructorLoggedIn()) {
-        return;
-      }
-      if (!session || event === 'SIGNED_OUT') {
-        clearLiveInstructorSession();
-        return;
-      }
+    getNeonAuthSession().then((result) => {
+      if (!result?.user || !result.user.email) return;
 
-      if (window.location.pathname.replace(/\/+$/, '').toLowerCase() === '/mahasiswa'
-        && new URLSearchParams(window.location.search).get('student_reset') === '1') {
-        clearLiveInstructorSession();
-        return;
-      }
-
-      const email = session.user.email?.trim().toLowerCase() || '';
+      const email = result.user.email.trim().toLowerCase();
       if (!email.endsWith('@politekniksorowako.ac.id')) {
-        clearLiveInstructorSession();
-        window.setTimeout(() => { void authClient.auth.signOut(); }, 0);
+        showToast(
+          'Akses Ditolak',
+          `Akun Google (${email}) bukan email resmi @politekniksorowako.ac.id.`,
+          'error'
+        );
+        void signOutNeonAuth();
         return;
       }
 
-      StorageService.setCacheScope(`instructor:${session.user.id}`);
+      const existingInstructor = StorageService.getInstructor();
+      const updatedInstructor = {
+        id: existingInstructor?.id || result.user.id || `inst-${Date.now()}`,
+        name: result.user.name || existingInstructor?.name || 'Instruktur',
+        email: email,
+        department: existingInstructor?.department || 'Teknik Mesin',
+        avatarUrl: result.user.image || existingInstructor?.avatarUrl,
+      };
+
+      StorageService.saveInstructor(updatedInstructor);
       StorageService.setInstructorLoggedIn(true);
+      setInstructor(updatedInstructor);
       setIsInstructorLoggedIn(true);
       setRole('INSTRUCTOR');
+    }).catch((err) => {
+      console.warn('Neon auth session check failed:', err);
     });
-
-    return () => subscription.unsubscribe();
-  }, [isLiveBackend, clearLiveInstructorSession]);
+  }, []);
 
   // Synchronize live data from Supabase backend & reconcile period statuses with realtime internet time
   useEffect(() => {
