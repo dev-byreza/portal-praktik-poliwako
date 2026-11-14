@@ -1,4 +1,4 @@
-import { Course, CriterionScore, QualityComponent, QualityComponentType } from '../types';
+import { Assessment, Course, CriterionScore, QualityComponent, QualityComponentType } from '../types';
 
 export const QUALITY_COMPONENT_DEFAULTS: QualityComponent[] = [
   { id: 'quality-entry', type: 'ENTRY_BEHAVIOR', name: 'Kesiapan Praktik', description: 'Kesiapan awal, pemahaman prasyarat, dan kepatuhan SOP dasar.', weightPercent: 10 },
@@ -95,4 +95,30 @@ export function calculateWeightedQualityScore(
   const weightedScore = components.reduce((total, component) =>
     total + (componentScores[component.id] ?? 0) * (component.weightPercent / 100), 0);
   return Math.round(weightedScore * 100) / 100;
+}
+
+export function extractAssessmentQualityComponentScore(
+  assessment: Assessment,
+  component: QualityComponent,
+  qualityItems: QualityAssessmentItem[] = []
+): number {
+  switch (component.type) {
+    case 'ENTRY_BEHAVIOR':
+      return assessment.entryBehaviorScore ?? assessment.qualityScore ?? 0;
+    case 'SUB_CPMK':
+      if (typeof assessment.subCpmkPracticeScore === 'number') {
+        return assessment.subCpmkPracticeScore;
+      }
+      if (qualityItems.length > 0 && assessment.qualityScores && assessment.qualityScores.length > 0) {
+        return calculateQualityPracticeScore(qualityItems, assessment.qualityScores);
+      }
+      return assessment.qualityScore ?? 0;
+    case 'ASSIGNMENT':
+      return assessment.assignmentScore ?? assessment.qualityScore ?? 0;
+    case 'POST_TEST':
+      return assessment.postTestScore ?? assessment.qualityScore ?? 0;
+    case 'QUIZ':
+    case 'CUSTOM':
+      return assessment.qualityScores?.find(s => s.criterionId === component.id)?.score ?? assessment.qualityScore ?? 0;
+  }
 }

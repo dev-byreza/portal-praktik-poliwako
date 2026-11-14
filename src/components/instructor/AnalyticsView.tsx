@@ -31,10 +31,10 @@ export const AnalyticsView: React.FC = () => {
     return courseParticipants.filter(p => p.periodId === selectedPeriod);
   }, [courseParticipants, selectedPeriod]);
 
-  // Sub-CPMK Achievements
+  // Sub-CPMK Achievements (Synchronized with GradingWorkspace qualityScores)
   const subCpmkAchievements = useMemo(() => {
     const studentIds = new Set(filteredParticipants.map(p => `${p.periodId}_${p.studentId}`));
-    const studentAssessments = assessments.filter(a => studentIds.has(`${a.periodId}_${a.studentId}`) && Number.isFinite(a.finalScore) && a.finalScore > 0);
+    const studentAssessments = assessments.filter(a => studentIds.has(`${a.periodId}_${a.studentId}`) && Number.isFinite(a.finalScore));
     const scores = studentAssessments.map(a => a.finalScore);
     const hasData = scores.length > 0;
     const avgScore = hasData ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '0.0';

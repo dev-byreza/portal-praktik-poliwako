@@ -13,8 +13,13 @@ import {
   Layers,
   FileCheck2
 } from 'lucide-react';
-import { getGradePredicate } from '../../utils/gradeCalculators';
+import { computeSynchronizedGradeDistribution, getGradePredicate } from '../../utils/gradeCalculators';
 import { getUnitAssignments } from '../../utils/learningAssignments';
+import {
+  buildCourseQualityItems,
+  extractAssessmentQualityComponentScore,
+  getCourseQualityComponents,
+} from '../../utils/qualityAssessment';
 
 interface OBEAnalyticsSectionProps {
   showMetricCards?: boolean;
@@ -63,15 +68,18 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
   selectedClassFilter = 'ALL',
   onNavigateTab
 }) => {
-  const { periods, participants, assessments, attendance, activeCourseId, learningUnits, submissions } = useApp();
+  const { activeCourse, periods, participants, assessments, attendance, activeCourseId, learningUnits, submissions } = useApp();
 
   const coursePeriods = useMemo(() => {
     return periods.filter(p => p.courseId === activeCourseId);
   }, [periods, activeCourseId]);
 
-  const [chartViewMode, setChartViewMode] = useState<'PERIOD' | 'UNIT' | 'COMPONENT'>('PERIOD');
+  const [chartViewMode, setChartViewMode] = useState<'PERIOD' | 'UNIT' | 'COMPONENT' | 'QUALITY'>('PERIOD');
   const [chartStyle, setChartStyle] = useState<'COMBO' | 'LINE' | 'BAR'>('COMBO');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  const qualityComponents = useMemo(() => getCourseQualityComponents(activeCourse), [activeCourse]);
+  const qualityItems = useMemo(() => buildCourseQualityItems(activeCourse), [activeCourse]);
 
   // Filter participants
   const courseParticipants = useMemo(() => {
@@ -87,14 +95,13 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
     });
   }, [courseParticipants, selectedPeriodFilter, selectedClassFilter]);
 
-  // Real Learning & OBE Metrics Calculation
+  // Real Learning & OBE Metrics Calculation (Synchronized with GradingWorkspace & gradeCalculators)
   const metrics = useMemo(() => {
     const total = filteredParticipants.length;
     const studentKeys = new Set(filteredParticipants.map(p => `${p.periodId}_${p.studentId}`));
     const validAssessments = assessments.filter(a =>
       studentKeys.has(`${a.periodId}_${a.studentId}`) &&
-      Number.isFinite(a.finalScore) &&
-      a.finalScore > 0
+      Number.isFinite(a.finalScore)
     );
 
     const scores = validAssessments.map(a => a.finalScore);
@@ -105,8 +112,8 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
       ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)
       : '0.0';
 
-    // Passing SKM (Standar Kelulusan Minimum = 75.0)
-    const passedCount = scores.filter(s => s >= 75.0).length;
+    // Lulus kriteria Baik/Cukup sesuai klasifikasi GRADE_PREDICATE_RULES (C >= 51.0, B >= 70.0)
+    const passedCount = scores.filter(s => s >= 51.0).length;
     const passRate = hasData
       ? Math.round((passedCount / scores.length) * 100)
       : 0;
@@ -126,22 +133,12 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
       ? Math.round((eligibleCount / participantAttendance.length) * 100)
       : 0;
 
-    // Distribution across Poliwako OBE Predicates:
-    // A (>=85), B (75-84.9), C (65-74.9), D/E (<65)
-    const countA = scores.filter(s => s >= 85).length;
-    const countB = scores.filter(s => s >= 75 && s < 85).length;
-    const countC = scores.filter(s => s >= 65 && s < 75).length;
-    const countRemedial = scores.filter(s => s < 65).length;
-    const totalDist = scores.length;
-
-    const pctA = totalDist > 0 ? Math.round((countA / totalDist) * 100) : 0;
-    const pctB = totalDist > 0 ? Math.round((countB / totalDist) * 100) : 0;
-    const pctC = totalDist > 0 ? Math.round((countC / totalDist) * 100) : 0;
-    const pctRemedial = totalDist > 0 ? Math.max(0, 100 - (pctA + pctB + pctC)) : 0;
+    // Synchronized Grade Distribution from GRADE_PREDICATE_RULES
+    const gradeDist = computeSynchronizedGradeDistribution(scores);
 
     const avgPred = hasData
       ? getGradePredicate(Number(avgScore))
-      : { letter: '-', predicate: 'Belum Dinilai' };
+      : { letter: '-', predicate: 'Belum Dinilai', range100Label: '-', colorClass: 'text-slate-500', bgClass: 'bg-slate-100', borderClass: 'border-slate-200' };
 
     return {
       total,
@@ -153,8 +150,7 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
       completedProjectCount,
       attendancePct,
       avgPred,
-      distCounts: { countA, countB, countC, countRemedial },
-      distPcts: { pctA, pctB, pctC, pctRemedial }
+      gradeDist,
     };
   }, [filteredParticipants, assessments, attendance]);
 
@@ -171,7 +167,7 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
         labels = sliced.map(p => p.name.replace(/Gelombang\s*/i, 'Gel '));
         fullTitles = sliced.map(p => p.name);
         scoreValues = sliced.map(p => {
-          const pScores = assessments.filter(a => a.periodId === p.id && Number.isFinite(a.finalScore) && a.finalScore > 0).map(a => a.finalScore);
+          const pScores = assessments.filter(a => a.periodId === p.id && Number.isFinite(a.finalScore)).map(a => a.finalScore);
           return pScores.length > 0 ? Math.round(pScores.reduce((a, b) => a + b, 0) / pScores.length) : 0;
         });
         progressValues = sliced.map(p => {
@@ -212,7 +208,7 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
 
       const sortedUnitEntries = Array.from(unitMap.entries()).sort((a, b) => a[0] - b[0]);
       const studentKeys = new Set(filteredParticipants.map(p => `${p.periodId}_${p.studentId}`));
-      const validAss = assessments.filter(a => studentKeys.has(`${a.periodId}_${a.studentId}`) && Number.isFinite(a.finalScore) && a.finalScore > 0);
+      const validAss = assessments.filter(a => studentKeys.has(`${a.periodId}_${a.studentId}`) && Number.isFinite(a.finalScore));
 
       if (sortedUnitEntries.length > 0) {
         labels = sortedUnitEntries.map(e => `Unit ${e[0]}`);
@@ -241,42 +237,78 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
         scoreValues = [0, 0, 0, 0, 0];
         progressValues = [0, 0, 0, 0, 0];
       }
-    } else {
-      // OBE Components: 6 rich dimensions
-      labels = ['Entry (10%)', 'Praktik (50%)', 'Modul (15%)', 'Laporan (15%)', 'Sikap (10%)', 'Nilai OBE'];
-      fullTitles = [
-        'Entry Behavior & Kesiapan (10%)',
-        'Praktik Inti Sub-CPMK (50%)',
-        'Tugas Modul & Post-Test (15%)',
-        'Laporan Kerja Praktik (15%)',
-        'Kedisiplinan & Kreativitas (10%)',
-        'Nilai Akhir Kumulatif OBE (100%)'
-      ];
+    } else if (chartViewMode === 'QUALITY') {
+      // Synchronized directly with Cabang Nilai Kualitas in GradingWorkspace (getCourseQualityComponents)
       const studentKeys = new Set(filteredParticipants.map(p => `${p.periodId}_${p.studentId}`));
-      const validAss = assessments.filter(a => studentKeys.has(`${a.periodId}_${a.studentId}`) && Number.isFinite(a.finalScore) && a.finalScore > 0);
+      const validAss = assessments.filter(a => studentKeys.has(`${a.periodId}_${a.studentId}`) && Number.isFinite(a.finalScore));
+      const total = filteredParticipants.length || validAss.length;
+      const assessedPct = total > 0 ? Math.round((validAss.length / total) * 100) : 0;
+
+      labels = [
+        ...qualityComponents.map(c => `${c.name.split(' ')[0]} (${c.weightPercent}%)`),
+        'Total Kualitas (70%)'
+      ];
+      fullTitles = [
+        ...qualityComponents.map(c => `${c.name} — Bobot ${c.weightPercent}% dari Kualitas`),
+        'Rata-rata Komposit Nilai Kualitas (Bobot 70%)'
+      ];
 
       if (validAss.length > 0) {
-        const avgEntry = Math.round(validAss.reduce((sum, a) => sum + (a.entryBehaviorScore ?? a.qualityScore ?? 0), 0) / validAss.length);
-        const avgPraktik = Math.round(validAss.reduce((sum, a) => sum + (a.subCpmkPracticeScore ?? a.qualityScore ?? 0), 0) / validAss.length);
-        const avgModul = Math.round(validAss.reduce((sum, a) => sum + (a.assignmentScore ?? a.postTestScore ?? a.qualityScore ?? 0), 0) / validAss.length);
+        scoreValues = [
+          ...qualityComponents.map(comp =>
+            Math.round(
+              validAss.reduce((sum, a) => sum + extractAssessmentQualityComponentScore(a, comp, qualityItems), 0) /
+                validAss.length
+            )
+          ),
+          Math.round(validAss.reduce((sum, a) => sum + (a.qualityScore || 0), 0) / validAss.length)
+        ];
+        progressValues = [
+          ...qualityComponents.map(comp => {
+            if (comp.type === 'ENTRY_BEHAVIOR') return metrics.attendancePct || assessedPct;
+            if (comp.type === 'ASSIGNMENT' || comp.type === 'POST_TEST') return metrics.completionRate || assessedPct;
+            return assessedPct;
+          }),
+          assessedPct
+        ];
+      } else {
+        scoreValues = labels.map(() => 0);
+        progressValues = labels.map(() => 0);
+      }
+    } else {
+      // Synchronized 1:1 with GradingWorkspace Menu Kategori Penilaian:
+      // 1. Kualitas (70%), 2. Sikap (10%), 3. Kreativitas (5%), 4. Laporan (15%), Semua / Total OBE (100%)
+      labels = ['1. Kualitas (70%)', '2. Sikap (10%)', '3. Kreativitas (5%)', '4. Laporan (15%)', 'Total OBE (100%)'];
+      fullTitles = [
+        '1. Nilai Kualitas (Bobot 70%)',
+        '2. Nilai Sikap & K3 (Bobot 10%)',
+        '3. Nilai Kreativitas & Inisiatif (Bobot 5%)',
+        '4. Nilai Laporan Praktikum (Bobot 15%)',
+        'Nilai Akhir Terkalkulasi OBE (Bobot 100%)'
+      ];
+      const studentKeys = new Set(filteredParticipants.map(p => `${p.periodId}_${p.studentId}`));
+      const validAss = assessments.filter(a => studentKeys.has(`${a.periodId}_${a.studentId}`) && Number.isFinite(a.finalScore));
+
+      if (validAss.length > 0) {
+        const avgKualitas = Math.round(validAss.reduce((sum, a) => sum + (a.qualityScore || 0), 0) / validAss.length);
+        const avgSikap = Math.round(validAss.reduce((sum, a) => sum + (a.attitudeScore || 0), 0) / validAss.length);
+        const avgKreativitas = Math.round(validAss.reduce((sum, a) => sum + (a.creativityScore || 0), 0) / validAss.length);
         const avgLaporan = Math.round(validAss.reduce((sum, a) => sum + (a.reportScore || 0), 0) / validAss.length);
-        const avgSikap = Math.round(validAss.reduce((sum, a) => sum + (((a.attitudeScore || 0) + (a.creativityScore || 0)) / 2 || a.attitudeScore || 0), 0) / validAss.length);
         const avgAkhir = Math.round(validAss.reduce((sum, a) => sum + a.finalScore, 0) / validAss.length);
 
-        scoreValues = [avgEntry, avgPraktik, avgModul, avgLaporan, avgSikap, avgAkhir];
+        scoreValues = [avgKualitas, avgSikap, avgKreativitas, avgLaporan, avgAkhir];
         const total = filteredParticipants.length || validAss.length;
         const assessedPct = Math.round((validAss.length / total) * 100);
         progressValues = [
+          assessedPct,
           metrics.attendancePct || assessedPct,
           assessedPct,
           metrics.completionRate || assessedPct,
-          metrics.completionRate || assessedPct,
-          metrics.attendancePct || assessedPct,
           metrics.passRate || assessedPct
         ];
       } else {
-        scoreValues = [0, 0, 0, 0, 0, 0];
-        progressValues = [0, 0, 0, 0, 0, 0];
+        scoreValues = [0, 0, 0, 0, 0];
+        progressValues = [0, 0, 0, 0, 0];
       }
     }
 
@@ -315,41 +347,33 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
       scoreAreaPath: getSmoothAreaPath(scorePoints, 195),
       progressAreaPath: getSmoothAreaPath(progressPoints, 195)
     };
-  }, [chartViewMode, coursePeriods, assessments, participants, attendance, learningUnits, submissions, filteredParticipants, selectedPeriodFilter, metrics]);
+  }, [chartViewMode, coursePeriods, assessments, participants, attendance, learningUnits, submissions, filteredParticipants, selectedPeriodFilter, metrics, qualityComponents, qualityItems]);
 
-  // Donut Ring Segments for OBE Grade Distribution
+  // Donut Ring Segments for OBE Grade Distribution (Synchronized with GRADE_PREDICATE_RULES)
   const donutSegments = useMemo(() => {
-    const { pctA, pctB, pctC, pctRemedial } = metrics.distPcts;
     const circumference = 2 * Math.PI * 62; // r = 62 -> ~389.56
-    const pcts = [pctA, pctB, pctC, pctRemedial];
-
-    // Modern palette inspired by reference UI:
-    // 1. Predikat A (>=85): Indigo (#4f46e5)
-    // 2. Predikat B (75-84): Cyan/Teal (#06b6d4)
-    // 3. Predikat C (65-74): Warm Coral/Orange (#f97316)
-    // 4. Remedial (<65): Rose (#f43f5e)
-    const colors = ['#4f46e5', '#06b6d4', '#f97316', '#f43f5e'];
-    const ids = ['A', 'B', 'C', 'REMEDIAL'];
-    const titles = ['Predikat A (≥85)', 'Predikat B (75-84)', 'Predikat C (65-74)', 'Remedial (<65)'];
-
     let currentOffset = 0;
-    return pcts.map((pct, idx) => {
-      const rawLength = (pct / 100) * circumference;
-      const gap = pct > 0 && pct < 100 ? 6 : 0;
+
+    return metrics.gradeDist.byTier.map(tier => {
+      const rawLength = (tier.pct / 100) * circumference;
+      const gap = tier.pct > 0 && tier.pct < 100 ? 6 : 0;
       const length = Math.max(0, rawLength - gap);
       const seg = {
-        id: ids[idx],
-        title: titles[idx],
-        pct,
-        count: idx === 0 ? metrics.distCounts.countA : idx === 1 ? metrics.distCounts.countB : idx === 2 ? metrics.distCounts.countC : metrics.distCounts.countRemedial,
-        color: colors[idx],
+        id: tier.id,
+        title: tier.title,
+        shortTitle: tier.shortTitle,
+        rangeLabel: tier.rangeLabel,
+        letters: tier.letters,
+        pct: tier.pct,
+        count: tier.count,
+        color: tier.color,
         length,
         offset: currentOffset
       };
       currentOffset -= rawLength;
       return seg;
     });
-  }, [metrics.distPcts, metrics.distCounts]);
+  }, [metrics.gradeDist]);
 
   return (
     <div className="space-y-6">
@@ -537,7 +561,7 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
                 </button>
               </div>
 
-              {/* Dimension Mode Toggle */}
+              {/* Dimension Mode Toggle (Synchronized with GradingWorkspace Categories & Quality Branches) */}
               <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl text-[11px] font-semibold">
                 <button
                   type="button"
@@ -552,6 +576,30 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
                 </button>
                 <button
                   type="button"
+                  onClick={() => setChartViewMode('COMPONENT')}
+                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                    chartViewMode === 'COMPONENT'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-bold'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                  title="4 Kategori Utama Penilaian di Grading Workspace (Kualitas 70%, Sikap 10%, Kreativitas 5%, Laporan 15%)"
+                >
+                  Kategori
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartViewMode('QUALITY')}
+                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                    chartViewMode === 'QUALITY'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-bold'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                  title="Turunan Nilai Kualitas di Grading Workspace (Entry, Sub-CPMK, Tugas, Post-Test)"
+                >
+                  Kualitas
+                </button>
+                <button
+                  type="button"
                   onClick={() => setChartViewMode('UNIT')}
                   className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                     chartViewMode === 'UNIT'
@@ -560,17 +608,6 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
                   }`}
                 >
                   Unit CAD
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setChartViewMode('COMPONENT')}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                    chartViewMode === 'COMPONENT'
-                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-bold'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
-                >
-                  Komponen
                 </button>
               </div>
             </div>
@@ -836,6 +873,14 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
                       {chartData.progressPoints[hoveredIndex].val}% Tuntas
                     </span>
                   </div>
+                  {chartData.scorePoints[hoveredIndex].val > 0 && (() => {
+                    const ptPred = getGradePredicate(chartData.scorePoints[hoveredIndex].val);
+                    return (
+                      <span className="text-[10px] font-bold text-cyan-300 block mt-1">
+                        Mutu {ptPred.letter} • {ptPred.predicate}
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
             )}
@@ -943,24 +988,24 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
               </div>
             </div>
 
-            {/* Clean Pill Badge Below Donut Ring */}
+            {/* Clean Pill Badge Below Donut Ring (Synchronized with GradingWorkspace getGradePredicate) */}
             <div className={`mt-2 px-3 py-1 rounded-full text-[11px] font-bold border ${
               metrics.hasData
                 ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800/60'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
             }`}>
               {metrics.hasData
-                ? `Predikat ${metrics.avgPred.letter} (${metrics.passRate}% Lulus)`
+                ? `Mutu ${metrics.avgPred.letter} • ${metrics.avgPred.predicate}`
                 : `Belum Ada Nilai (0/${metrics.total})`}
             </div>
           </div>
 
-          {/* Modern Horizontal Multi-Segment Bar & Breakdown (Matching Reference Image) */}
+          {/* Modern Horizontal Multi-Segment Bar & Breakdown (Synchronized with GRADE_PREDICATE_RULES) */}
           <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
             {/* Multi-segment Horizontal Stacked Bar */}
             <div>
               <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">
-                <span>Komposisi Predikat Kelas</span>
+                <span>Klasifikasi Mutu Grading</span>
                 <span className="font-mono text-slate-600 dark:text-slate-300">{metrics.gradedCount}/{metrics.total} Dinilai</span>
               </div>
               <div className="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex p-0.5 gap-0.5">
@@ -979,17 +1024,19 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
               </div>
             </div>
 
-            {/* 4 Horizontal Bar Rows for Each Predicate */}
+            {/* 4 Horizontal Bar Rows for Each Synchronized Grade Tier */}
             <div className="grid grid-cols-2 gap-2 text-xs">
               {donutSegments.map(seg => (
                 <div key={seg.id} className="p-2.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/80 space-y-1.5">
                   <div className="flex items-center justify-between gap-1">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
-                      <span className="font-bold text-slate-700 dark:text-slate-200 truncate text-[11px]">{seg.title}</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-200 truncate text-[11px]" title={seg.title}>
+                        {seg.shortTitle}
+                      </span>
                     </div>
                     <span className="font-mono font-extrabold text-slate-900 dark:text-white shrink-0 text-[11px]">
-                      {seg.pct}%
+                      {seg.pct}% <span className="text-[10px] font-normal text-slate-400">({seg.count})</span>
                     </span>
                   </div>
                   <div className="w-full bg-slate-200/70 dark:bg-slate-700/70 h-1.5 rounded-full overflow-hidden">
@@ -1001,6 +1048,24 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
                 </div>
               ))}
             </div>
+
+            {/* Rincian Huruf Mutu Aktif (A, A-, B+, B, B-, C+, C, D+, D, E) dari Grading */}
+            {metrics.hasData && (
+              <div className="pt-1 flex flex-wrap items-center gap-1.5">
+                {metrics.gradeDist.byPredicate
+                  .filter(rule => rule.count > 0)
+                  .map(rule => (
+                    <span
+                      key={rule.key}
+                      title={`${rule.letter} (${rule.predicate} • ${rule.range100Label}): ${rule.count} Mahasiswa`}
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold border ${rule.bgClass} ${rule.colorClass} ${rule.borderClass}`}
+                    >
+                      <span>{rule.letter}:</span>
+                      <span className="font-mono font-black">{rule.count}</span>
+                    </span>
+                  ))}
+              </div>
+            )}
           </div>
 
         </div>

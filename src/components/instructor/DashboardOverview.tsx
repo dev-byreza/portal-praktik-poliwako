@@ -23,6 +23,11 @@ import {
 import { Badge } from '../common/Badge';
 import { formatPeriodRange } from '../../utils/dateUtils';
 import { getGradePredicate } from '../../utils/gradeCalculators';
+import {
+  buildCourseQualityItems,
+  extractAssessmentQualityComponentScore,
+  getCourseQualityComponents,
+} from '../../utils/qualityAssessment';
 import { isSubmissionClosed } from '../../utils/submissionDeadline';
 import { getUnitAssignments } from '../../utils/learningAssignments';
 import { hasSuccessfulSubmission } from '../../utils/studentProgress';
@@ -51,7 +56,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
 
   const [selectedPeriodFilter, setSelectedPeriodFilter] = useState<string>('ALL');
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('ALL');
-  const [chartViewMode, setChartViewMode] = useState<'DAILY' | 'CATEGORY'>('DAILY');
+  const [chartViewMode, setChartViewMode] = useState<'DAILY' | 'CATEGORY'>('CATEGORY');
 
   // Periods belonging to active course
   const coursePeriods = useMemo(() => {
@@ -277,8 +282,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     return { activePeriodScores, overallScores };
   }, [dashboardPeriod, participants, courseParticipants, assessments, periods]);
 
-  // Real Rekap Nilai & Daily Student Performance Calculation
+  // Real Rekap Nilai & Grading Classification Calculation (Synchronized 1:1 with GradingWorkspace)
   const rekapPerformance = useMemo(() => {
+    const qualityComponents = getCourseQualityComponents(activeCourse);
+    const qualityItems = buildCourseQualityItems(activeCourse);
+
     // Collect all valid assessments for the currently filtered participants
     const studentAssessments = filteredParticipants
       .map(p => assessments.find(a => a.periodId === p.periodId && a.studentId === p.studentId))
@@ -290,6 +298,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       return {
         hasData: false,
         overallAvg: '0.0',
+        overallPred: null,
         assessedCount: 0,
         totalParticipants: filteredParticipants.length,
         dailyItems: [],
@@ -297,7 +306,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       };
     }
 
-    // 1. Averages for Rekap Nilai Components
+    // 1. Averages for Main Grading Categories (Kualitas 70%, Sikap 10%, Kreativitas 5%, Laporan 15%)
     const qualitySum = studentAssessments.reduce((acc, a) => acc + (a.qualityScore || 0), 0);
     const attitudeSum = studentAssessments.reduce((acc, a) => acc + (a.attitudeScore || 0), 0);
     const creativitySum = studentAssessments.reduce((acc, a) => acc + (a.creativityScore || 0), 0);
@@ -309,110 +318,90 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     const creativityAvg = Math.round((creativitySum / totalAssessed) * 10) / 10;
     const reportAvg = Math.round((reportSum / totalAssessed) * 10) / 10;
     const overallAvg = (finalSum / totalAssessed).toFixed(1);
-
-    // Sub-components of Quality (if stored, otherwise derived from quality)
-    const entrySum = studentAssessments.reduce((acc, a) => acc + (a.entryBehaviorScore ?? a.qualityScore), 0);
-    const practiceSum = studentAssessments.reduce((acc, a) => acc + (a.subCpmkPracticeScore ?? a.qualityScore), 0);
-    const assignmentSum = studentAssessments.reduce((acc, a) => acc + (a.assignmentScore ?? a.qualityScore), 0);
-    const postTestSum = studentAssessments.reduce((acc, a) => acc + (a.postTestScore ?? a.qualityScore), 0);
-
-    const entryAvg = Math.round((entrySum / totalAssessed) * 10) / 10;
-    const practiceAvg = Math.round((practiceSum / totalAssessed) * 10) / 10;
-    const assignmentAvg = Math.round((assignmentSum / totalAssessed) * 10) / 10;
-    const postTestAvg = Math.round((postTestSum / totalAssessed) * 10) / 10;
-
-    // Look up learning unit titles if available for the active period
-    const targetPeriodId = selectedPeriodFilter !== 'ALL' ? selectedPeriodFilter : dashboardPeriod?.id;
-    const periodUnits = learningUnits.filter(u => u.periodId === targetPeriodId);
-    const u1 = periodUnits.find(u => u.unitNumber === 1);
-    const u2 = periodUnits.find(u => u.unitNumber === 2);
-    const u3 = periodUnits.find(u => u.unitNumber === 3);
-    const u4 = periodUnits.find(u => u.unitNumber === 4);
-    const u5 = periodUnits.find(u => u.unitNumber === 5);
+    const overallPred = getGradePredicate(Number(overallAvg));
 
     // Submissions count
     const studentIds = new Set(filteredParticipants.map(p => p.studentId));
     const periodIds = new Set(filteredParticipants.map(p => p.periodId));
     const relevantSubmissions = submissions.filter(s => studentIds.has(s.studentId) && periodIds.has(s.periodId));
 
-    // Daily progression synchronized with 5-day practice stages & rekap
-    const dailyItems = [
-      {
-        day: 'Hari 1 (Senin)',
-        label: u1?.title || 'Kesiapan & Entry Behavior',
-        component: 'Entry Behavior (10%)',
-        avgScore: entryAvg,
-        submissions: totalAssessed,
-        color: 'from-blue-500 to-indigo-600'
-      },
-      {
-        day: 'Hari 2 (Selasa)',
-        label: u2?.title || 'Ketercapaian Praktik Sub-CPMK',
-        component: 'Praktik Inti (50%)',
-        avgScore: practiceAvg,
-        submissions: totalAssessed,
-        color: 'from-blue-600 to-cyan-600'
-      },
-      {
-        day: 'Hari 3 (Rabu)',
-        label: u3?.title || 'Tugas Modul & Lembar Kerja',
-        component: 'Tugas Modul (15%)',
-        avgScore: assignmentAvg,
-        submissions: relevantSubmissions.length > 0 ? relevantSubmissions.length : totalAssessed,
-        color: 'from-teal-500 to-emerald-600'
-      },
-      {
-        day: 'Hari 4 (Kamis)',
-        label: u4?.title || 'Sikap Kerja & Uji Post-Test',
-        component: 'Sikap (10%) + Post-Test (25%)',
-        avgScore: Math.round(((attitudeAvg + postTestAvg) / 2) * 10) / 10,
-        submissions: totalAssessed,
-        color: 'from-amber-500 to-orange-600'
-      },
-      {
-        day: 'Hari 5 (Jumat)',
-        label: u5?.title || 'Laporan Kerja & Nilai Akhir OBE',
-        component: 'Laporan (15%) & Nilai OBE',
-        avgScore: Math.round(Number(overallAvg) * 10) / 10,
-        submissions: totalAssessed,
-        color: 'from-indigo-600 to-purple-600'
-      },
+    // Synchronized Quality Branches from GradingWorkspace (getCourseQualityComponents)
+    const dailyColors = [
+      'from-blue-500 to-indigo-600',
+      'from-blue-600 to-cyan-600',
+      'from-teal-500 to-emerald-600',
+      'from-amber-500 to-orange-600',
+      'from-indigo-600 to-purple-600'
     ];
 
-    // Direct Category Breakdown from Rekap Nilai
+    const dailyItems = [
+      ...qualityComponents.map((comp, idx) => {
+        const compSum = studentAssessments.reduce(
+          (acc, a) => acc + extractAssessmentQualityComponentScore(a, comp, qualityItems),
+          0
+        );
+        const compAvg = Math.round((compSum / totalAssessed) * 10) / 10;
+        const pred = getGradePredicate(compAvg);
+        return {
+          day: `${idx + 1}. ${comp.name}`,
+          label: `Bobot ${comp.weightPercent}% Kualitas`,
+          component: `${comp.name} (${comp.weightPercent}%)`,
+          avgScore: compAvg,
+          predicate: pred,
+          submissions: comp.type === 'ASSIGNMENT' && relevantSubmissions.length > 0 ? relevantSubmissions.length : totalAssessed,
+          color: dailyColors[idx % dailyColors.length]
+        };
+      }),
+      {
+        day: 'Komposit Kualitas',
+        label: 'Kontribusi 70% Nilai Akhir',
+        component: 'Total Kualitas (70%)',
+        avgScore: qualityAvg,
+        predicate: getGradePredicate(qualityAvg),
+        submissions: totalAssessed,
+        color: 'from-indigo-600 to-purple-600'
+      }
+    ];
+
+    // Direct Category Breakdown synchronized with Menu Kategori Penilaian in GradingWorkspace
     const categoryItems = [
       {
-        name: 'Nilai Kualitas',
+        name: '1. Nilai Kualitas',
         weight: '70%',
         avgScore: qualityAvg,
+        predicate: getGradePredicate(qualityAvg),
         count: totalAssessed,
         color: 'from-blue-500 to-indigo-600'
       },
       {
-        name: 'Sikap Kerja & K3',
+        name: '2. Nilai Sikap & K3',
         weight: '10%',
         avgScore: attitudeAvg,
+        predicate: getGradePredicate(attitudeAvg),
         count: totalAssessed,
         color: 'from-indigo-500 to-blue-600'
       },
       {
-        name: 'Kreativitas & Inisiatif',
+        name: '3. Nilai Kreativitas',
         weight: '5%',
         avgScore: creativityAvg,
+        predicate: getGradePredicate(creativityAvg),
         count: totalAssessed,
         color: 'from-teal-500 to-emerald-600'
       },
       {
-        name: 'Laporan Kerja Praktik',
+        name: '4. Nilai Laporan',
         weight: '15%',
         avgScore: reportAvg,
+        predicate: getGradePredicate(reportAvg),
         count: totalAssessed,
         color: 'from-amber-500 to-orange-600'
       },
       {
-        name: 'Nilai Akhir Kumulatif',
+        name: 'Nilai Akhir OBE',
         weight: '100%',
         avgScore: Math.round(Number(overallAvg) * 10) / 10,
+        predicate: overallPred,
         count: totalAssessed,
         color: 'from-indigo-600 to-purple-600'
       },
@@ -421,12 +410,13 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     return {
       hasData: true,
       overallAvg,
+      overallPred,
       assessedCount: totalAssessed,
       totalParticipants: filteredParticipants.length,
       dailyItems,
       categoryItems
     };
-  }, [filteredParticipants, assessments, submissions, learningUnits, dashboardPeriod, selectedPeriodFilter]);
+  }, [activeCourse, filteredParticipants, assessments, submissions]);
 
   if (!isInitialDataLoaded) {
     return (
@@ -802,19 +792,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
               </div>
 
               <div className="flex items-center gap-2">
-                {/* View Mode Toggle: Harian vs Komponen Rekap */}
+                {/* View Mode Toggle: Cabang Kualitas vs Kategori Grading */}
                 <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl text-[11px] font-semibold">
-                  <button
-                    type="button"
-                    onClick={() => setChartViewMode('DAILY')}
-                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                      chartViewMode === 'DAILY'
-                        ? 'bg-white dark:bg-slate-900 text-blue-700 dark:text-cyan-400 shadow-xs font-bold'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                    }`}
-                  >
-                    Harian
-                  </button>
                   <button
                     type="button"
                     onClick={() => setChartViewMode('CATEGORY')}
@@ -824,14 +803,27 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                         : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                   >
-                    Komponen
+                    Kategori
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChartViewMode('DAILY')}
+                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                      chartViewMode === 'DAILY'
+                        ? 'bg-white dark:bg-slate-900 text-blue-700 dark:text-cyan-400 shadow-xs font-bold'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    Kualitas
                   </button>
                 </div>
 
                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg ${
                   rekapPerformance.hasData ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-cyan-400 font-mono font-bold border border-transparent dark:border-blue-800/40' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                 }`}>
-                  {rekapPerformance.hasData ? `Rata2: ${rekapPerformance.overallAvg}` : 'Belum Dinilai'}
+                  {rekapPerformance.hasData && rekapPerformance.overallPred
+                    ? `${rekapPerformance.overallAvg} (${rekapPerformance.overallPred.letter})`
+                    : 'Belum Dinilai'}
                 </span>
               </div>
             </div>
@@ -842,21 +834,23 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                 {/* Modern Vertical Column Bar Chart */}
                 <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80">
                   <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">
-                    <span>{chartViewMode === 'DAILY' ? 'Diagram Batang Tahapan 5 Hari' : 'Diagram Batang Komponen OBE'}</span>
+                    <span>{chartViewMode === 'DAILY' ? 'Diagram Batang Cabang Kualitas (70%)' : 'Diagram Batang 4 Kategori Grading'}</span>
                     <span className="text-indigo-600 dark:text-indigo-400 font-mono">Skala 0 – 100</span>
                   </div>
                   <div className="relative h-32 flex items-end justify-between gap-2.5 pt-4 px-2 border-b border-slate-200/70 dark:border-slate-700/70">
                     {(chartViewMode === 'DAILY'
-                      ? rekapPerformance.dailyItems.map((it, idx) => ({
-                          shortLabel: `H${idx + 1}`,
-                          title: it.day,
+                      ? rekapPerformance.dailyItems.map(it => ({
+                          shortLabel: it.day.replace(/^\d+\.\s*/, '').split(' ')[0],
+                          title: `${it.day} (${it.label})`,
                           score: it.avgScore,
+                          letter: it.predicate.letter,
                           subScore: Math.max(20, Math.min(100, Math.round(it.avgScore * 0.92)))
                         }))
                       : rekapPerformance.categoryItems.map(cat => ({
-                          shortLabel: cat.name.split(' ')[0].replace('Nilai', 'Kualitas'),
+                          shortLabel: cat.name.replace(/^\d+\.\s*Nilai\s*/i, '').split(' ')[0],
                           title: `${cat.name} (${cat.weight})`,
                           score: cat.avgScore,
+                          letter: cat.predicate.letter,
                           subScore: Math.max(20, Math.min(100, Math.round(cat.avgScore * 0.9)))
                         }))
                     ).map((bar, i) => (
@@ -870,7 +864,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                             <div
                               className="w-full rounded-t-md bg-gradient-to-t from-indigo-600 to-indigo-400 transition-all duration-700"
                               style={{ height: `${Math.min(100, Math.max(8, bar.score))}%` }}
-                              title={`${bar.title}: ${bar.score} Poin`}
+                              title={`${bar.title}: ${bar.score} Poin (Mutu ${bar.letter})`}
                             />
                           </div>
                           {/* Secondary Companion Bar (Coral/Orange) */}
@@ -886,8 +880,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                   </div>
                   <div className="flex items-center justify-between gap-2 px-2 pt-1.5">
                     {(chartViewMode === 'DAILY'
-                      ? rekapPerformance.dailyItems.map((_, idx) => `Hari ${idx + 1}`)
-                      : rekapPerformance.categoryItems.map(cat => cat.name.split(' ')[0])
+                      ? rekapPerformance.dailyItems.map(it => it.day.replace(/^\d+\.\s*/, '').split(' ')[0])
+                      : rekapPerformance.categoryItems.map(cat => cat.name.replace(/^\d+\.\s*Nilai\s*/i, '').split(' ')[0])
                     ).map((lbl, i) => (
                       <span key={i} className="flex-1 text-center text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate">
                         {lbl}
@@ -896,7 +890,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                   </div>
                 </div>
 
-                {/* Detailed Horizontal Segmented Pill Bars */}
+                {/* Detailed Horizontal Segmented Pill Bars with Synchronized Grade Predicate */}
                 <div className="space-y-2.5">
                   {chartViewMode === 'DAILY' ? (
                     rekapPerformance.dailyItems.map((item, index) => (
@@ -908,8 +902,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                               • {item.label}
                             </span>
                           </div>
-                          <div className="font-mono font-bold text-indigo-600 dark:text-indigo-400 shrink-0">
-                            {item.avgScore} <span className="text-[10px] text-slate-400 font-normal">({item.submissions} Mhs)</span>
+                          <div className="font-mono font-bold text-indigo-600 dark:text-indigo-400 shrink-0 flex items-center gap-1.5">
+                            <span>{item.avgScore}</span>
+                            <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold border ${item.predicate.bgClass} ${item.predicate.colorClass} ${item.predicate.borderClass}`}>
+                              {item.predicate.letter}
+                            </span>
                           </div>
                         </div>
                         <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden flex p-0.5 gap-0.5">
@@ -938,8 +935,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                               {cat.weight}
                             </span>
                           </div>
-                          <div className="font-mono font-bold text-indigo-600 dark:text-indigo-400 shrink-0">
-                            {cat.avgScore} <span className="text-[10px] text-slate-400 font-normal">({cat.count} Mhs)</span>
+                          <div className="font-mono font-bold text-indigo-600 dark:text-indigo-400 shrink-0 flex items-center gap-1.5">
+                            <span>{cat.avgScore}</span>
+                            <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold border ${cat.predicate.bgClass} ${cat.predicate.colorClass} ${cat.predicate.borderClass}`}>
+                              {cat.predicate.letter}
+                            </span>
                           </div>
                         </div>
                         <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden flex p-0.5 gap-0.5">

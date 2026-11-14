@@ -188,6 +188,105 @@ export function getGradePredicate(score: number): GradePredicateRule {
   return match || GRADE_PREDICATE_RULES[GRADE_PREDICATE_RULES.length - 1];
 }
 
+export interface GradeTierGroup {
+  id: 'TIER_A' | 'TIER_B' | 'TIER_C' | 'TIER_DE';
+  title: string;
+  shortTitle: string;
+  rangeLabel: string;
+  letters: string[];
+  minScore: number;
+  maxScore: number;
+  color: string;
+}
+
+// Pengelompokan 4 tingkat yang tersinkronisasi langsung dengan GRADE_PREDICATE_RULES
+export const GRADE_TIER_GROUPS: GradeTierGroup[] = [
+  {
+    id: 'TIER_A',
+    title: 'Predikat A / A- (80–100)',
+    shortTitle: 'Sangat Baik (A, A-)',
+    rangeLabel: '80,00 – 100,00',
+    letters: ['A', 'A-'],
+    minScore: 80.0,
+    maxScore: 100.0,
+    color: '#4f46e5', // Indigo
+  },
+  {
+    id: 'TIER_B',
+    title: 'Predikat B+ / B / B- (63–79)',
+    shortTitle: 'Baik (B+, B, B-)',
+    rangeLabel: '63,00 – 79,99',
+    letters: ['B+', 'B', 'B-'],
+    minScore: 63.0,
+    maxScore: 79.99,
+    color: '#06b6d4', // Cyan
+  },
+  {
+    id: 'TIER_C',
+    title: 'Predikat C+ / C (51–62)',
+    shortTitle: 'Cukup (C+, C)',
+    rangeLabel: '51,00 – 62,99',
+    letters: ['C+', 'C'],
+    minScore: 51.0,
+    maxScore: 62.99,
+    color: '#f97316', // Orange
+  },
+  {
+    id: 'TIER_DE',
+    title: 'Predikat D+ / D / E (<51)',
+    shortTitle: 'Kurang (D+, D, E)',
+    rangeLabel: '< 51,00',
+    letters: ['D+', 'D', 'E'],
+    minScore: 0,
+    maxScore: 50.99,
+    color: '#f43f5e', // Rose
+  },
+];
+
+export function computeSynchronizedGradeDistribution(scores: number[]) {
+  const total = scores.length;
+
+  const byPredicate = GRADE_PREDICATE_RULES.map(rule => {
+    const count = scores.filter(s => getGradePredicate(s).key === rule.key).length;
+    const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+    return {
+      ...rule,
+      count,
+      pct,
+    };
+  });
+
+  const rawTierCounts = GRADE_TIER_GROUPS.map(group => {
+    const count = scores.filter(s => {
+      const pred = getGradePredicate(s);
+      return group.letters.includes(pred.letter);
+    }).length;
+    return {
+      ...group,
+      count,
+      pct: total > 0 ? Math.round((count / total) * 100) : 0,
+    };
+  });
+
+  // Pastikan total persentase genap 100% jika ada data
+  if (total > 0) {
+    const sumPct = rawTierCounts.reduce((acc, t) => acc + t.pct, 0);
+    if (sumPct !== 100) {
+      const largestIdx = rawTierCounts.reduce(
+        (bestIdx, item, idx, arr) => (item.count > arr[bestIdx].count ? idx : bestIdx),
+        0
+      );
+      rawTierCounts[largestIdx].pct = Math.max(0, rawTierCounts[largestIdx].pct + (100 - sumPct));
+    }
+  }
+
+  return {
+    total,
+    byPredicate,
+    byTier: rawTierCounts,
+  };
+}
+
 export const DEFAULT_FEEDBACK_RULES: Omit<FeedbackRule, 'courseId'>[] = [
   { id: 'fb-1', minScore: 85, maxScore: 100, message: 'Sangat baik! Pertahankan kualitas kerja dan konsistensi Anda.' },
   { id: 'fb-2', minScore: 70, maxScore: 84, message: 'Baik! Pertahankan hasilnya dan tingkatkan ketelitian.' },
