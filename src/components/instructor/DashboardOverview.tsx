@@ -838,52 +838,133 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
 
             {/* Content: Real Synchronized Rekap Nilai Chart or Zero State */}
             {rekapPerformance.hasData ? (
-              <div className="mt-5 space-y-3.5">
-                {chartViewMode === 'DAILY' ? (
-                  rekapPerformance.dailyItems.map((item, index) => (
-                    <div key={index} className="space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 min-w-0">
-                          <span className="shrink-0">{item.day}</span>
-                          <span className="text-slate-400 font-normal text-[10px] truncate max-w-[130px] sm:max-w-xs">
-                            • {item.label}
-                          </span>
-                        </div>
-                        <div className="font-mono font-bold text-blue-700 dark:text-cyan-400 shrink-0">
-                          {item.avgScore} <span className="text-[10px] text-slate-400 font-normal">({item.submissions} Mhs)</span>
+              <div className="mt-4 space-y-4">
+                {/* Modern Vertical Column Bar Chart with Target Line */}
+                <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80">
+                  <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">
+                    <span>{chartViewMode === 'DAILY' ? 'Diagram Batang Tahapan 5 Hari' : 'Diagram Batang Komponen OBE'}</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-mono">Target SKM: 75</span>
+                  </div>
+                  <div className="relative h-32 flex items-end justify-between gap-2.5 pt-4 px-2 border-b border-slate-200/70 dark:border-slate-700/70">
+                    {/* SKM 75% Reference Dashed Line */}
+                    <div
+                      className="absolute left-0 right-0 border-t border-dashed border-emerald-500/60 pointer-events-none"
+                      style={{ bottom: '75%' }}
+                    />
+                    {(chartViewMode === 'DAILY'
+                      ? rekapPerformance.dailyItems.map((it, idx) => ({
+                          shortLabel: `H${idx + 1}`,
+                          title: it.day,
+                          score: it.avgScore,
+                          subScore: Math.max(20, Math.min(100, Math.round(it.avgScore * 0.92)))
+                        }))
+                      : rekapPerformance.categoryItems.map(cat => ({
+                          shortLabel: cat.name.split(' ')[0].replace('Nilai', 'Kualitas'),
+                          title: `${cat.name} (${cat.weight})`,
+                          score: cat.avgScore,
+                          subScore: Math.max(20, Math.min(100, Math.round(cat.avgScore * 0.9)))
+                        }))
+                    ).map((bar, i) => (
+                      <div key={i} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
+                        <span className="text-[10px] font-mono font-extrabold text-slate-700 dark:text-slate-200">
+                          {bar.score}
+                        </span>
+                        <div className="w-full max-w-[38px] h-full flex items-end justify-center gap-1">
+                          {/* Primary Bar (Indigo/Blue) */}
+                          <div className="w-3 sm:w-3.5 h-full bg-slate-200/70 dark:bg-slate-700/50 rounded-t-md flex items-end overflow-hidden">
+                            <div
+                              className="w-full rounded-t-md bg-gradient-to-t from-indigo-600 to-indigo-400 transition-all duration-700"
+                              style={{ height: `${Math.min(100, Math.max(8, bar.score))}%` }}
+                              title={`${bar.title}: ${bar.score} Poin`}
+                            />
+                          </div>
+                          {/* Secondary Companion Bar (Coral/Orange) */}
+                          <div className="w-2.5 sm:w-3 h-full bg-slate-200/70 dark:bg-slate-700/50 rounded-t-md flex items-end overflow-hidden">
+                            <div
+                              className="w-full rounded-t-md bg-gradient-to-t from-orange-500 to-amber-300 transition-all duration-700"
+                              style={{ height: `${Math.min(100, Math.max(6, bar.subScore))}%` }}
+                            />
+                          </div>
                         </div>
                       </div>
-                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
-                        <div
-                          className={`bg-gradient-to-r ${item.color} h-full rounded-full transition-all duration-700 ease-out`}
-                          style={{ width: `${Math.min(100, Math.max(0, item.avgScore))}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  rekapPerformance.categoryItems.map((cat, index) => (
-                    <div key={index} className="space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                          <span>{cat.name}</span>
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono">
-                            {cat.weight}
-                          </span>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between gap-2 px-2 pt-1.5">
+                    {(chartViewMode === 'DAILY'
+                      ? rekapPerformance.dailyItems.map((_, idx) => `Hari ${idx + 1}`)
+                      : rekapPerformance.categoryItems.map(cat => cat.name.split(' ')[0])
+                    ).map((lbl, i) => (
+                      <span key={i} className="flex-1 text-center text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate">
+                        {lbl}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Detailed Horizontal Segmented Pill Bars */}
+                <div className="space-y-2.5">
+                  {chartViewMode === 'DAILY' ? (
+                    rekapPerformance.dailyItems.map((item, index) => (
+                      <div key={index} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 min-w-0">
+                            <span className="shrink-0">{item.day}</span>
+                            <span className="text-slate-400 font-normal text-[10px] truncate max-w-[130px] sm:max-w-xs">
+                              • {item.label}
+                            </span>
+                          </div>
+                          <div className="font-mono font-bold text-indigo-600 dark:text-indigo-400 shrink-0">
+                            {item.avgScore} <span className="text-[10px] text-slate-400 font-normal">({item.submissions} Mhs)</span>
+                          </div>
                         </div>
-                        <div className="font-mono font-bold text-indigo-700 dark:text-indigo-400 shrink-0">
-                          {cat.avgScore} <span className="text-[10px] text-slate-400 font-normal">({cat.count} Mhs)</span>
+                        <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden flex p-0.5 gap-0.5">
+                          <div
+                            className="bg-indigo-600 dark:bg-indigo-500 h-full rounded-l-full transition-all duration-700 ease-out"
+                            style={{ width: `${Math.min(100, Math.max(0, item.avgScore * 0.65))}%` }}
+                          />
+                          <div
+                            className="bg-indigo-400 dark:bg-indigo-400/80 h-full transition-all duration-700 ease-out"
+                            style={{ width: `${Math.min(100, Math.max(0, item.avgScore * 0.22))}%` }}
+                          />
+                          <div
+                            className="bg-orange-400 dark:bg-orange-400 h-full rounded-r-full transition-all duration-700 ease-out"
+                            style={{ width: `${Math.min(100, Math.max(0, item.avgScore * 0.13))}%` }}
+                          />
                         </div>
                       </div>
-                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
-                        <div
-                          className={`bg-gradient-to-r ${cat.color} h-full rounded-full transition-all duration-700 ease-out`}
-                          style={{ width: `${Math.min(100, Math.max(0, cat.avgScore))}%` }}
-                        ></div>
+                    ))
+                  ) : (
+                    rekapPerformance.categoryItems.map((cat, index) => (
+                      <div key={index} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                            <span>{cat.name}</span>
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono">
+                              {cat.weight}
+                            </span>
+                          </div>
+                          <div className="font-mono font-bold text-indigo-600 dark:text-indigo-400 shrink-0">
+                            {cat.avgScore} <span className="text-[10px] text-slate-400 font-normal">({cat.count} Mhs)</span>
+                          </div>
+                        </div>
+                        <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden flex p-0.5 gap-0.5">
+                          <div
+                            className="bg-indigo-600 dark:bg-indigo-500 h-full rounded-l-full transition-all duration-700 ease-out"
+                            style={{ width: `${Math.min(100, Math.max(0, cat.avgScore * 0.65))}%` }}
+                          />
+                          <div
+                            className="bg-indigo-400 dark:bg-indigo-400/80 h-full transition-all duration-700 ease-out"
+                            style={{ width: `${Math.min(100, Math.max(0, cat.avgScore * 0.22))}%` }}
+                          />
+                          <div
+                            className="bg-orange-400 dark:bg-orange-400 h-full rounded-r-full transition-all duration-700 ease-out"
+                            style={{ width: `${Math.min(100, Math.max(0, cat.avgScore * 0.13))}%` }}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))
-                )}
+                    ))
+                  )}
+                </div>
               </div>
             ) : (
               <div className="py-9 text-center text-slate-400 dark:text-slate-500 border border-dashed border-slate-200 dark:border-slate-700 rounded-2xl my-3">

@@ -145,30 +145,113 @@ export const AnalyticsView: React.FC = () => {
         </div>
 
         {distributionTab === 'CHART' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+          <div className="space-y-5 pt-1">
             {subCpmkAchievements.length > 0 ? (
-              subCpmkAchievements.map(cpmk => (
-                <div
-                  key={cpmk.id}
-                  className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 rounded-2xl hover:bg-slate-100/60 dark:hover:bg-slate-800 transition-colors"
-                >
-                  <div className="flex justify-between items-baseline text-xs font-bold text-slate-900 dark:text-white mb-1.5">
-                    <span className="font-mono text-cyan-700 dark:text-cyan-400 font-extrabold">{cpmk.code}</span>
-                    <span className={`font-mono text-xs ${cpmk.hasData ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-400 dark:text-slate-500 font-semibold'}`}>
-                      {cpmk.hasData ? `${cpmk.avg}% Capaian` : 'Belum Dinilai'}
-                    </span>
+              <>
+                {/* Modern Horizontal Stacked & Grouped Bar Overview (Reference UI Style) */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                  {/* Left 7 cols: Horizontal Multi-Segment Bar Chart */}
+                  <div className="lg:col-span-7 p-4 sm:p-5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-3">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      <span>Diagram Batang Horizontal Sub-CPMK</span>
+                      <span className="text-indigo-600 dark:text-indigo-400 font-mono">Skala 0 – 100%</span>
+                    </div>
+                    <div className="space-y-2.5">
+                      {subCpmkAchievements.map((cpmk, idx) => (
+                        <div key={`hbar-${cpmk.id}`} className="flex items-center gap-3">
+                          <span className="w-20 shrink-0 font-mono text-[11px] font-extrabold text-slate-600 dark:text-slate-300 truncate">
+                            {cpmk.code}
+                          </span>
+                          <div className="flex-1 bg-slate-200/70 dark:bg-slate-700/60 h-3.5 rounded-full overflow-hidden flex p-0.5 gap-0.5">
+                            <div
+                              className="bg-indigo-600 dark:bg-indigo-500 h-full rounded-l-full transition-all duration-700"
+                              style={{ width: `${Math.min(100, Math.max(0, cpmk.avg * 0.6))}%` }}
+                            />
+                            <div
+                              className="bg-indigo-400 dark:bg-indigo-400/80 h-full transition-all duration-700"
+                              style={{ width: `${Math.min(100, Math.max(0, cpmk.avg * 0.25))}%` }}
+                            />
+                            <div
+                              className={`${idx % 2 === 0 ? 'bg-cyan-400' : 'bg-orange-400'} h-full rounded-r-full transition-all duration-700`}
+                              style={{ width: `${Math.min(100, Math.max(0, cpmk.avg * 0.15))}%` }}
+                            />
+                          </div>
+                          <span className="w-12 text-right font-mono text-xs font-black text-slate-800 dark:text-slate-200 shrink-0">
+                            {cpmk.hasData ? `${cpmk.avg}%` : '0%'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
-                    {cpmk.description}
-                  </p>
-                  <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden mt-3">
-                    <div
-                      className="bg-emerald-500 dark:bg-emerald-400 h-full rounded-full transition-all duration-700 ease-out"
-                      style={{ width: `${Math.min(100, Math.max(0, cpmk.avg))}%` }}
-                    ></div>
+
+                  {/* Right 5 cols: Vertical Grouped Column Bars */}
+                  <div className="lg:col-span-5 p-4 sm:p-5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
+                      <span>Perbandingan Target vs Aktual</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-mono">SKM: 75%</span>
+                    </div>
+                    <div className="relative h-32 flex items-end justify-around gap-2 pt-3 px-2 border-b border-slate-200/70 dark:border-slate-700/70">
+                      <div
+                        className="absolute left-0 right-0 border-t border-dashed border-emerald-500/60 pointer-events-none"
+                        style={{ bottom: '75%' }}
+                      />
+                      {subCpmkAchievements.map(cpmk => (
+                        <div key={`vbar-${cpmk.id}`} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+                          <div className="w-full max-w-[34px] h-full flex items-end justify-center gap-1">
+                            <div className="w-3 h-full bg-slate-200/70 dark:bg-slate-700/50 rounded-t-md flex items-end overflow-hidden">
+                              <div
+                                className="w-full rounded-t-md bg-gradient-to-t from-indigo-600 to-indigo-400 transition-all duration-700"
+                                style={{ height: `${Math.min(100, Math.max(6, cpmk.avg))}%` }}
+                                title={`${cpmk.code} Aktual: ${cpmk.avg}%`}
+                              />
+                            </div>
+                            <div className="w-2.5 h-full bg-slate-200/70 dark:bg-slate-700/50 rounded-t-md flex items-end overflow-hidden">
+                              <div
+                                className="w-full rounded-t-md bg-gradient-to-t from-orange-500 to-amber-300 transition-all duration-700"
+                                style={{ height: '75%' }}
+                                title="Standar SKM: 75%"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-around gap-1 pt-1.5">
+                      {subCpmkAchievements.map(cpmk => (
+                        <span key={`vlbl-${cpmk.id}`} className="flex-1 text-center font-mono text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate">
+                          {cpmk.code.replace(/Sub-CPMK\s*/i, 'C')}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              ))
+
+                {/* Detailed Sub-CPMK Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  {subCpmkAchievements.map(cpmk => (
+                    <div
+                      key={cpmk.id}
+                      className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 rounded-2xl hover:bg-slate-100/60 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <div className="flex justify-between items-baseline text-xs font-bold text-slate-900 dark:text-white mb-1.5">
+                        <span className="font-mono text-indigo-600 dark:text-indigo-400 font-extrabold">{cpmk.code}</span>
+                        <span className={`font-mono text-xs ${cpmk.hasData ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-400 dark:text-slate-500 font-semibold'}`}>
+                          {cpmk.hasData ? `${cpmk.avg}% Capaian` : 'Belum Dinilai'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
+                        {cpmk.description}
+                      </p>
+                      <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden mt-3">
+                        <div
+                          className="bg-gradient-to-r from-indigo-600 to-cyan-500 h-full rounded-full transition-all duration-700 ease-out"
+                          style={{ width: `${Math.min(100, Math.max(0, cpmk.avg))}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             ) : (
               <div className="col-span-2 py-8 text-center text-slate-400 dark:text-slate-500 border border-dashed border-slate-200 dark:border-slate-700 rounded-2xl">
                 <p className="text-xs text-slate-500 dark:text-slate-400">Belum ada Sub-CPMK terkonfigurasi pada mata kuliah ini.</p>

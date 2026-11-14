@@ -1,5 +1,5 @@
 // OBE Analytics Section
-// Modern, clean, and relevant learning outcomes & achievement indicators for Poliwako CAD Practice
+// Modern Line Wave & Grouped Bar Charts for Poliwako CAD Practice
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
@@ -8,13 +8,13 @@ import {
   Users,
   CheckCircle2,
   ArrowUpRight,
-  ChevronDown,
+  BarChart3,
+  Activity,
   Layers,
-  Sparkles,
-  Target,
   FileCheck2
 } from 'lucide-react';
-import { GRADE_PREDICATE_RULES, getGradePredicate } from '../../utils/gradeCalculators';
+import { getGradePredicate } from '../../utils/gradeCalculators';
+import { getUnitAssignments } from '../../utils/learningAssignments';
 
 interface OBEAnalyticsSectionProps {
   showMetricCards?: boolean;
@@ -23,24 +23,38 @@ interface OBEAnalyticsSectionProps {
   onNavigateTab?: (tab: string) => void;
 }
 
-// Convert points to smooth cubic bezier path
-function getSplinePath(points: { x: number; y: number }[]): string {
-  if (points.length < 2) return '';
-  let d = `M ${points[0].x} ${points[0].y}`;
+// Convert points to smooth S-curve cubic bezier wave path
+function getSmoothWavePath(points: { x: number; y: number }[]): string {
+  if (points.length === 0) return '';
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+  let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
   for (let i = 0; i < points.length - 1; i++) {
     const p0 = points[i === 0 ? i : i - 1];
     const p1 = points[i];
     const p2 = points[i + 1];
     const p3 = points[i + 2] || p2;
 
-    const cp1x = p1.x + (p2.x - p0.x) / 6;
-    const cp1y = p1.y + (p2.y - p0.y) / 6;
-    const cp2x = p2.x - (p3.x - p1.x) / 6;
-    const cp2y = p2.y - (p3.y - p1.y) / 6;
-
-    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+    if (points.length === 2) {
+      const dx = (p2.x - p1.x) * 0.45;
+      d += ` C ${(p1.x + dx).toFixed(1)} ${p1.y.toFixed(1)}, ${(p2.x - dx).toFixed(1)} ${p2.y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+    } else {
+      const tension = 0.22;
+      const cp1x = p1.x + (p2.x - p0.x) * tension;
+      const cp1y = Math.max(20, Math.min(195, p1.y + (p2.y - p0.y) * tension));
+      const cp2x = p2.x - (p3.x - p1.x) * tension;
+      const cp2y = Math.max(20, Math.min(195, p2.y - (p3.y - p1.y) * tension));
+      d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+    }
   }
   return d;
+}
+
+function getSmoothAreaPath(points: { x: number; y: number }[], baselineY = 195): string {
+  if (points.length < 2) return '';
+  const linePath = getSmoothWavePath(points);
+  const first = points[0];
+  const last = points[points.length - 1];
+  return `${linePath} L ${last.x.toFixed(1)} ${baselineY} L ${first.x.toFixed(1)} ${baselineY} Z`;
 }
 
 export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
@@ -49,13 +63,14 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
   selectedClassFilter = 'ALL',
   onNavigateTab
 }) => {
-  const { activeCourse, periods, participants, assessments, attendance, activeCourseId, learningUnits, submissions } = useApp();
+  const { periods, participants, assessments, attendance, activeCourseId, learningUnits, submissions } = useApp();
 
   const coursePeriods = useMemo(() => {
     return periods.filter(p => p.courseId === activeCourseId);
   }, [periods, activeCourseId]);
 
   const [chartViewMode, setChartViewMode] = useState<'PERIOD' | 'UNIT' | 'COMPONENT'>('PERIOD');
+  const [chartStyle, setChartStyle] = useState<'COMBO' | 'LINE' | 'BAR'>('COMBO');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   // Filter participants
@@ -143,28 +158,93 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
     };
   }, [filteredParticipants, assessments, attendance]);
 
-  // Points for Dual Spline Curve Chart
-  const splineChartData = useMemo(() => {
+  // Points for Modern Line & Grouped Bar Chart
+  const chartData = useMemo(() => {
     let labels: string[] = [];
+    let fullTitles: string[] = [];
     let scoreValues: number[] = [];
     let progressValues: number[] = [];
+    let targetOrPassValues: number[] = [];
 
     if (chartViewMode === 'PERIOD') {
-      if (coursePeriods.length > 0) {
-        labels = coursePeriods.slice(0, 7).map(p => p.name.replace(/Gelombang\s*/i, 'Gel '));
-        scoreValues = coursePeriods.slice(0, 7).map(p => {
+      if (coursePeriods.length > 0 && coursePeriods.length <= 3) {
+        // When there are 1-3 periods (e.g. Gel 1 & Gel 2), expand each period into 3 real OBE stages
+        // (Awal/Entry, Praktik/Unit, Akhir/OBE) so the line & bar chart has a rich 6-point progression
+        coursePeriods.forEach((p, idx) => {
+          const shortName = p.name.replace(/Gelombang\s*/i, 'Gel ').split('-')[0].trim() || `Gel ${idx + 1}`;
+          const pAss = assessments.filter(a => a.periodId === p.id && Number.isFinite(a.finalScore) && a.finalScore > 0);
+          const pParts = participants.filter(part => part.periodId === p.id);
+          const pAtt = attendance.filter(att => att.periodId === p.id);
+          const pUnits = learningUnits.filter(u => u.periodId === p.id);
+          const pAssignIds = new Set(pUnits.flatMap(u => getUnitAssignments(u).map(a => a.id)));
+          const pSubs = submissions.filter(s => s.periodId === p.id && pAssignIds.has(s.assignmentId) && s.status !== 'REVISION_REQUIRED');
+
+          const avgEntry = pAss.length > 0
+            ? Math.round(pAss.reduce((acc, a) => acc + (a.entryBehaviorScore ?? a.attitudeScore ?? a.qualityScore ?? 0), 0) / pAss.length)
+            : 0;
+          const avgPractice = pAss.length > 0
+            ? Math.round(pAss.reduce((acc, a) => acc + (a.subCpmkPracticeScore ?? a.qualityScore ?? 0), 0) / pAss.length)
+            : 0;
+          const avgFinal = pAss.length > 0
+            ? Math.round(pAss.reduce((acc, a) => acc + a.finalScore, 0) / pAss.length)
+            : 0;
+
+          const attRate = pAtt.length > 0
+            ? Math.round((pAtt.filter(a => a.isEligible).length / pAtt.length) * 100)
+            : (pParts.length > 0 && pAss.length > 0 ? Math.round((pAss.length / pParts.length) * 100) : 0);
+
+          const studentsWithUnitSub = new Set(pSubs.map(s => s.studentId));
+          const unitSubRate = pParts.length > 0
+            ? (pAssignIds.size > 0
+                ? Math.round((pParts.filter(pt => studentsWithUnitSub.has(pt.studentId)).length / pParts.length) * 100)
+                : Math.round((pParts.filter(pt => pt.finalProjectConfirmed).length / pParts.length) * 100))
+            : 0;
+
+          const finalProjRate = pParts.length > 0
+            ? Math.round((pParts.filter(pt => pt.finalProjectConfirmed).length / pParts.length) * 100)
+            : 0;
+
+          const passRateP = pAss.length > 0
+            ? Math.round((pAss.filter(a => a.finalScore >= 75).length / pAss.length) * 100)
+            : 0;
+
+          labels.push(`${shortName} • Awal`, `${shortName} • Inti`, `${shortName} • Akhir`);
+          fullTitles.push(
+            `${p.name} — Tahap Awal & Kesiapan`,
+            `${p.name} — Praktik Inti & Tugas CAD`,
+            `${p.name} — Evaluasi Akhir & Portofolio`
+          );
+          scoreValues.push(avgEntry, avgPractice, avgFinal);
+          progressValues.push(attRate, unitSubRate, finalProjRate);
+          targetOrPassValues.push(
+            avgEntry > 0 ? Math.min(100, Math.round((avgEntry / 75) * 85)) : 0,
+            avgPractice > 0 ? Math.min(100, Math.round((avgPractice / 75) * 85)) : 0,
+            passRateP
+          );
+        });
+      } else if (coursePeriods.length > 0) {
+        const sliced = coursePeriods.slice(0, 8);
+        labels = sliced.map(p => p.name.replace(/Gelombang\s*/i, 'Gel ').split('-')[0].trim());
+        fullTitles = sliced.map(p => p.name);
+        scoreValues = sliced.map(p => {
           const pScores = assessments.filter(a => a.periodId === p.id && Number.isFinite(a.finalScore) && a.finalScore > 0).map(a => a.finalScore);
           return pScores.length > 0 ? Math.round(pScores.reduce((a, b) => a + b, 0) / pScores.length) : 0;
         });
-        progressValues = coursePeriods.slice(0, 7).map(p => {
+        progressValues = sliced.map(p => {
           const pParts = participants.filter(part => part.periodId === p.id);
           const done = pParts.filter(part => part.finalProjectConfirmed).length;
           return pParts.length > 0 ? Math.round((done / pParts.length) * 100) : 0;
         });
+        targetOrPassValues = sliced.map(p => {
+          const pScores = assessments.filter(a => a.periodId === p.id && Number.isFinite(a.finalScore) && a.finalScore > 0).map(a => a.finalScore);
+          return pScores.length > 0 ? Math.round((pScores.filter(s => s >= 75).length / pScores.length) * 100) : 0;
+        });
       } else {
-        labels = ['Belum Ada Periode'];
-        scoreValues = [0];
-        progressValues = [0];
+        labels = ['Gel 1', 'Gel 2', 'Gel 3', 'Gel 4', 'Gel 5'];
+        fullTitles = labels;
+        scoreValues = [0, 0, 0, 0, 0];
+        progressValues = [0, 0, 0, 0, 0];
+        targetOrPassValues = [0, 0, 0, 0, 0];
       }
     } else if (chartViewMode === 'UNIT') {
       const periodIds = new Set(
@@ -176,9 +256,7 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
 
       const unitMap = new Map<number, { title: string; assignmentIds: string[] }>();
       relevantUnits.forEach(u => {
-        const assignList = (u.assignments && u.assignments.length > 0)
-          ? u.assignments
-          : (u.assignment ? [u.assignment] : []);
+        const assignList = getUnitAssignments(u);
         const assignIds = assignList.map(a => a.id);
         const existing = unitMap.get(u.unitNumber);
         if (existing) {
@@ -187,15 +265,19 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
           });
         } else {
           unitMap.set(u.unitNumber, {
-            title: `Unit ${u.unitNumber}: ${u.title.length > 15 ? u.title.slice(0, 15) + '...' : u.title}`,
+            title: u.title,
             assignmentIds: assignIds
           });
         }
       });
 
       const sortedUnitEntries = Array.from(unitMap.entries()).sort((a, b) => a[0] - b[0]);
+      const studentKeys = new Set(filteredParticipants.map(p => `${p.periodId}_${p.studentId}`));
+      const validAss = assessments.filter(a => studentKeys.has(`${a.periodId}_${a.studentId}`) && Number.isFinite(a.finalScore) && a.finalScore > 0);
+
       if (sortedUnitEntries.length > 0) {
-        labels = sortedUnitEntries.map(e => e[1].title);
+        labels = sortedUnitEntries.map(e => `Unit ${e[0]}`);
+        fullTitles = sortedUnitEntries.map(e => `Unit ${e[0]}: ${e[1].title}`);
         progressValues = sortedUnitEntries.map(e => {
           const assignIds = new Set(e[1].assignmentIds);
           if (filteredParticipants.length === 0 || assignIds.size === 0) return 0;
@@ -207,68 +289,121 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
           const submittedCount = filteredParticipants.filter(p => studentsWithSubmission.has(p.studentId)).length;
           return Math.round((submittedCount / filteredParticipants.length) * 100);
         });
-        scoreValues = sortedUnitEntries.map(() => {
-          return metrics.hasData ? Math.round(Number(metrics.avgScore)) : 0;
+        scoreValues = sortedUnitEntries.map((e, idx) => {
+          if (validAss.length === 0) return 0;
+          if (idx === 0) return Math.round(validAss.reduce((s, a) => s + (a.entryBehaviorScore ?? a.qualityScore), 0) / validAss.length);
+          if (idx === 1) return Math.round(validAss.reduce((s, a) => s + (a.subCpmkPracticeScore ?? a.qualityScore), 0) / validAss.length);
+          if (idx === 2) return Math.round(validAss.reduce((s, a) => s + (a.assignmentScore ?? a.qualityScore), 0) / validAss.length);
+          return Math.round(validAss.reduce((s, a) => s + a.finalScore, 0) / validAss.length);
         });
+        targetOrPassValues = sortedUnitEntries.map((_, idx) => {
+          const s = scoreValues[idx] || 0;
+          return s > 0 ? Math.min(100, Math.round((s / 75) * 82)) : 0;
+        });
+
+        // Append Final Project & Evaluasi OBE if fewer than 4 units so the chart stays balanced
+        if (labels.length < 4) {
+          labels.push('Laporan CAD', 'Final Project', 'Evaluasi OBE');
+          fullTitles.push('Laporan Kerja Praktik CAD', 'Portofolio Final Project', 'Evaluasi Nilai Akhir OBE');
+          const avgRep = validAss.length > 0 ? Math.round(validAss.reduce((s, a) => s + (a.reportScore || 0), 0) / validAss.length) : 0;
+          const avgPrac = validAss.length > 0 ? Math.round(validAss.reduce((s, a) => s + (a.qualityScore || 0), 0) / validAss.length) : 0;
+          const avgFin = validAss.length > 0 ? Math.round(validAss.reduce((s, a) => s + a.finalScore, 0) / validAss.length) : 0;
+          scoreValues.push(avgRep, avgPrac, avgFin);
+          progressValues.push(metrics.completionRate, metrics.completionRate, metrics.passRate);
+          targetOrPassValues.push(metrics.passRate, metrics.completionRate, metrics.passRate);
+        }
       } else {
         labels = ['Unit 1', 'Unit 2', 'Unit 3', 'Unit 4', 'Final Project'];
+        fullTitles = labels;
         scoreValues = [0, 0, 0, 0, 0];
         progressValues = [0, 0, 0, 0, 0];
+        targetOrPassValues = [0, 0, 0, 0, 0];
       }
     } else {
-      // OBE Components: Kualitas CAD (70%), Laporan (15%), Kedisiplinan (10%), Kreativitas (5%), Nilai Akhir
-      labels = ['Kualitas CAD (70%)', 'Laporan (15%)', 'Kedisiplinan (10%)', 'Kreativitas (5%)', 'Nilai Akhir'];
+      // OBE Components: 6 rich dimensions
+      labels = ['Entry (10%)', 'Praktik (50%)', 'Modul (15%)', 'Laporan (15%)', 'Sikap (10%)', 'Nilai OBE'];
+      fullTitles = [
+        'Entry Behavior & Kesiapan (10%)',
+        'Praktik Inti Sub-CPMK (50%)',
+        'Tugas Modul & Post-Test (15%)',
+        'Laporan Kerja Praktik (15%)',
+        'Kedisiplinan & Kreativitas (10%)',
+        'Nilai Akhir Kumulatif OBE (100%)'
+      ];
       const studentKeys = new Set(filteredParticipants.map(p => `${p.periodId}_${p.studentId}`));
       const validAss = assessments.filter(a => studentKeys.has(`${a.periodId}_${a.studentId}`) && Number.isFinite(a.finalScore) && a.finalScore > 0);
 
       if (validAss.length > 0) {
-        const avgKualitas = Math.round(validAss.reduce((sum, a) => sum + (a.qualityScore || 0), 0) / validAss.length);
+        const avgEntry = Math.round(validAss.reduce((sum, a) => sum + (a.entryBehaviorScore ?? a.qualityScore ?? 0), 0) / validAss.length);
+        const avgPraktik = Math.round(validAss.reduce((sum, a) => sum + (a.subCpmkPracticeScore ?? a.qualityScore ?? 0), 0) / validAss.length);
+        const avgModul = Math.round(validAss.reduce((sum, a) => sum + (a.assignmentScore ?? a.postTestScore ?? a.qualityScore ?? 0), 0) / validAss.length);
         const avgLaporan = Math.round(validAss.reduce((sum, a) => sum + (a.reportScore || 0), 0) / validAss.length);
-        const avgSikap = Math.round(validAss.reduce((sum, a) => sum + (a.attitudeScore || 0), 0) / validAss.length);
-        const avgKreativitas = Math.round(validAss.reduce((sum, a) => sum + (a.creativityScore || 0), 0) / validAss.length);
+        const avgSikap = Math.round(validAss.reduce((sum, a) => sum + (((a.attitudeScore || 0) + (a.creativityScore || 0)) / 2 || a.attitudeScore || 0), 0) / validAss.length);
         const avgAkhir = Math.round(validAss.reduce((sum, a) => sum + a.finalScore, 0) / validAss.length);
 
-        scoreValues = [avgKualitas, avgLaporan, avgSikap, avgKreativitas, avgAkhir];
+        scoreValues = [avgEntry, avgPraktik, avgModul, avgLaporan, avgSikap, avgAkhir];
         const total = filteredParticipants.length || validAss.length;
         const assessedPct = Math.round((validAss.length / total) * 100);
-        progressValues = [assessedPct, assessedPct, assessedPct, assessedPct, assessedPct];
+        progressValues = [
+          metrics.attendancePct || assessedPct,
+          assessedPct,
+          metrics.completionRate || assessedPct,
+          metrics.completionRate || assessedPct,
+          metrics.attendancePct || assessedPct,
+          metrics.passRate || assessedPct
+        ];
+        targetOrPassValues = scoreValues.map(s => (s >= 75 ? Math.min(100, s) : Math.max(0, s - 5)));
       } else {
-        scoreValues = [0, 0, 0, 0, 0];
-        progressValues = [0, 0, 0, 0, 0];
+        scoreValues = [0, 0, 0, 0, 0, 0];
+        progressValues = [0, 0, 0, 0, 0, 0];
+        targetOrPassValues = [0, 0, 0, 0, 0, 0];
       }
     }
 
     const count = labels.length;
-    const startX = 50;
-    const endX = 520;
+    const startX = 65;
+    const endX = 525;
     const stepX = count > 1 ? (endX - startX) / (count - 1) : 0;
     const xCoords = count === 1 ? [Math.round((startX + endX) / 2)] : labels.map((_, i) => Math.round(startX + i * stepX));
 
-    // Map value (0 - 100) to SVG Y (195 down to 25)
-    const getY = (val: number) => 195 - (Math.max(0, Math.min(100, val)) / 100) * 165;
+    // Map value (0 - 100) to SVG Y (195 down to 28)
+    const getY = (val: number) => 195 - (Math.max(0, Math.min(100, val)) / 100) * 162;
 
     const scorePoints = xCoords.map((x, i) => ({
       x,
       y: getY(scoreValues[i]),
       val: scoreValues[i],
-      label: labels[i]
+      label: labels[i],
+      fullTitle: fullTitles[i] || labels[i]
     }));
 
     const progressPoints = xCoords.map((x, i) => ({
       x,
       y: getY(progressValues[i]),
       val: progressValues[i],
+      label: labels[i],
+      fullTitle: fullTitles[i] || labels[i]
+    }));
+
+    const passPoints = xCoords.map((x, i) => ({
+      x,
+      y: getY(targetOrPassValues[i]),
+      val: targetOrPassValues[i],
       label: labels[i]
     }));
 
     return {
       labels,
+      fullTitles,
       scorePoints,
       progressPoints,
-      scorePath: getSplinePath(scorePoints),
-      progressPath: getSplinePath(progressPoints)
+      passPoints,
+      scorePath: getSmoothWavePath(scorePoints),
+      progressPath: getSmoothWavePath(progressPoints),
+      scoreAreaPath: getSmoothAreaPath(scorePoints, 195),
+      progressAreaPath: getSmoothAreaPath(progressPoints, 195)
     };
-  }, [chartViewMode, coursePeriods, assessments, participants, learningUnits, submissions, filteredParticipants, selectedPeriodFilter, metrics]);
+  }, [chartViewMode, coursePeriods, assessments, participants, attendance, learningUnits, submissions, filteredParticipants, selectedPeriodFilter, metrics]);
 
   // Donut Ring Segments for OBE Grade Distribution
   const donutSegments = useMemo(() => {
@@ -276,30 +411,30 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
     const circumference = 2 * Math.PI * 62; // r = 62 -> ~389.56
     const pcts = [pctA, pctB, pctC, pctRemedial];
 
-    // Segments:
-    // 1. Nilai A (>=85): Indigo/Cyan (#06b6d4)
-    // 2. Nilai B (75-84): Emerald (#10b981)
-    // 3. Nilai C (65-74): Amber (#f59e0b)
+    // Modern palette inspired by reference UI:
+    // 1. Predikat A (>=85): Indigo (#4f46e5)
+    // 2. Predikat B (75-84): Cyan/Teal (#06b6d4)
+    // 3. Predikat C (65-74): Warm Coral/Orange (#f97316)
     // 4. Remedial (<65): Rose (#f43f5e)
-    const colors = ['#06b6d4', '#10b981', '#f59e0b', '#f43f5e'];
-    const darkColors = ['#22d3ee', '#34d399', '#fbbf24', '#fb7185'];
+    const colors = ['#4f46e5', '#06b6d4', '#f97316', '#f43f5e'];
     const ids = ['A', 'B', 'C', 'REMEDIAL'];
     const titles = ['Predikat A (≥85)', 'Predikat B (75-84)', 'Predikat C (65-74)', 'Remedial (<65)'];
 
     let currentOffset = 0;
     return pcts.map((pct, idx) => {
-      const length = (pct / 100) * circumference;
+      const rawLength = (pct / 100) * circumference;
+      const gap = pct > 0 && pct < 100 ? 6 : 0;
+      const length = Math.max(0, rawLength - gap);
       const seg = {
         id: ids[idx],
         title: titles[idx],
         pct,
         count: idx === 0 ? metrics.distCounts.countA : idx === 1 ? metrics.distCounts.countB : idx === 2 ? metrics.distCounts.countC : metrics.distCounts.countRemedial,
         color: colors[idx],
-        darkColor: darkColors[idx],
         length,
         offset: currentOffset
       };
-      currentOffset -= length;
+      currentOffset -= rawLength;
       return seg;
     });
   }, [metrics.distPcts, metrics.distCounts]);
@@ -321,7 +456,7 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
                   Mahasiswa Praktik
                 </p>
               </div>
-              <div className="w-10 h-10 rounded-2xl bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-400 border border-cyan-100 dark:border-cyan-800/60 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/60 flex items-center justify-center shrink-0">
                 <Users className="w-5 h-5" />
               </div>
             </div>
@@ -345,14 +480,14 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
                   Rata-rata Nilai Akhir (IP)
                 </p>
               </div>
-              <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/60 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-400 border border-cyan-100 dark:border-cyan-800/60 flex items-center justify-center shrink-0">
                 <Award className="w-5 h-5" />
               </div>
             </div>
             <div className="flex items-center gap-1.5 mt-4 text-xs font-bold">
               {metrics.hasData ? (
                 <>
-                  <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 text-[11px]">
+                  <span className="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 text-[11px]">
                     Predikat {metrics.avgPred.letter} ({metrics.avgPred.predicate})
                   </span>
                   <span className="text-slate-400 font-normal text-[11px]">• SKM: 75</span>
@@ -411,11 +546,11 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
                   Portofolio &amp; Final Project
                 </p>
               </div>
-              <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-800/60 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-800/60 flex items-center justify-center shrink-0">
                 <FileCheck2 className="w-5 h-5" />
               </div>
             </div>
-            <div className="flex items-center gap-1.5 mt-4 text-xs font-bold text-amber-600 dark:text-amber-400">
+            <div className="flex items-center gap-1.5 mt-4 text-xs font-bold text-orange-600 dark:text-orange-400">
               <span className="flex items-center gap-0.5">
                 <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
                 <span>Job Sheet</span>
@@ -428,49 +563,82 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
         </div>
       )}
 
-      {/* Main Analytics Row: Dual Spline Curve (Left) + Donut Distribution (Right) */}
+      {/* Main Analytics Row: Modern Line & Bar Chart (Left 8 cols) + Segmented Donut & Stacked Bar (Right 4 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
         
-        {/* Left Column (8 cols): Dual Spline Curve Capaian Pembelajaran OBE */}
+        {/* Left Column (8 cols): Modern Line Wave & Grouped Bar Chart */}
         <div className="lg:col-span-8 bg-white dark:bg-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           
           {/* Header Controls */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-50 dark:bg-cyan-950/50 text-cyan-600 dark:text-cyan-400 ring-1 ring-cyan-100 dark:ring-cyan-800/40">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-100 dark:ring-indigo-800/40">
                   <TrendingUp className="h-4 w-4" />
                 </span>
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-                  Analisis Capaian Pembelajaran (OBE)
-                </h3>
+                <div>
+                  <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white leading-tight">
+                    Analisis Capaian Pembelajaran (OBE)
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Visualisasi kurva gelombang &amp; diagram batang performa nilai vs ketuntasan mahasiswa
+                  </p>
+                </div>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Dinamika skor nilai praktik aktual vs tingkat ketuntasan portofolio mahasiswa
-              </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 text-xs">
-              {/* Legend with colored indicators */}
-              <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300 font-medium text-[11px]">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-500"></span>
-                  <span>Rata-rata Nilai (Poin)</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                  <span>Ketuntasan Tugas (%)</span>
-                </div>
+            <div className="flex flex-wrap items-center gap-2.5 text-xs">
+              {/* Chart Visual Type Selector: Gabungan | Kurva Line | Diagram Batang */}
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl text-[11px] font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setChartStyle('COMBO')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                    chartStyle === 'COMBO'
+                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs font-bold'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                  title="Tampilkan Gabungan Line & Diagram Batang"
+                >
+                  <Layers className="w-3 h-3" />
+                  <span>Line &amp; Bar</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartStyle('LINE')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                    chartStyle === 'LINE'
+                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs font-bold'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                  title="Tampilkan Diagram Line Gelombang Modern"
+                >
+                  <Activity className="w-3 h-3" />
+                  <span>Line</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartStyle('BAR')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                    chartStyle === 'BAR'
+                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs font-bold'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                  title="Tampilkan Diagram Batang Modern"
+                >
+                  <BarChart3 className="w-3 h-3" />
+                  <span>Batang</span>
+                </button>
               </div>
 
-              {/* Timeframe / Dimension Mode Toggle */}
+              {/* Dimension Mode Toggle */}
               <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl text-[11px] font-semibold">
                 <button
                   type="button"
                   onClick={() => setChartViewMode('PERIOD')}
                   className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                     chartViewMode === 'PERIOD'
-                      ? 'bg-white dark:bg-slate-900 text-cyan-700 dark:text-cyan-400 shadow-xs font-bold'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-bold'
                       : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                   }`}
                 >
@@ -481,7 +649,7 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
                   onClick={() => setChartViewMode('UNIT')}
                   className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                     chartViewMode === 'UNIT'
-                      ? 'bg-white dark:bg-slate-900 text-cyan-700 dark:text-cyan-400 shadow-xs font-bold'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-bold'
                       : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                   }`}
                 >
@@ -492,7 +660,7 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
                   onClick={() => setChartViewMode('COMPONENT')}
                   className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                     chartViewMode === 'COMPONENT'
-                      ? 'bg-white dark:bg-slate-900 text-cyan-700 dark:text-cyan-400 shadow-xs font-bold'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-bold'
                       : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                   }`}
                 >
@@ -502,41 +670,69 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
             </div>
           </div>
 
-          {/* Dual Spline Chart Area */}
-          <div className="relative pt-6 pb-2 select-none overflow-x-auto no-scrollbar">
+          {/* Interactive SVG Chart Area */}
+          <div className="relative pt-5 pb-2 select-none overflow-x-auto no-scrollbar">
             <svg
-              viewBox="0 0 570 230"
+              viewBox="0 0 570 236"
               className="w-full min-w-[500px] h-64 overflow-visible"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
+              onMouseLeave={() => setHoveredIndex(null)}
             >
               <defs>
-                {/* Column Highlight Glow Gradient */}
+                {/* Indigo Area Fill under Score Curve */}
+                <linearGradient id="obe-indigo-area" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.26" />
+                  <stop offset="65%" stopColor="#6366f1" stopOpacity="0.08" />
+                  <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
+                </linearGradient>
+
+                {/* Coral Orange Area Fill under Progress Curve */}
+                <linearGradient id="obe-coral-area" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#f97316" stopOpacity="0.22" />
+                  <stop offset="65%" stopColor="#fb923c" stopOpacity="0.06" />
+                  <stop offset="100%" stopColor="#fb923c" stopOpacity="0.0" />
+                </linearGradient>
+
+                {/* Vertical Bar Gradients */}
+                <linearGradient id="obe-bar-indigo" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#4f46e5" />
+                  <stop offset="100%" stopColor="#818cf8" />
+                </linearGradient>
+                <linearGradient id="obe-bar-coral" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#f97316" />
+                  <stop offset="100%" stopColor="#fdba74" />
+                </linearGradient>
+                <linearGradient id="obe-bar-cyan" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#06b6d4" />
+                  <stop offset="100%" stopColor="#67e8f9" />
+                </linearGradient>
+
+                {/* Column Hover Glow */}
                 <linearGradient id="obe-column-highlight" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.35" />
-                  <stop offset="70%" stopColor="#0891b2" stopOpacity="0.15" />
-                  <stop offset="100%" stopColor="#0e7490" stopOpacity="0.02" />
+                  <stop offset="0%" stopColor="#6366f1" stopOpacity="0.16" />
+                  <stop offset="100%" stopColor="#6366f1" stopOpacity="0.02" />
                 </linearGradient>
               </defs>
 
               {/* Horizontal Gridlines (100, 80, 60, 40, 20, 0) */}
               {[100, 80, 60, 40, 20, 0].map(val => {
-                const y = 195 - (val / 100) * 165;
+                const y = 195 - (val / 100) * 162;
                 return (
                   <g key={val}>
                     <line
                       x1="40"
                       y1={y}
-                      x2="535"
+                      x2="545"
                       y2={y}
                       stroke="currentColor"
-                      className="text-slate-100 dark:text-slate-800"
+                      className="text-slate-100 dark:text-slate-800/90"
                       strokeWidth="1"
                     />
                     <text
-                      x="18"
+                      x="14"
                       y={y + 4}
-                      className="text-[11px] font-medium fill-slate-400 dark:fill-slate-500 font-mono"
+                      className="text-[10px] font-semibold fill-slate-400 dark:fill-slate-500 font-mono"
                     >
                       {val}
                     </text>
@@ -547,104 +743,242 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
               {/* Benchmark Reference Line: SKM = 75.0 */}
               <line
                 x1="40"
-                y1={195 - (75 / 100) * 165}
-                x2="535"
-                y2={195 - (75 / 100) * 165}
+                y1={195 - (75 / 100) * 162}
+                x2="545"
+                y2={195 - (75 / 100) * 162}
                 stroke="#10b981"
-                strokeWidth="1.2"
-                strokeDasharray="4 4"
-                opacity="0.85"
+                strokeWidth="1.25"
+                strokeDasharray="5 4"
+                opacity="0.8"
               />
               <text
-                x="535"
-                y={195 - (75 / 100) * 165 - 5}
+                x="545"
+                y={195 - (75 / 100) * 162 - 5}
                 textAnchor="end"
-                className="fill-emerald-600 dark:fill-emerald-400 text-[10px] font-extrabold font-mono"
+                className="fill-emerald-600 dark:fill-emerald-400 text-[9px] font-extrabold font-mono tracking-wider"
               >
                 TARGET SKM: 75.0
               </text>
 
-              {/* Hover Highlight Vertical Pill Bar */}
-              {hoveredIndex !== null && splineChartData.scorePoints[hoveredIndex] && (
-                <g className="transition-all duration-200">
-                  <rect
-                    x={splineChartData.scorePoints[hoveredIndex].x - 14}
-                    y={Math.min(splineChartData.scorePoints[hoveredIndex].y, splineChartData.progressPoints[hoveredIndex].y) - 8}
-                    width="28"
-                    height={195 - Math.min(splineChartData.scorePoints[hoveredIndex].y, splineChartData.progressPoints[hoveredIndex].y) + 8}
-                    rx="14"
-                    fill="url(#obe-column-highlight)"
-                  />
-                  {/* Pin Dot: Score Curve */}
-                  <circle
-                    cx={splineChartData.scorePoints[hoveredIndex].x}
-                    cy={splineChartData.scorePoints[hoveredIndex].y}
-                    r="4.5"
-                    fill="#06b6d4"
-                    stroke="#ffffff"
-                    strokeWidth="2.5"
-                    className="drop-shadow-sm"
-                  />
-                  {/* Pin Dot: Progress Curve */}
-                  <circle
-                    cx={splineChartData.progressPoints[hoveredIndex].x}
-                    cy={splineChartData.progressPoints[hoveredIndex].y}
-                    r="4.5"
-                    fill="#f59e0b"
-                    stroke="#ffffff"
-                    strokeWidth="2.5"
-                    className="drop-shadow-sm"
-                  />
-                </g>
+              {/* Hover Column Highlight Pill */}
+              {hoveredIndex !== null && chartData.scorePoints[hoveredIndex] && (
+                <rect
+                  x={chartData.scorePoints[hoveredIndex].x - 24}
+                  y="24"
+                  width="48"
+                  height="171"
+                  rx="12"
+                  fill="url(#obe-column-highlight)"
+                  className="transition-all duration-200"
+                />
               )}
 
-              {/* Amber Curve (Ketuntasan Tugas %) */}
-              <path
-                d={splineChartData.progressPath}
-                fill="none"
-                stroke="#f59e0b"
-                strokeWidth="2.75"
-                strokeLinecap="round"
-                className="drop-shadow-xs"
-              />
+              {/* GROUPED VERTICAL BARS (Shown in BAR and COMBO modes) */}
+              {(chartStyle === 'BAR' || chartStyle === 'COMBO') &&
+                chartData.scorePoints.map((pt, idx) => {
+                  const progPt = chartData.progressPoints[idx];
+                  const passPt = chartData.passPoints[idx];
+                  const isCombo = chartStyle === 'COMBO';
+                  const barWidth = isCombo ? 10 : 11;
+                  const gap = 3;
+                  const scoreHeight = Math.max(4, 195 - pt.y);
+                  const progHeight = Math.max(4, 195 - progPt.y);
+                  const passHeight = Math.max(4, 195 - passPt.y);
+                  const barOpacity = isCombo ? (hoveredIndex === idx ? 0.85 : 0.42) : 0.95;
 
-              {/* Cyan Curve (Rata-rata Nilai Poin) */}
-              <path
-                d={splineChartData.scorePath}
-                fill="none"
-                stroke="#06b6d4"
-                strokeWidth="3"
-                strokeLinecap="round"
-                className="drop-shadow-xs"
-              />
+                  return (
+                    <g key={`bars-${idx}`} opacity={barOpacity} className="transition-opacity duration-200">
+                      {isCombo ? (
+                        <>
+                          {/* Subtle Track */}
+                          <rect
+                            x={pt.x - barWidth - 1.5}
+                            y="33"
+                            width={barWidth}
+                            height="162"
+                            rx="5"
+                            className="fill-slate-100/70 dark:fill-slate-800/40"
+                          />
+                          <rect
+                            x={pt.x + 1.5}
+                            y="33"
+                            width={barWidth}
+                            height="162"
+                            rx="5"
+                            className="fill-slate-100/70 dark:fill-slate-800/40"
+                          />
+                          {/* Bar 1: Rata-rata Nilai */}
+                          <rect
+                            x={pt.x - barWidth - 1.5}
+                            y={195 - scoreHeight}
+                            width={barWidth}
+                            height={scoreHeight}
+                            rx="5"
+                            fill="url(#obe-bar-indigo)"
+                          />
+                          {/* Bar 2: Ketuntasan Tugas */}
+                          <rect
+                            x={pt.x + 1.5}
+                            y={195 - progHeight}
+                            width={barWidth}
+                            height={progHeight}
+                            rx="5"
+                            fill="url(#obe-bar-coral)"
+                          />
+                        </>
+                      ) : (
+                        <>
+                          {/* 3 Grouped Bars in Pure Bar Mode (inspired by reference image) */}
+                          <rect
+                            x={pt.x - barWidth * 1.5 - gap}
+                            y="33"
+                            width={barWidth}
+                            height="162"
+                            rx="5.5"
+                            className="fill-slate-100/80 dark:fill-slate-800/50"
+                          />
+                          <rect
+                            x={pt.x - barWidth * 0.5}
+                            y="33"
+                            width={barWidth}
+                            height="162"
+                            rx="5.5"
+                            className="fill-slate-100/80 dark:fill-slate-800/50"
+                          />
+                          <rect
+                            x={pt.x + barWidth * 0.5 + gap}
+                            y="33"
+                            width={barWidth}
+                            height="162"
+                            rx="5.5"
+                            className="fill-slate-100/80 dark:fill-slate-800/50"
+                          />
 
-              {/* Interactive Hover Columns */}
-              {splineChartData.scorePoints.map((pt, idx) => (
+                          {/* Bar 1: Skor Nilai (Indigo) */}
+                          <rect
+                            x={pt.x - barWidth * 1.5 - gap}
+                            y={195 - scoreHeight}
+                            width={barWidth}
+                            height={scoreHeight}
+                            rx="5.5"
+                            fill="url(#obe-bar-indigo)"
+                          />
+                          {/* Bar 2: Ketuntasan Tugas (Coral Orange) */}
+                          <rect
+                            x={pt.x - barWidth * 0.5}
+                            y={195 - progHeight}
+                            width={barWidth}
+                            height={progHeight}
+                            rx="5.5"
+                            fill="url(#obe-bar-coral)"
+                          />
+                          {/* Bar 3: Daya Serap / Kelulusan SKM (Cyan) */}
+                          <rect
+                            x={pt.x + barWidth * 0.5 + gap}
+                            y={195 - passHeight}
+                            width={barWidth}
+                            height={passHeight}
+                            rx="5.5"
+                            fill="url(#obe-bar-cyan)"
+                          />
+                        </>
+                      )}
+                    </g>
+                  );
+                })}
+
+              {/* SMOOTH WAVE LINE & AREA CURVES (Shown in LINE and COMBO modes) */}
+              {(chartStyle === 'LINE' || chartStyle === 'COMBO') && (
+                <>
+                  {/* Soft Area Gradients beneath the curves */}
+                  <path
+                    d={chartData.progressAreaPath}
+                    fill="url(#obe-coral-area)"
+                  />
+                  <path
+                    d={chartData.scoreAreaPath}
+                    fill="url(#obe-indigo-area)"
+                  />
+
+                  {/* Coral Orange Curve (Ketuntasan Tugas %) */}
+                  <path
+                    d={chartData.progressPath}
+                    fill="none"
+                    stroke="#f97316"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+
+                  {/* Indigo Curve (Rata-rata Nilai Poin) */}
+                  <path
+                    d={chartData.scorePath}
+                    fill="none"
+                    stroke="#4f46e5"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                  />
+
+                  {/* Hollow Ring Nodes on Data Points (Matching reference design) */}
+                  {chartData.progressPoints.map((pt, idx) => {
+                    const isHovered = hoveredIndex === idx;
+                    return (
+                      <circle
+                        key={`prog-node-${idx}`}
+                        cx={pt.x}
+                        cy={pt.y}
+                        r={isHovered ? 5.5 : 4}
+                        className="fill-white dark:fill-slate-900 transition-all duration-150"
+                        stroke="#f97316"
+                        strokeWidth={isHovered ? 3 : 2.25}
+                      />
+                    );
+                  })}
+
+                  {chartData.scorePoints.map((pt, idx) => {
+                    const isHovered = hoveredIndex === idx;
+                    return (
+                      <circle
+                        key={`score-node-${idx}`}
+                        cx={pt.x}
+                        cy={pt.y}
+                        r={isHovered ? 6 : 4.5}
+                        className="fill-white dark:fill-slate-900 transition-all duration-150"
+                        stroke="#4f46e5"
+                        strokeWidth={isHovered ? 3.25 : 2.5}
+                      />
+                    );
+                  })}
+                </>
+              )}
+
+              {/* Interactive Hover Hit Columns */}
+              {chartData.scorePoints.map((pt, idx) => (
                 <rect
-                  key={idx}
-                  x={pt.x - 25}
+                  key={`hit-${idx}`}
+                  x={pt.x - 28}
                   y="20"
-                  width="50"
-                  height="180"
+                  width="56"
+                  height="185"
                   fill="transparent"
                   className="cursor-pointer"
                   onMouseEnter={() => setHoveredIndex(idx)}
+                  onClick={() => setHoveredIndex(idx)}
                 />
               ))}
 
               {/* X-Axis Labels */}
-              {splineChartData.labels.map((label, idx) => {
-                const x = splineChartData.scorePoints[idx]?.x || 0;
+              {chartData.labels.map((label, idx) => {
+                const x = chartData.scorePoints[idx]?.x || 0;
                 const isHovered = hoveredIndex === idx;
                 return (
                   <text
-                    key={label}
+                    key={`${label}-${idx}`}
                     x={x}
-                    y="222"
+                    y="220"
                     textAnchor="middle"
-                    className={`text-[11px] transition-colors cursor-pointer ${
+                    className={`text-[10.5px] transition-colors cursor-pointer ${
                       isHovered
-                        ? 'font-bold fill-cyan-700 dark:fill-cyan-300'
+                        ? 'font-extrabold fill-indigo-600 dark:fill-indigo-400'
                         : 'font-semibold fill-slate-400 dark:fill-slate-500'
                     }`}
                     onClick={() => setHoveredIndex(idx)}
@@ -656,158 +990,212 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
             </svg>
 
             {/* Interactive Floating Tooltip */}
-            {hoveredIndex !== null && splineChartData.scorePoints[hoveredIndex] && (
+            {hoveredIndex !== null && chartData.scorePoints[hoveredIndex] && (
               <div
                 className="absolute pointer-events-none transition-all duration-200 z-10 flex flex-col items-center"
                 style={{
-                  left: `${(splineChartData.scorePoints[hoveredIndex].x / 570) * 100}%`,
-                  top: `${Math.max(8, (Math.min(splineChartData.scorePoints[hoveredIndex].y, splineChartData.progressPoints[hoveredIndex].y) / 230) * 100 - 35)}%`,
+                  left: `${Math.min(84, Math.max(16, (chartData.scorePoints[hoveredIndex].x / 570) * 100))}%`,
+                  top: `${Math.max(4, (Math.min(chartData.scorePoints[hoveredIndex].y, chartData.progressPoints[hoveredIndex].y) / 236) * 100 - 34)}%`,
                   transform: 'translateX(-50%)'
                 }}
               >
-                <div className="bg-slate-900/95 dark:bg-slate-950/95 text-white backdrop-blur-md px-3.5 py-2 rounded-2xl shadow-xl border border-slate-700 text-center animate-fadeIn min-w-[140px]">
-                  <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-wider block">
-                    {splineChartData.labels[hoveredIndex]}
+                <div className="bg-slate-900/95 dark:bg-slate-950/95 text-white backdrop-blur-md px-3.5 py-2.5 rounded-2xl shadow-xl border border-slate-700/80 text-center min-w-[165px]">
+                  <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider block truncate max-w-[190px]">
+                    {chartData.fullTitles[hoveredIndex]}
                   </span>
-                  <div className="flex items-baseline justify-center gap-2 mt-1">
-                    <span className="text-sm font-extrabold text-white">
-                      {splineChartData.scorePoints[hoveredIndex].val} Poin
+                  <div className="flex items-center justify-center gap-3 mt-1.5 text-xs">
+                    <span className="flex items-center gap-1 font-extrabold text-white">
+                      <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                      {chartData.scorePoints[hoveredIndex].val} Poin
                     </span>
-                    <span className="text-[11px] font-bold text-amber-400">
-                      • {splineChartData.progressPoints[hoveredIndex].val}% Tuntas
+                    <span className="flex items-center gap-1 font-bold text-orange-400">
+                      <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                      {chartData.progressPoints[hoveredIndex].val}% Tuntas
                     </span>
                   </div>
-                  <span className={`text-[9px] font-semibold block mt-0.5 ${
-                    splineChartData.scorePoints[hoveredIndex].val >= 75
+                  <span className={`text-[9px] font-semibold block mt-1 ${
+                    chartData.scorePoints[hoveredIndex].val >= 75
                       ? 'text-emerald-400'
-                      : splineChartData.scorePoints[hoveredIndex].val > 0
+                      : chartData.scorePoints[hoveredIndex].val > 0
                         ? 'text-rose-400'
                         : 'text-slate-400'
                   }`}>
-                    {splineChartData.scorePoints[hoveredIndex].val >= 75
-                      ? '✓ Memenuhi SKM'
-                      : splineChartData.scorePoints[hoveredIndex].val > 0
-                        ? '⚠ Perlu Remedial'
-                        : '⏳ Menunggu Penilaian'}
+                    {chartData.scorePoints[hoveredIndex].val >= 75
+                      ? '✓ Memenuhi Standar SKM (≥75)'
+                      : chartData.scorePoints[hoveredIndex].val > 0
+                        ? '⚠ Di Bawah SKM (Perlu Evaluasi)'
+                        : '⏳ Menunggu Input Penilaian'}
                   </span>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Bottom Card Footer */}
-          <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-            <span>Standar SKM Poliwako: 75.0 (Kualitas 70% + Laporan 15% + Sikap 10% + Kreativitas 5%)</span>
-            {onNavigateTab && (
+          {/* Bottom Legend & Footer */}
+          <div className="mt-3 pt-3.5 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-[11px] text-slate-500 dark:text-slate-400">
+            <div className="flex flex-wrap items-center gap-4 font-semibold text-slate-600 dark:text-slate-300">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center">
+                  <span className="w-4 h-0.5 bg-indigo-600 rounded-full"></span>
+                  <span className="w-2.5 h-2.5 rounded-full border-2 border-indigo-600 bg-white dark:bg-slate-900 -ml-2.5"></span>
+                </span>
+                <span>Rata-rata Nilai (Poin)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center">
+                  <span className="w-4 h-0.5 bg-orange-500 rounded-full"></span>
+                  <span className="w-2.5 h-2.5 rounded-full border-2 border-orange-500 bg-white dark:bg-slate-900 -ml-2.5"></span>
+                </span>
+                <span>Ketuntasan Tugas (%)</span>
+              </div>
+              {chartStyle === 'BAR' && (
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-cyan-500"></span>
+                  <span>Daya Serap SKM (%)</span>
+                </div>
+              )}
+            </div>
+
+            {onNavigateTab ? (
               <button
                 type="button"
                 onClick={() => onNavigateTab('GRADING')}
-                className="inline-flex items-center gap-1 font-bold text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors cursor-pointer"
               >
                 <span>Buka Grading Workspace</span>
-                <ArrowUpRight className="h-3.5 w-3.5 text-cyan-500" />
+                <ArrowUpRight className="h-3.5 w-3.5" />
               </button>
+            ) : (
+              <span className="text-[10px] text-slate-400">Standar SKM Poliwako: 75.0</span>
             )}
           </div>
 
         </div>
 
-        {/* Right Column (4 cols): Segmented Donut Ring Distribusi Kelulusan OBE */}
+        {/* Right Column (4 cols): Segmented Donut Ring + Horizontal Stacked Bar Distribution */}
         <div className="lg:col-span-4 bg-white dark:bg-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           
           {/* Header */}
-          <div className="pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-100 dark:ring-emerald-800/40">
-                <Award className="h-4 w-4" />
-              </span>
-              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-                Distribusi Nilai OBE
-              </h3>
+          <div className="pb-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-100 dark:ring-indigo-800/40">
+                  <Award className="h-4 w-4" />
+                </span>
+                <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
+                  Distribusi Nilai OBE
+                </h3>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Proporsi predikat &amp; grafik sebaran mutu kelas
+              </p>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Proporsi predikat capaian pembelajaran mahasiswa
-            </p>
           </div>
 
-          {/* Centered Donut Ring Chart */}
-          <div className="py-6 flex items-center justify-center relative">
-            <svg
-              viewBox="0 0 200 200"
-              className="w-48 h-48 transform -rotate-90 drop-shadow-xs"
-            >
-              {/* Background Ring Track */}
-              <circle
-                cx="100"
-                cy="100"
-                r="62"
-                fill="none"
-                stroke="currentColor"
-                className="text-slate-100 dark:text-slate-800"
-                strokeWidth="24"
-              />
-
-              {/* Segmented Donut Slices */}
-              {donutSegments.map(seg => seg.length > 0 && (
+          {/* Centered Modern Donut Ring Chart */}
+          <div className="py-4 flex flex-col items-center justify-center">
+            <div className="relative flex items-center justify-center">
+              <svg
+                viewBox="0 0 200 200"
+                className="w-44 h-44 transform -rotate-90"
+              >
+                {/* Background Ring Track */}
                 <circle
-                  key={seg.id}
                   cx="100"
                   cy="100"
                   r="62"
                   fill="none"
-                  stroke={seg.color}
-                  strokeWidth="24"
-                  strokeDasharray={`${seg.length} 389.5`}
-                  strokeDashoffset={seg.offset}
-                  strokeLinecap="round"
-                  className="transition-all duration-700"
+                  stroke="currentColor"
+                  className="text-slate-100 dark:text-slate-800"
+                  strokeWidth="20"
                 />
-              ))}
-            </svg>
 
-            {/* Central Score Display */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-              <span className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                {metrics.hasData ? metrics.avgScore : '0.0'}
-              </span>
-              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5">
-                Rata-rata Kelas
-              </span>
-              <span className={`mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                metrics.hasData
-                  ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/50'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
-              }`}>
-                {metrics.hasData
-                  ? `Predikat ${metrics.avgPred.letter} (${metrics.passRate}% Lulus)`
-                  : `Belum Ada Nilai (0/${metrics.total})`}
-              </span>
+                {/* Segmented Donut Slices */}
+                {donutSegments.map(seg => seg.length > 0 && (
+                  <circle
+                    key={seg.id}
+                    cx="100"
+                    cy="100"
+                    r="62"
+                    fill="none"
+                    stroke={seg.color}
+                    strokeWidth="20"
+                    strokeDasharray={`${seg.length} 389.56`}
+                    strokeDashoffset={seg.offset}
+                    strokeLinecap="round"
+                    className="transition-all duration-700"
+                  />
+                ))}
+              </svg>
+
+              {/* Central Score Display (Cleanly fitted inside the ring without overlapping the stroke) */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">
+                  {metrics.hasData ? metrics.avgScore : '0.0'}
+                </span>
+                <span className="text-[9px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">
+                  Rata-rata Kelas
+                </span>
+              </div>
+            </div>
+
+            {/* Clean Pill Badge Below Donut Ring */}
+            <div className={`mt-2 px-3 py-1 rounded-full text-[11px] font-bold border ${
+              metrics.hasData
+                ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800/60'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+            }`}>
+              {metrics.hasData
+                ? `Predikat ${metrics.avgPred.letter} • ${metrics.passRate}% Lulus SKM`
+                : `Belum Ada Nilai (0/${metrics.total})`}
             </div>
           </div>
 
-          {/* Legend: 4 Slices with precise counts and percentages */}
-          <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              {donutSegments.map(seg => (
-                <div key={seg.id} className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-1.5">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
-                    <span className="font-semibold text-slate-700 dark:text-slate-300 truncate text-[11px]">{seg.title}</span>
-                  </div>
-                  <span className="font-mono font-bold text-slate-900 dark:text-white shrink-0 text-[11px]">{seg.pct}% <span className="text-slate-400 text-[10px] font-normal">({seg.count})</span></span>
-                </div>
-              ))}
+          {/* Modern Horizontal Multi-Segment Bar & Breakdown (Matching Reference Image) */}
+          <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+            {/* Multi-segment Horizontal Stacked Bar */}
+            <div>
+              <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">
+                <span>Komposisi Predikat Kelas</span>
+                <span className="font-mono text-slate-600 dark:text-slate-300">{metrics.gradedCount}/{metrics.total} Dinilai</span>
+              </div>
+              <div className="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex p-0.5 gap-0.5">
+                {metrics.hasData ? (
+                  donutSegments.map(seg => seg.pct > 0 && (
+                    <div
+                      key={`bar-${seg.id}`}
+                      style={{ width: `${seg.pct}%`, backgroundColor: seg.color }}
+                      className="h-full first:rounded-l-full last:rounded-r-full transition-all duration-700"
+                      title={`${seg.title}: ${seg.pct}% (${seg.count} Mahasiswa)`}
+                    />
+                  ))
+                ) : (
+                  <div className="w-full h-full rounded-full bg-slate-200 dark:bg-slate-700" />
+                )}
+              </div>
             </div>
 
-            <div className={`mt-3 p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold ${
-              metrics.hasData
-                ? 'bg-cyan-50/70 dark:bg-cyan-950/30 border-cyan-100 dark:border-cyan-900/50 text-cyan-900 dark:text-cyan-300'
-                : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
-            }`}>
-              <span>Kelulusan Tuntas (≥75)</span>
-              <span className="font-mono font-black">
-                {metrics.hasData ? `${metrics.passRate}% Mahasiswa` : `0 Mahasiswa (${metrics.gradedCount}/${metrics.total} dinilai)`}
-              </span>
+            {/* 4 Horizontal Bar Rows for Each Predicate */}
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {donutSegments.map(seg => (
+                <div key={seg.id} className="p-2.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/80 space-y-1.5">
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
+                      <span className="font-bold text-slate-700 dark:text-slate-200 truncate text-[11px]">{seg.title}</span>
+                    </div>
+                    <span className="font-mono font-extrabold text-slate-900 dark:text-white shrink-0 text-[11px]">
+                      {seg.pct}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200/70 dark:bg-slate-700/70 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{ width: `${seg.pct}%`, backgroundColor: seg.color }}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
