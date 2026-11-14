@@ -188,102 +188,53 @@ export function getGradePredicate(score: number): GradePredicateRule {
   return match || GRADE_PREDICATE_RULES[GRADE_PREDICATE_RULES.length - 1];
 }
 
-export interface GradeTierGroup {
-  id: 'TIER_A' | 'TIER_B' | 'TIER_C' | 'TIER_DE';
-  title: string;
-  shortTitle: string;
-  rangeLabel: string;
-  letters: string[];
-  minScore: number;
-  maxScore: number;
-  color: string;
-}
-
-// Pengelompokan 4 tingkat yang tersinkronisasi langsung dengan GRADE_PREDICATE_RULES
-export const GRADE_TIER_GROUPS: GradeTierGroup[] = [
-  {
-    id: 'TIER_A',
-    title: 'Predikat A / A- (80–100)',
-    shortTitle: 'Sangat Baik (A, A-)',
-    rangeLabel: '80,00 – 100,00',
-    letters: ['A', 'A-'],
-    minScore: 80.0,
-    maxScore: 100.0,
-    color: '#4f46e5', // Indigo
-  },
-  {
-    id: 'TIER_B',
-    title: 'Predikat B+ / B / B- (63–79)',
-    shortTitle: 'Baik (B+, B, B-)',
-    rangeLabel: '63,00 – 79,99',
-    letters: ['B+', 'B', 'B-'],
-    minScore: 63.0,
-    maxScore: 79.99,
-    color: '#06b6d4', // Cyan
-  },
-  {
-    id: 'TIER_C',
-    title: 'Predikat C+ / C (51–62)',
-    shortTitle: 'Cukup (C+, C)',
-    rangeLabel: '51,00 – 62,99',
-    letters: ['C+', 'C'],
-    minScore: 51.0,
-    maxScore: 62.99,
-    color: '#f97316', // Orange
-  },
-  {
-    id: 'TIER_DE',
-    title: 'Predikat D+ / D / E (<51)',
-    shortTitle: 'Kurang (D+, D, E)',
-    rangeLabel: '< 51,00',
-    letters: ['D+', 'D', 'E'],
-    minScore: 0,
-    maxScore: 50.99,
-    color: '#f43f5e', // Rose
-  },
-];
-
 export function computeSynchronizedGradeDistribution(scores: number[]) {
   const total = scores.length;
 
-  const byPredicate = GRADE_PREDICATE_RULES.map(rule => {
+  const predicateColors = [
+    '#10b981', // A  (85,00 – 100,00) - Emerald
+    '#14b8a6', // A- (80,00 – 84,99)  - Teal
+    '#3b82f6', // B+ (75,00 – 79,99)  - Blue
+    '#6366f1', // B  (70,00 – 74,99)  - Indigo
+    '#0ea5e9', // B- (63,00 – 69,99)  - Sky
+    '#f59e0b', // C+ (57,00 – 62,99)  - Amber
+    '#eab308', // C  (51,00 – 56,99)  - Yellow
+    '#f97316', // D+ (46,00 – 50,99)  - Orange
+    '#fb7185', // D  (40,00 – 45,99)  - Rose-400
+    '#e11d48', // E  (< 40,00)        - Rose-600
+  ];
+
+  const byPredicate = GRADE_PREDICATE_RULES.map((rule, idx) => {
     const count = scores.filter(s => getGradePredicate(s).key === rule.key).length;
     const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+    const shortRange =
+      rule.key === 'E'
+        ? '< 40'
+        : `${Math.floor(rule.minScore100)}–${Math.floor(rule.maxScore100)}`;
     return {
       ...rule,
+      shortRange,
+      hexColor: predicateColors[idx % predicateColors.length],
       count,
       pct,
     };
   });
 
-  const rawTierCounts = GRADE_TIER_GROUPS.map(group => {
-    const count = scores.filter(s => {
-      const pred = getGradePredicate(s);
-      return group.letters.includes(pred.letter);
-    }).length;
-    return {
-      ...group,
-      count,
-      pct: total > 0 ? Math.round((count / total) * 100) : 0,
-    };
-  });
-
-  // Pastikan total persentase genap 100% jika ada data
+  // Pastikan total persentase genap 100% jika ada mahasiswa dinilai
   if (total > 0) {
-    const sumPct = rawTierCounts.reduce((acc, t) => acc + t.pct, 0);
+    const sumPct = byPredicate.reduce((acc, p) => acc + p.pct, 0);
     if (sumPct !== 100) {
-      const largestIdx = rawTierCounts.reduce(
+      const largestIdx = byPredicate.reduce(
         (bestIdx, item, idx, arr) => (item.count > arr[bestIdx].count ? idx : bestIdx),
         0
       );
-      rawTierCounts[largestIdx].pct = Math.max(0, rawTierCounts[largestIdx].pct + (100 - sumPct));
+      byPredicate[largestIdx].pct = Math.max(0, byPredicate[largestIdx].pct + (100 - sumPct));
     }
   }
 
   return {
     total,
     byPredicate,
-    byTier: rawTierCounts,
   };
 }
 

@@ -133,7 +133,7 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
       ? Math.round((eligibleCount / participantAttendance.length) * 100)
       : 0;
 
-    // Synchronized Grade Distribution from GRADE_PREDICATE_RULES
+    // Synchronized Grade Distribution strictly from GRADE_PREDICATE_RULES (A, A-, B+, B, B-, C+, C, D+, D, E)
     const gradeDist = computeSynchronizedGradeDistribution(scores);
 
     const avgPred = hasData
@@ -349,31 +349,10 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
     };
   }, [chartViewMode, coursePeriods, assessments, participants, attendance, learningUnits, submissions, filteredParticipants, selectedPeriodFilter, metrics, qualityComponents, qualityItems]);
 
-  // Donut Ring Segments for OBE Grade Distribution (Synchronized with GRADE_PREDICATE_RULES)
-  const donutSegments = useMemo(() => {
-    const circumference = 2 * Math.PI * 62; // r = 62 -> ~389.56
-    let currentOffset = 0;
-
-    return metrics.gradeDist.byTier.map(tier => {
-      const rawLength = (tier.pct / 100) * circumference;
-      const gap = tier.pct > 0 && tier.pct < 100 ? 6 : 0;
-      const length = Math.max(0, rawLength - gap);
-      const seg = {
-        id: tier.id,
-        title: tier.title,
-        shortTitle: tier.shortTitle,
-        rangeLabel: tier.rangeLabel,
-        letters: tier.letters,
-        pct: tier.pct,
-        count: tier.count,
-        color: tier.color,
-        length,
-        offset: currentOffset
-      };
-      currentOffset -= rawLength;
-      return seg;
-    });
-  }, [metrics.gradeDist]);
+  // Maximum count across the 10 GRADE_PREDICATE_RULES for scaling the Vertical Bar Chart
+  const maxPredicateCount = useMemo(() => {
+    return Math.max(1, ...metrics.gradeDist.byPredicate.map(rule => rule.count));
+  }, [metrics.gradeDist.byPredicate]);
 
   return (
     <div className="space-y-6">
@@ -921,11 +900,11 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
 
         </div>
 
-        {/* Right Column (4 cols): Segmented Donut Ring + Horizontal Stacked Bar Distribution */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+        {/* Right Column (4 cols): Diagram Batang Vertikal Distribusi Nilai OBE (10 Klasifikasi Grading) */}
+        <div className="lg:col-span-4 bg-white dark:bg-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between gap-4">
           
           {/* Header */}
-          <div className="pb-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+          <div className="pb-3 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-100 dark:ring-indigo-800/40">
@@ -936,136 +915,161 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
                 </h3>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Proporsi predikat &amp; grafik sebaran mutu kelas
+                Diagram batang vertikal klasifikasi nilai mutu (A s/d E)
               </p>
             </div>
+            <span className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300 shrink-0">
+              {metrics.gradedCount}/{metrics.total} Dinilai
+            </span>
           </div>
 
-          {/* Centered Modern Donut Ring Chart */}
-          <div className="py-4 flex flex-col items-center justify-center">
-            <div className="relative flex items-center justify-center">
-              <svg
-                viewBox="0 0 200 200"
-                className="w-44 h-44 transform -rotate-90"
-              >
-                {/* Background Ring Track */}
-                <circle
-                  cx="100"
-                  cy="100"
-                  r="62"
-                  fill="none"
-                  stroke="currentColor"
-                  className="text-slate-100 dark:text-slate-800"
-                  strokeWidth="20"
-                />
-
-                {/* Segmented Donut Slices */}
-                {donutSegments.map(seg => seg.length > 0 && (
-                  <circle
-                    key={seg.id}
-                    cx="100"
-                    cy="100"
-                    r="62"
-                    fill="none"
-                    stroke={seg.color}
-                    strokeWidth="20"
-                    strokeDasharray={`${seg.length} 389.56`}
-                    strokeDashoffset={seg.offset}
-                    strokeLinecap="round"
-                    className="transition-all duration-700"
-                  />
-                ))}
-              </svg>
-
-              {/* Central Score Display (Cleanly fitted inside the ring without overlapping the stroke) */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">
+          {/* Class Average Summary Banner */}
+          <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+            <div>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
+                Rata-rata Kelas
+              </span>
+              <div className="flex items-baseline gap-2 mt-0.5">
+                <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none">
                   {metrics.hasData ? metrics.avgScore : '0.0'}
                 </span>
-                <span className="text-[9px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">
-                  Rata-rata Kelas
-                </span>
-              </div>
-            </div>
-
-            {/* Clean Pill Badge Below Donut Ring (Synchronized with GradingWorkspace getGradePredicate) */}
-            <div className={`mt-2 px-3 py-1 rounded-full text-[11px] font-bold border ${
-              metrics.hasData
-                ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800/60'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
-            }`}>
-              {metrics.hasData
-                ? `Mutu ${metrics.avgPred.letter} • ${metrics.avgPred.predicate}`
-                : `Belum Ada Nilai (0/${metrics.total})`}
-            </div>
-          </div>
-
-          {/* Modern Horizontal Multi-Segment Bar & Breakdown (Synchronized with GRADE_PREDICATE_RULES) */}
-          <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-            {/* Multi-segment Horizontal Stacked Bar */}
-            <div>
-              <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">
-                <span>Klasifikasi Mutu Grading</span>
-                <span className="font-mono text-slate-600 dark:text-slate-300">{metrics.gradedCount}/{metrics.total} Dinilai</span>
-              </div>
-              <div className="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex p-0.5 gap-0.5">
-                {metrics.hasData ? (
-                  donutSegments.map(seg => seg.pct > 0 && (
-                    <div
-                      key={`bar-${seg.id}`}
-                      style={{ width: `${seg.pct}%`, backgroundColor: seg.color }}
-                      className="h-full first:rounded-l-full last:rounded-r-full transition-all duration-700"
-                      title={`${seg.title}: ${seg.pct}% (${seg.count} Mahasiswa)`}
-                    />
-                  ))
-                ) : (
-                  <div className="w-full h-full rounded-full bg-slate-200 dark:bg-slate-700" />
+                {metrics.hasData && (
+                  <span className="text-[11px] font-mono font-semibold text-slate-400">
+                    ({metrics.avgPred.range100Label})
+                  </span>
                 )}
               </div>
             </div>
+            <div className="text-right">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
+                Nilai &amp; Sebutan Mutu
+              </span>
+              <div className="mt-1">
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-extrabold border ${metrics.avgPred.bgClass} ${metrics.avgPred.colorClass} ${metrics.avgPred.borderClass}`}>
+                  <span>{metrics.avgPred.letter}</span>
+                  <span>•</span>
+                  <span>{metrics.avgPred.predicate}</span>
+                </span>
+              </div>
+            </div>
+          </div>
 
-            {/* 4 Horizontal Bar Rows for Each Synchronized Grade Tier */}
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              {donutSegments.map(seg => (
-                <div key={seg.id} className="p-2.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/80 space-y-1.5">
-                  <div className="flex items-center justify-between gap-1">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
-                      <span className="font-bold text-slate-700 dark:text-slate-200 truncate text-[11px]" title={seg.title}>
-                        {seg.shortTitle}
-                      </span>
-                    </div>
-                    <span className="font-mono font-extrabold text-slate-900 dark:text-white shrink-0 text-[11px]">
-                      {seg.pct}% <span className="text-[10px] font-normal text-slate-400">({seg.count})</span>
+          {/* Vertical Bar Chart (10 Official Grading Classifications: A, A-, B+, B, B-, C+, C, D+, D, E) */}
+          <div className="p-3.5 rounded-2xl bg-slate-50/60 dark:bg-slate-800/35 border border-slate-100 dark:border-slate-800/80">
+            <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
+              <span>Diagram Batang Vertikal (A – E)</span>
+              <span className="font-mono text-slate-500 dark:text-slate-400">Jumlah Mahasiswa</span>
+            </div>
+
+            {/* 10 Vertical Bars */}
+            <div className="h-36 flex items-end justify-between gap-1.5 pt-5 px-1 border-b border-slate-200/80 dark:border-slate-700/70">
+              {metrics.gradeDist.byPredicate.map(rule => {
+                const heightPct = rule.count > 0
+                  ? Math.max(14, Math.round((rule.count / maxPredicateCount) * 100))
+                  : 4;
+                return (
+                  <div
+                    key={`vbar-${rule.key}`}
+                    className="flex-1 flex flex-col items-center justify-end h-full gap-1 group"
+                    title={`Nilai Mutu ${rule.letter} (${rule.predicate})\nRentang: ${rule.range10Label} (${rule.range100Label})\nJumlah: ${rule.count} Mahasiswa (${rule.pct}%)`}
+                  >
+                    <span className={`text-[10px] font-mono font-extrabold leading-none ${
+                      rule.count > 0
+                        ? 'text-slate-800 dark:text-slate-100'
+                        : 'text-slate-300 dark:text-slate-600'
+                    }`}>
+                      {rule.count}
                     </span>
+                    <div className="w-full max-w-[22px] h-full bg-slate-200/60 dark:bg-slate-700/40 rounded-t-lg flex items-end overflow-hidden">
+                      <div
+                        className="w-full rounded-t-lg transition-all duration-700 group-hover:brightness-110"
+                        style={{
+                          height: `${heightPct}%`,
+                          backgroundColor: rule.hexColor,
+                          opacity: rule.count > 0 ? 1 : 0.25,
+                        }}
+                      />
+                    </div>
                   </div>
-                  <div className="w-full bg-slate-200/70 dark:bg-slate-700/70 h-1.5 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-700"
-                      style={{ width: `${seg.pct}%`, backgroundColor: seg.color }}
-                    />
+                );
+              })}
+            </div>
+
+            {/* X-Axis Labels: Nilai Mutu (A..E) + Rentang Nilai */}
+            <div className="flex items-start justify-between gap-1 pt-2 px-0.5">
+              {metrics.gradeDist.byPredicate.map(rule => (
+                <div key={`xlbl-${rule.key}`} className="flex-1 text-center min-w-0">
+                  <span className={`inline-block text-[10px] font-mono font-black leading-tight ${
+                    rule.count > 0 ? rule.colorClass : 'text-slate-500 dark:text-slate-400'
+                  }`}>
+                    {rule.letter}
+                  </span>
+                  <span className="text-[7.5px] font-mono text-slate-400 dark:text-slate-500 block leading-tight tracking-tighter truncate mt-0.5">
+                    {rule.shortRange}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Official Grading Classification Table Summary (Sesuai Tabel Klasifikasi Nilai Mutu Poliwako) */}
+          <div className="space-y-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              <span>Klasifikasi Nilai Mutu &amp; Rentang Angka</span>
+              <span>Proporsi</span>
+            </div>
+
+            {/* Multi-segment Horizontal Stacked Bar */}
+            <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex p-0.5 gap-0.5">
+              {metrics.hasData ? (
+                metrics.gradeDist.byPredicate.map(rule => rule.pct > 0 && (
+                  <div
+                    key={`hbar-${rule.key}`}
+                    style={{ width: `${rule.pct}%`, backgroundColor: rule.hexColor }}
+                    className="h-full first:rounded-l-full last:rounded-r-full transition-all duration-700"
+                    title={`${rule.letter} (${rule.predicate} • ${rule.range100Label}): ${rule.pct}% (${rule.count} Mahasiswa)`}
+                  />
+                ))
+              ) : (
+                <div className="w-full h-full rounded-full bg-slate-200 dark:bg-slate-700" />
+              )}
+            </div>
+
+            {/* 10 Classification Rows in Compact 2-Column Grid matching Grading Reference */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs max-h-56 overflow-y-auto pr-0.5">
+              {metrics.gradeDist.byPredicate.map(rule => (
+                <div
+                  key={`row-${rule.key}`}
+                  className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl border transition-colors ${
+                    rule.count > 0
+                      ? 'bg-slate-50/90 dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700/80'
+                      : 'bg-slate-50/40 dark:bg-slate-800/20 border-slate-100 dark:border-slate-800/50 opacity-75'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={`w-7 py-0.5 rounded-md text-center font-mono text-[10.5px] font-extrabold border shrink-0 ${rule.bgClass} ${rule.colorClass} ${rule.borderClass}`}>
+                      {rule.letter}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-700 dark:text-slate-200 text-[11px] leading-tight truncate" title={rule.predicate}>
+                        {rule.predicate}
+                      </p>
+                      <p className="font-mono text-[9.5px] text-slate-400 dark:text-slate-500 leading-tight truncate" title={`${rule.range10Label} (${rule.range100Label})`}>
+                        {rule.range100Label}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="font-mono font-extrabold text-slate-900 dark:text-white text-[11px] block leading-tight">
+                      {rule.pct}%
+                    </span>
+                    <span className="font-mono text-[9.5px] text-slate-400 block leading-tight">
+                      {rule.count} mhs
+                    </span>
                   </div>
                 </div>
               ))}
             </div>
-
-            {/* Rincian Huruf Mutu Aktif (A, A-, B+, B, B-, C+, C, D+, D, E) dari Grading */}
-            {metrics.hasData && (
-              <div className="pt-1 flex flex-wrap items-center gap-1.5">
-                {metrics.gradeDist.byPredicate
-                  .filter(rule => rule.count > 0)
-                  .map(rule => (
-                    <span
-                      key={rule.key}
-                      title={`${rule.letter} (${rule.predicate} • ${rule.range100Label}): ${rule.count} Mahasiswa`}
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold border ${rule.bgClass} ${rule.colorClass} ${rule.borderClass}`}
-                    >
-                      <span>{rule.letter}:</span>
-                      <span className="font-mono font-black">{rule.count}</span>
-                    </span>
-                  ))}
-              </div>
-            )}
           </div>
 
         </div>
