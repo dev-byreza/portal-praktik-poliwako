@@ -1,5 +1,6 @@
 // Google Drive & Local Storage Service
 // Handles student file uploads directly to Google Drive via backend integration
+import { ApiService } from './apiService';
 
 export interface UploadSubmissionOptions {
   courseId: string;
@@ -62,42 +63,66 @@ export async function uploadSubmissionFile(
       reader.readAsDataURL(file);
     });
 
+    const isLiveBackend = ApiService.isLiveBackend();
     let uploadedUrl = dataUrl;
     let drivePath = `${options.courseId}/${options.periodId}/${options.studentId}/${Date.now()}_${file.name}`;
     let driveUrl: string | null = null;
 
-    // Send to backend drive upload service
-    try {
-      const res = await fetch('/api/drive', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'upload_submission_file',
-          payload: {
-            courseId: options.courseId,
-            periodId: options.periodId,
-            studentId: options.studentId,
-            assignmentId: options.assignmentId,
-            taskTitle: options.taskTitle,
-            fileName: file.name,
-            fileBase64: dataUrl,
-            mimeType: file.type || 'application/octet-stream',
-            submissionType: options.submissionType || 'ASSIGNMENT',
-          },
-        }),
-      });
-
-      const driveRes = await res.json().catch(() => null);
-      if (res.ok && driveRes?.fileUrl) {
-        uploadedUrl = driveRes.fileUrl;
-        driveUrl = driveRes.driveUrl || null;
-        if (driveRes.driveFileId) {
-          drivePath = driveRes.driveFileId;
-        }
-      }
-    } catch (driveErr) {
-      console.warn('Backend Drive upload warning, using data fallback:', driveErr);
+    if (!isLiveBackend) {
+      return {
+        storagePath: drivePath,
+        publicUrl: uploadedUrl,
+        driveUrl: null,
+        error: null,
+      };
     }
+
+    // Send to backend drive upload service — do not silently fall back to base64 on live backend
+    const res = await fetch('/api/drive', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'upload_submission_file',
+        payload: {
+          courseId: options.courseId,
+          periodId: options.periodId,
+          studentId: options.studentId,
+          assignmentId: options.assignmentId,
+          taskTitle: options.taskTitle,
+          fileName: file.name,
+          fileBase64: dataUrl,
+          mimeType: file.type || 'application/octet-stream',
+          submissionType: options.submissionType || 'ASSIGNMENT',
+        },
+      }),
+    });
+
+    const rawText = await res.text().catch(() => '');
+    let driveRes: any = null;
+    try {
+      driveRes = rawText ? JSON.parse(rawText) : null;
+    } catch {
+      driveRes = null;
+    }
+
+    if (!res.ok || !driveRes?.success || !driveRes?.driveFileId || !driveRes?.fileUrl) {
+      const serverMsg =
+        res.status === 413
+          ? 'Ukuran berkas melebihi batas unggahan server serverless (~3 MB).'
+          : driveRes?.error ||
+            (rawText && rawText.length < 200 ? rawText : '') ||
+            `Gagal mengunggah berkas ke Google Drive (HTTP ${res.status}).`;
+      return {
+        storagePath: null,
+        publicUrl: null,
+        driveUrl: null,
+        error: new Error(serverMsg),
+      };
+    }
+
+    uploadedUrl = driveRes.fileUrl;
+    driveUrl = driveRes.driveUrl || driveRes.fileUrl;
+    drivePath = driveRes.driveFileId;
 
     return {
       storagePath: drivePath,

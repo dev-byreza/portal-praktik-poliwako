@@ -1268,7 +1268,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           replaceStoragePath: existing?.storagePath,
           deferSignedUrl: true,
         });
-        if (upload.error || !upload.storagePath) throw upload.error || new Error('File tidak dapat disimpan ke Supabase Storage.');
+        if (upload.error || !upload.storagePath) throw upload.error || new Error('File tidak dapat disimpan ke Google Drive.');
 
         const submission: Submission = {
           id: existing?.id || crypto.randomUUID(), assignmentId, studentId, periodId,
@@ -1279,10 +1279,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const savedSubmission = await ApiService.saveSubmission(submission);
         setSubmissions(previous => [...previous.filter(item => !(item.assignmentId === assignmentId && item.studentId === studentId && item.periodId === periodId)), savedSubmission]);
       });
-      showToast('Tugas Terkirim', 'File ' + file.name + ' tersimpan dan siap diperiksa instruktur.', 'success');
+      showToast('Tugas Terkirim', 'File ' + file.name + ' berhasil diunggah ke Google Drive dan siap diperiksa instruktur.', 'success');
       return { success: true };
     } catch (error: any) {
-      const message = error?.message || 'Data tugas tidak dapat disimpan ke Supabase.';
+      const message = error?.message || 'Data tugas gagal diunggah ke Google Drive.';
       showToast('Unggah Gagal', message, 'error');
       return { success: false, message };
     }
@@ -1328,7 +1328,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await runServerSave('pengumpulan remedial', async () => {
       const upload = await uploadSubmissionPDF(file, {courseId: period.courseId, periodId: period.id, studentId: studentSession.studentId, assignmentId: remedial.id, taskTitle: remedial.title, submissionType:'REMEDIAL', allowedFileType:'PDF', replaceStoragePath: remedial.submissionStoragePath, deferSignedUrl: true});
       if (upload.error || !upload.storagePath) throw upload.error || new Error('Berkas gagal diunggah.');
-      const updated: RemedialAssignment = {...remedial, submissionFileName: file.name, submissionFileUrl: upload.storagePath, submissionStoragePath: upload.storagePath, submittedAt: new Date().toISOString(), status: 'SUBMITTED'};
+      const updated: RemedialAssignment = {...remedial, submissionFileName: file.name, submissionFileUrl: upload.publicUrl || upload.storagePath, submissionStoragePath: upload.storagePath, submittedAt: new Date().toISOString(), status: 'SUBMITTED'};
       const saved = await ApiService.saveRemedial(updated);
       setRemedials(prev => prev.map(r => r.id === remedialId ? saved : r));
     });

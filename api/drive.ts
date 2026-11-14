@@ -77,52 +77,55 @@ export default async function handler(req: any, res: any) {
       }
 
       const client = await pool.connect();
-      let resolvedYear = academicYear;
-      if (!resolvedYear && courseId) {
-        const cRes = await client.query('SELECT academic_year FROM public.courses WHERE id = $1', [courseId]);
-        resolvedYear = cRes.rows[0]?.academic_year || '2026/2027';
-      }
-
-      const structure = await ensureCourseAndPeriodFolders(courseName, periodName, resolvedYear);
-
-      // Save URLs to Neon
+      let structure;
       try {
-        await client.query('BEGIN');
+        let resolvedYear = academicYear;
+        if (!resolvedYear && courseId) {
+          const cRes = await client.query('SELECT academic_year FROM public.courses WHERE id = $1', [courseId]);
+          resolvedYear = cRes.rows[0]?.academic_year || '2026/2027';
+        }
 
-        // Update period
-        await client.query(`
-          UPDATE public.practice_periods
-          SET
-            final_project_drive_url = $1,
-            instructor_drive_url = $2,
-            updated_at = NOW()
-          WHERE id = $3
-        `, [
-          structure.studentSubmissionFolder.webViewLink,
-          structure.instructorAssignmentFolder.webViewLink,
-          periodId
-        ]);
+        structure = await ensureCourseAndPeriodFolders(courseName, periodName, resolvedYear);
 
-        // Update course if courseId provided
-        if (courseId) {
+        // Save URLs to Neon
+        try {
+          await client.query('BEGIN');
+
+          // Update period
           await client.query(`
-            UPDATE public.courses
+            UPDATE public.practice_periods
             SET
-              drive_folder_url = $1,
-              master_drive_url = $2,
+              final_project_drive_url = $1,
+              instructor_drive_url = $2,
               updated_at = NOW()
             WHERE id = $3
           `, [
-            structure.courseFolder.webViewLink,
-            structure.courseMasterFolder.webViewLink,
-            courseId
+            structure.studentSubmissionFolder.webViewLink,
+            structure.instructorAssignmentFolder.webViewLink,
+            periodId
           ]);
-        }
 
-        await client.query('COMMIT');
-      } catch (err) {
-        await client.query('ROLLBACK');
-        throw err;
+          // Update course if courseId provided
+          if (courseId) {
+            await client.query(`
+              UPDATE public.courses
+              SET
+                drive_folder_url = $1,
+                master_drive_url = $2,
+                updated_at = NOW()
+              WHERE id = $3
+            `, [
+              structure.courseFolder.webViewLink,
+              structure.courseMasterFolder.webViewLink,
+              courseId
+            ]);
+          }
+
+          await client.query('COMMIT');
+        } catch (err) {
+          await client.query('ROLLBACK');
+          throw err;
+        }
       } finally {
         client.release();
       }
@@ -349,26 +352,22 @@ export default async function handler(req: any, res: any) {
         const safeOriginalName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
         const driveFileName = `${cleanStudentNim}_${cleanStudentName}_${safeOriginalName}`;
 
-        let finalFileUrl = `data:${mimeType || 'application/octet-stream'};base64,${base64Data}`;
-        let driveFile: any = null;
-        let storageProvider = 'local_data';
-
-        if (destinationFolderId) {
-          try {
-            driveFile = await uploadFileToDrive(
-              destinationFolderId,
-              driveFileName,
-              mimeType || 'application/octet-stream',
-              fileBuffer
-            );
-            if (driveFile?.webViewLink) {
-              finalFileUrl = driveFile.webViewLink;
-              storageProvider = 'google_drive';
-            }
-          } catch (uploadErr: any) {
-            console.warn('Google Drive direct upload error (falling back to database storage):', uploadErr.message);
-          }
+        if (!destinationFolderId) {
+          throw new Error('Folder tujuan Google Drive tidak ditemukan untuk periode ini.');
         }
+
+        const driveFile = await uploadFileToDrive(
+          destinationFolderId,
+          driveFileName,
+          mimeType || 'application/octet-stream',
+          fileBuffer
+        );
+
+        if (!driveFile?.id || !driveFile?.webViewLink) {
+          throw new Error('Google Drive tidak mengembalikan tautan berkas hasil unggahan.');
+        }
+
+        const finalFileUrl = driveFile.webViewLink;
 
         // If it's a final project, also record in practice_participants
         if (submissionType === 'FINAL_PROJECT') {
@@ -377,7 +376,6 @@ export default async function handler(req: any, res: any) {
             SET
               final_project_url = $1,
               final_project_confirmed = true,
-              final_project_confirmed_at = NOW(),
               final_project_review_status = 'PENDING'
             WHERE period_id = $2 AND student_id = $3
           `, [finalFileUrl, periodId, studentId]);
@@ -388,12 +386,12 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json({
           success: true,
           fileUrl: finalFileUrl,
-          driveUrl: driveFile?.webViewLink || null,
-          driveFileId: driveFile?.id || null,
+          driveUrl: driveFile.webViewLink,
+          driveFileId: driveFile.id,
           taskFolderName,
           taskFolderUrl: taskFolderInfo?.webViewLink || null,
           fileName: driveFileName,
-          storageProvider,
+          storageProvider: 'google_drive',
         });
       } finally {
         client.release();

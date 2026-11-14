@@ -25,15 +25,40 @@ export interface PeriodDriveStructure {
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
+function normalizePrivateKey(key: string): string {
+  return key.trim().replace(/^["']|["']$/g, '').replace(/\\n/g, '\n');
+}
+
+function parseServiceAccountJsonEnv(rawEnv: string, rootFolderId: string) {
+  const trimmed = rawEnv.trim();
+  const jsonText = trimmed.startsWith('{')
+    ? trimmed
+    : Buffer.from(trimmed, 'base64').toString('utf8');
+  const parsed = JSON.parse(jsonText);
+  if (!parsed?.client_email || !parsed?.private_key) {
+    throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON tidak memiliki client_email atau private_key.');
+  }
+  return {
+    client_email: String(parsed.client_email).trim(),
+    private_key: normalizePrivateKey(String(parsed.private_key)),
+    root_folder_id: rootFolderId,
+  };
+}
+
 export function getServiceAccountCredentials() {
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const rootFolderId = (process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID || '1W6lbpj5u8VK8lPME3t_rrK3xKIwI6Cp6').trim();
+  const rawJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (rawJson && rawJson.trim()) {
+    return parseServiceAccountJsonEnv(rawJson, rootFolderId);
+  }
+
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim();
   const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
-  const rootFolderId = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID || '1W6lbpj5u8VK8lPME3t_rrK3xKIwI6Cp6';
 
   if (email && privateKey) {
     return {
-      client_email: email,
-      private_key: privateKey.replace(/\\n/g, '\n'),
+      client_email: email.replace(/^["']|["']$/g, ''),
+      private_key: normalizePrivateKey(privateKey),
       root_folder_id: rootFolderId,
     };
   }
@@ -50,7 +75,9 @@ export function getServiceAccountCredentials() {
     };
   }
 
-  throw new Error('Google Service Account credentials not found in environment or google-service-account.json');
+  throw new Error(
+    'Google Service Account credentials not found. Set GOOGLE_SERVICE_ACCOUNT_JSON atau GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY di environment server (Vercel).'
+  );
 }
 
 export async function getDriveAccessToken(): Promise<string> {
