@@ -313,11 +313,9 @@ html.dark .border-cyan-200 {
   }
 }
 
-/* Shared neutral shell behind public portal routes. */
+/* Shared neutral shell behind public portal routes with natural vertical scrolling. */
 .portal-shell-background {
   min-height: 100svh;
-  height: 100svh;
-  max-height: 100svh;
   background-color: #f4f7fa;
 }
 
@@ -369,21 +367,10 @@ html.dark .border-cyan-200 {
   color: #0f172a !important;
 }
 
-@supports (height: 100dvh) {
+@supports (min-height: 100dvh) {
   .portal-shell-background {
     min-height: 100dvh;
-    height: 100dvh;
-    max-height: 100dvh;
   }
-}
-
-/* Prevent mobile page scrolling from moving the fullscreen portal shell away
-   from its viewport-anchored footer. Internal student/instructor surfaces keep
-   their own scroll containers where needed. */
-html.portal-viewport-locked,
-html.portal-viewport-locked body {
-  overflow: hidden;
-  overscroll-behavior: none;
 }
 
 /* Public portal pages use light surfaces and a compact institutional footer. */

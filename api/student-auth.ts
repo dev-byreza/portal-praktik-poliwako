@@ -134,25 +134,47 @@ export default async function handler(req: any, res: any) {
     }
 
     if (action === 'create_period_session') {
+      const normalizedToken = typeof sessionToken === 'object' && sessionToken !== null
+        ? String(sessionToken.sessionToken || '').trim()
+        : String(sessionToken || '').trim();
       const sessRes = await client.query(
         'SELECT public.student_create_period_session($1, $2, $3) as result',
-        [sessionToken, courseSlug, periodId]
+        [normalizedToken, courseSlug, periodId]
       );
-      return res.status(200).json({ sessionToken: sessRes.rows[0]?.result || sessionToken });
+      const result = sessRes.rows[0]?.result;
+      if (result && typeof result === 'object') {
+        if (result.success === false) {
+          return res.status(401).json({
+            success: false,
+            message: result.message || 'Sesi mahasiswa belum terverifikasi atau mata kuliah/periode tidak terdaftar.',
+          });
+        }
+        return res.status(200).json({
+          success: Boolean(result.success ?? true),
+          sessionToken: typeof result.sessionToken === 'string' ? result.sessionToken : normalizedToken,
+        });
+      }
+      return res.status(200).json({ success: true, sessionToken: result || normalizedToken });
     }
 
     if (action === 'restore_session') {
+      const normalizedToken = typeof sessionToken === 'object' && sessionToken !== null
+        ? String(sessionToken.sessionToken || '').trim()
+        : String(sessionToken || '').trim();
       const sessRes = await client.query(
         'SELECT public.student_restore_session_profile($1) as result',
-        [sessionToken]
+        [normalizedToken]
       );
       return res.status(200).json(sessRes.rows[0]?.result || null);
     }
 
     if (action === 'list_enrollments') {
+      const normalizedToken = typeof sessionToken === 'object' && sessionToken !== null
+        ? String(sessionToken.sessionToken || '').trim()
+        : String(sessionToken || '').trim();
       const enrRes = await client.query(
         'SELECT public.student_list_course_enrollments($1) as result',
-        [sessionToken]
+        [normalizedToken]
       );
       return res.status(200).json(enrRes.rows[0]?.result || []);
     }

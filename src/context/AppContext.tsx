@@ -553,16 +553,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (!isLiveBackend || document.visibilityState === 'hidden') return;
       try {
         const unitsFetchRevision = learningUnitRevisionRef.current;
-        const [latestPeriods, latestUnits, latestSubmissions, latestAnnouncements] = await Promise.all([
+        await ApiService.refreshNeonBootstrapData();
+        const [
+          latestPeriods,
+          latestParticipants,
+          latestUnits,
+          latestSubmissions,
+          latestAssessments,
+          latestRemedials,
+          latestAnnouncements,
+        ] = await Promise.all([
           ApiService.getPeriods(),
+          ApiService.getParticipants(),
           ApiService.getLearningUnits(),
-          role === 'INSTRUCTOR' ? ApiService.getSubmissions() : Promise.resolve(null),
+          ApiService.getSubmissions(),
+          ApiService.getAssessments(),
+          ApiService.getRemedials(),
           ApiService.getAnnouncements(),
         ]);
         if (!isMounted) return;
         if (latestPeriods.length > 0) setPeriods(latestPeriods);
+        if (latestParticipants.length > 0) setParticipants(latestParticipants);
         mergeLearningUnitsFromServer(latestUnits, unitsFetchRevision);
-        if (latestSubmissions) setSubmissions(latestSubmissions);
+        setSubmissions(latestSubmissions);
+        setAssessments(latestAssessments);
+        setRemedials(latestRemedials);
         setAnnouncements(latestAnnouncements);
       } catch (error) {
         console.warn('Refresh data portal notice:', error);
@@ -571,18 +586,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     let lastFocusRefresh = Date.now();
     const handleWindowFocus = () => {
       const now = Date.now();
-      // Throttle focus refetch to at least 90s to avoid hammering Neon database
-      if (now - lastFocusRefresh > 90000 && document.visibilityState === 'visible') {
+      // Coalesce focus/visibility refetches within 5 seconds so switching
+      // between Instructor & Student portals picks up new assignments fast.
+      if (now - lastFocusRefresh > 5000 && document.visibilityState === 'visible') {
         lastFocusRefresh = now;
         void refreshLiveData();
       }
     };
-    // Refresh berkala setiap 5 menit (300 detik) jika tab aktif untuk menghemat koneksi database Neon
+    // Refresh berkala setiap 30 detik jika tab aktif menggunakan satu panggilan bootstrap coalesced
     const refreshTimer = window.setInterval(() => {
       if (document.visibilityState === 'visible') {
         void refreshLiveData();
       }
-    }, 300000);
+    }, 30000);
 
     syncBackendData();
     window.addEventListener('focus', handleWindowFocus);

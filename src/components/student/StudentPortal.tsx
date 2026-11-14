@@ -13,16 +13,13 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
   Download,
   User,
   GraduationCap,
-  Award,
   Layers,
   HelpCircle,
   FolderArchive,
   LogOut,
-  List,
   LayoutGrid,
   ChevronDown,
   ChevronUp,
@@ -141,10 +138,20 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
   }, [periods, participants, currentStudent?.id]);
   const isCurrentCourseEnrolled = Boolean(currentCourse && enrolledCourseIds.has(currentCourse.id));
 
-  // Active period
+  const enrolledCoursePeriods = useMemo(() => {
+    if (!currentCourse || !currentStudent) return [];
+    return periods.filter(p => p.courseId === currentCourse.id && participants.some(
+      participant => participant.periodId === p.id && participant.studentId === currentStudent.id
+    ));
+  }, [periods, participants, currentCourse?.id, currentStudent?.id]);
+
+  // Active period (prefer explicit session period if it belongs to this course,
+  // otherwise prefer the student's enrolled period in this course)
   const activePeriod = (studentSession?.periodId
     ? periods.find(p => p.id === studentSession.periodId && p.courseId === currentCourse?.id)
     : undefined)
+    || enrolledCoursePeriods.find(p => p.status === 'ACTIVE')
+    || enrolledCoursePeriods[0]
     || periods.find(p => p.courseId === currentCourse?.id && p.status === 'ACTIVE')
     || periods.find(p => p.courseId === currentCourse?.id);
 
@@ -292,34 +299,53 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
     });
   }, [currentUnit?.id, currentUnit?.unitNumber, currentUnit?.title, currentUnitCountdownLocked, currentUnitCountdownEndAt]);
 
-  // Unit access is always open. A completed state is shown only after the
-  // student's uploaded file has been saved successfully.
+  // Unit access is always open. Completed state tracks per-unit assignment submissions.
   const unitStatusMap = useMemo(() => {
-    const map = new Map<string, 'COMPLETED' | 'AVAILABLE'>();
-    const currentSubmissions = studentSession
-      ? submissions.filter(s => s.studentId === studentSession.studentId && s.periodId === studentSession.periodId)
+    const map = new Map<string, {
+      status: 'COMPLETED' | 'AVAILABLE';
+      totalTasks: number;
+      completedTasks: number;
+      hasRevision: boolean;
+      percentage: number;
+    }>();
+    const targetPeriodId = activePeriod?.id || studentSession?.periodId;
+    const currentSubmissions = studentSession && targetPeriodId
+      ? submissions.filter(s => s.studentId === studentSession.studentId && s.periodId === targetPeriodId)
       : [];
     periodUnits.forEach(unit => {
-      map.set(
-        unit.id,
-        getUnitAssignments(unit).length > 0 && getUnitAssignments(unit).every(assignment => hasSuccessfulSubmission(currentSubmissions, assignment.id))
-          ? 'COMPLETED' : 'AVAILABLE'
+      const unitAssignments = getUnitAssignments(unit);
+      const totalTasks = unitAssignments.length;
+      const completedTasks = unitAssignments.filter(assignment =>
+        hasSuccessfulSubmission(currentSubmissions, assignment.id)
+      ).length;
+      const hasRevision = unitAssignments.some(assignment =>
+        currentSubmissions.some(s => s.assignmentId === assignment.id && s.status === 'REVISION_REQUIRED')
       );
+      const isCompleted = totalTasks > 0 && completedTasks === totalTasks;
+      const percentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+      map.set(unit.id, {
+        status: isCompleted ? 'COMPLETED' : 'AVAILABLE',
+        totalTasks,
+        completedTasks,
+        hasRevision,
+        percentage,
+      });
     });
     return map;
-  }, [periodUnits, studentSession, submissions]);
+  }, [periodUnits, studentSession, submissions, activePeriod?.id]);
 
   // Progress is driven by successfully saved uploads, never by navigation.
   const progressStats = useMemo(() => {
     const progressAssignments = periodUnits.flatMap(getUnitAssignments);
-    const currentSubmissions = studentSession
-      ? submissions.filter(s => s.studentId === studentSession.studentId && s.periodId === studentSession.periodId)
+    const targetPeriodId = activePeriod?.id || studentSession?.periodId;
+    const currentSubmissions = studentSession && targetPeriodId
+      ? submissions.filter(s => s.studentId === studentSession.studentId && s.periodId === targetPeriodId)
       : [];
     const total = progressAssignments.length;
     const completed = progressAssignments.filter(assignment => hasSuccessfulSubmission(currentSubmissions, assignment.id)).length;
     const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
     return { completed, total, percentage };
-  }, [periodUnits, submissions, studentSession]);
+  }, [periodUnits, submissions, studentSession, activePeriod?.id]);
 
   const isFinalProjectActive = activePeriod?.finalProjectEnabled === true;
 
@@ -519,7 +545,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
   }
 
   return (
-    <div className="h-full w-full flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-100">
+    <div className="min-h-full lg:h-[100dvh] w-full flex-1 flex flex-col min-h-0 lg:overflow-hidden bg-slate-100">
       {initialDataError && (
         <div role="alert" className="flex flex-col gap-2 border-b border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <span>{initialDataError}</span>
@@ -616,27 +642,45 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
       </div>
 
       {/* Main Workspace Layout (PRD Section 68) */}
-      <div className="flex-1 min-h-0 w-full min-w-0 px-4 sm:px-6 lg:px-8 py-3.5 overflow-x-hidden overflow-y-hidden">
-        <div className={`grid grid-cols-1 lg:grid-cols-12 ${isOutlineOpen ? 'xl:grid-cols-[320px_minmax(0,1fr)]' : 'xl:grid-cols-1'} gap-5 h-full min-h-0`}>
+      <div className="flex-1 min-h-0 w-full min-w-0 px-4 sm:px-6 lg:px-8 py-3.5 overflow-x-hidden lg:overflow-y-hidden">
+        <div className={`grid grid-cols-1 lg:grid-cols-12 ${isOutlineOpen ? 'xl:grid-cols-[320px_minmax(0,1fr)]' : 'xl:grid-cols-1'} gap-5 lg:h-full lg:min-h-0`}>
           
-          {/* Left Column: Course Outline / Navigation Sidebar */}
+          {/* Left Column: Course Outline Sidebar (100% Focused on Learning Units & Per-Unit Task Progress) */}
           {isOutlineOpen && (
-            <div className="lg:col-span-3 xl:col-span-1 h-full min-h-0 flex flex-col transition-all">
+            <div className="lg:col-span-3 xl:col-span-1 lg:h-full lg:min-h-0 flex flex-col transition-all">
             
             {/* Outline Card */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full min-h-0">
-              <div className="px-3.5 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col lg:h-full lg:min-h-0">
+              <div className="px-3.5 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2 shrink-0">
                 <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-700">
                   <Layers className="w-3.5 h-3.5 text-blue-600" />
                   <span>Course Outline</span>
                 </div>
-                <div className="flex items-center gap-2"><span className="text-[10px] font-semibold text-slate-400">{periodUnits.length} Unit</span><button type="button" onClick={() => setIsOutlineOpen(false)} aria-label="Tutup Course Outline" className="md:hidden inline-flex items-center gap-1 rounded-lg bg-white px-2 py-1 text-[10px] font-bold text-slate-600 border border-slate-200 shadow-sm"><ChevronUp className="w-3.5 h-3.5" /> Tutup</button></div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-semibold text-slate-500">
+                    {periodUnits.length} Unit • {progressStats.completed}/{progressStats.total} Tugas
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsOutlineOpen(false)}
+                    aria-label="Tutup Course Outline"
+                    className="lg:hidden inline-flex items-center gap-1 rounded-lg bg-white px-2 py-1 text-[10px] font-bold text-slate-600 border border-slate-200 shadow-sm"
+                  >
+                    <ChevronUp className="w-3.5 h-3.5" /> Tutup
+                  </button>
+                </div>
               </div>
 
-              {/* Units List */}
+              {/* Units List & Per-Unit Task Progress */}
               <div className="divide-y divide-slate-100 flex-1 min-h-0 overflow-y-auto no-scrollbar">
                 {periodUnits.map((unit) => {
-                  const status = unitStatusMap.get(unit.id) || 'AVAILABLE';
+                  const unitProgress = unitStatusMap.get(unit.id) || {
+                    status: 'AVAILABLE' as const,
+                    totalTasks: 0,
+                    completedTasks: 0,
+                    hasRevision: false,
+                    percentage: 0,
+                  };
                   const isSelected = activeTab === 'UNITS' && currentUnit?.id === unit.id;
 
                   return (
@@ -645,8 +689,11 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                       onClick={() => {
                         setSelectedUnitId(unit.id);
                         setActiveTab('UNITS');
+                        if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                          setIsOutlineOpen(false);
+                        }
                       }}
-                      className={`w-full text-left px-3 py-2.5 transition-all flex items-start gap-2.5 ${
+                      className={`w-full text-left px-3.5 py-3 transition-all flex items-start gap-2.5 ${
                         isSelected
                           ? 'bg-blue-50/80 border-l-[3px] border-blue-600 text-blue-900 shadow-xs'
                           : 'hover:bg-slate-50 text-slate-700'
@@ -654,130 +701,113 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                     >
                       {/* Status Icon */}
                       <div className="mt-0.5 shrink-0">
-                        {status === 'COMPLETED' ? (
+                        {unitProgress.status === 'COMPLETED' ? (
                           <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">
                             <CheckCircle2 className="w-3.5 h-3.5" />
                           </div>
-                        ) : status === 'AVAILABLE' ? (
-                          <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-[10px]">
+                        ) : (
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${
+                            isSelected ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-700'
+                          }`}>
                             {unit.unitNumber}
                           </div>
-                        ) : null}
+                        )}
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center justify-between gap-1.5 flex-wrap">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                             Unit {unit.unitNumber}
                           </span>
-                          {getUnitAssignments(unit).length > 0 && (
-                            <span className="px-1.5 py-0.5 text-[8.5px] font-bold bg-amber-100 text-amber-800 rounded">
-                              {getUnitAssignments(unit).length === 1 ? 'Tugas' : `${getUnitAssignments(unit).length} Tugas`}
-                            </span>
-                          )}
-                          {unit.countdownEnabled && (
-                            <span className="px-1.5 py-0.5 text-[8.5px] font-bold bg-indigo-100 text-indigo-800 rounded">
-                              Countdown
-                            </span>
-                          )}
+                          <div className="flex items-center gap-1">
+                            {unit.countdownEnabled && (
+                              <span className="px-1.5 py-0.5 text-[9px] font-bold bg-indigo-100 text-indigo-800 rounded">
+                                Countdown
+                              </span>
+                            )}
+                            {unitProgress.totalTasks > 0 ? (
+                              <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded ${
+                                unitProgress.status === 'COMPLETED'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : unitProgress.hasRevision
+                                    ? 'bg-rose-100 text-rose-800'
+                                    : unitProgress.completedTasks > 0
+                                      ? 'bg-blue-100 text-blue-800'
+                                      : 'bg-amber-100 text-amber-800'
+                              }`}>
+                                {unitProgress.status === 'COMPLETED'
+                                  ? `Selesai ${unitProgress.completedTasks}/${unitProgress.totalTasks}`
+                                  : unitProgress.hasRevision
+                                    ? `Revisi ${unitProgress.completedTasks}/${unitProgress.totalTasks}`
+                                    : `${unitProgress.completedTasks}/${unitProgress.totalTasks} Tugas`}
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-slate-100 text-slate-500 rounded">
+                                Materi
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <h4 className={`text-[11px] font-semibold mt-0.5 leading-tight ${isSelected ? 'text-blue-950 font-bold' : 'text-slate-800'}`}>
+
+                        <h4 className={`text-xs font-semibold mt-0.5 leading-snug ${isSelected ? 'text-blue-950 font-bold' : 'text-slate-800'}`}>
                           {unit.title}
                         </h4>
+
+                        {unitProgress.totalTasks > 0 && (
+                          <div className="mt-2 h-1 w-full rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                unitProgress.status === 'COMPLETED'
+                                  ? 'bg-emerald-500'
+                                  : unitProgress.hasRevision
+                                    ? 'bg-rose-500'
+                                    : 'bg-blue-600'
+                              }`}
+                              style={{ width: `${unitProgress.percentage}%` }}
+                            />
+                          </div>
+                        )}
                       </div>
                     </button>
                   );
                 })}
-
-                {/* Final Project Tab Button */}
-                <button
-                  disabled={!isFinalProjectActive}
-                  onClick={() => {
-                    if (isFinalProjectActive) setActiveTab('FINAL_PROJECT');
-                  }}
-                  className={`w-full text-left px-3 py-2.5 transition-all flex items-start gap-2.5 border-t border-slate-200 ${
-                    activeTab === 'FINAL_PROJECT'
-                      ? 'bg-indigo-50 border-l-[3px] border-indigo-600 text-indigo-900'
-                      : isFinalProjectActive
-                      ? 'bg-gradient-to-r from-blue-50/50 to-indigo-50/50 hover:bg-indigo-50/80 text-slate-700'
-                      : 'opacity-60 bg-slate-50 cursor-not-allowed'
-                  }`}
-                >
-                  <div className="mt-0.5 shrink-0">
-                    {isFinalProjectActive ? (
-                      <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-xs">
-                        <Sparkles className="w-3 h-3" />
-                      </div>
-                    ) : (
-                      <div className="w-5 h-5 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center">
-                        <Lock className="w-3 h-3" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">
-                      {isFinalProjectActive ? 'Final Project' : 'Berkas Akhir Dikunci'}
-                    </span>
-                    <h4 className="text-[11px] font-semibold text-slate-900 mt-0.5 leading-tight">
-                      {isFinalProjectActive ? 'Pengumpulan Berkas Google Drive' : 'Menunggu aktivasi instruktur'}
-                    </h4>
-                  </div>
-                </button>
-
-                {/* Hasil Penilaian & Feedback Button */}
-                <button
-                  onClick={() => setActiveTab('GRADE')}
-                  className={`w-full text-left px-3 py-2.5 transition-all flex items-start gap-2.5 ${
-                    activeTab === 'GRADE'
-                      ? 'bg-emerald-50 border-l-[3px] border-emerald-600 text-emerald-900'
-                      : 'hover:bg-slate-50 text-slate-700'
-                  }`}
-                >
-                  <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
-                    <Award className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
-                      Evaluasi OBE
-                    </span>
-                    <h4 className="text-[11px] font-semibold text-slate-900 mt-0.5 leading-tight">
-                      Nilai Akhir & Catatan Feedback
-                    </h4>
-                  </div>
-                </button>
-
               </div>
             </div>
           </div>
         )}
 
-          {/* Right Column: Main Content Area with Flexible / Sticky Header */}
-          <div className={`${isOutlineOpen ? 'lg:col-span-9 xl:col-span-1' : 'col-span-12 xl:col-span-1'} h-full min-h-0 min-w-0 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all`}>
+          {/* Right Column: Main Content Area with Primary Top Tab Navigation */}
+          <div className={`${isOutlineOpen ? 'lg:col-span-9 xl:col-span-1' : 'col-span-12 xl:col-span-1'} lg:h-full lg:min-h-0 min-w-0 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all`}>
             
-            <nav aria-label="Navigasi mahasiswa" className="grid grid-cols-4 border-b border-slate-200 px-2 sm:px-4 shrink-0">
+            <nav aria-label="Navigasi mahasiswa" className="grid grid-cols-4 border-b border-slate-200 px-1.5 sm:px-4 shrink-0">
               {([
                 { key: 'DASHBOARD', label: 'Beranda' },
-                { key: 'UNITS', label: 'Materi' },
+                { key: 'UNITS', label: 'Materi & Unit' },
                 { key: 'FINAL_PROJECT', label: 'Berkas Akhir' },
                 { key: 'GRADE', label: 'Nilai' },
-              ] as const).map(item => (
-                <button
-                  key={item.key}
-                  type="button"
-                  disabled={item.key === 'FINAL_PROJECT' && !isFinalProjectActive}
-                  onClick={() => {
-                    if (item.key === 'FINAL_PROJECT' && !isFinalProjectActive) return;
-                    setActiveTab(item.key);
-                  }}
-                  aria-current={activeTab === item.key ? 'page' : undefined}
-                  className={`relative min-h-11 sm:min-h-10 px-2 text-xs sm:text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-600 disabled:cursor-not-allowed disabled:opacity-40 ${activeTab === item.key ? 'font-semibold text-slate-900' : 'font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
-                >
-                  {item.label}
-                  {activeTab === item.key && (
-                    <span aria-hidden="true" className="absolute bottom-0 left-1/2 h-0.5 w-8 -translate-x-1/2 bg-blue-600" />
-                  )}
-                </button>
-              ))}
+              ] as const).map(item => {
+                const isLocked = item.key === 'FINAL_PROJECT' && !isFinalProjectActive;
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    disabled={isLocked}
+                    title={isLocked ? 'Berkas Akhir menunggu aktivasi dari instruktur' : undefined}
+                    onClick={() => {
+                      if (isLocked) return;
+                      setActiveTab(item.key);
+                    }}
+                    aria-current={activeTab === item.key ? 'page' : undefined}
+                    className={`relative inline-flex items-center justify-center gap-1 min-h-11 sm:min-h-10 px-1.5 sm:px-3 text-[11px] sm:text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-600 disabled:cursor-not-allowed disabled:opacity-45 ${activeTab === item.key ? 'font-bold text-slate-900' : 'font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                  >
+                    {isLocked && <Lock className="w-3 h-3 shrink-0" aria-hidden="true" />}
+                    <span className="truncate">{item.label}</span>
+                    {activeTab === item.key && (
+                      <span aria-hidden="true" className="absolute bottom-0 left-1/2 h-0.5 w-10 -translate-x-1/2 bg-blue-600" />
+                    )}
+                  </button>
+                );
+              })}
             </nav>
             {/* Flexible / Sticky Top Header Bar (Course Outline Toggle + Previous/Next) */}
             {(activeTab !== 'DASHBOARD' || !isOutlineOpen) && (
@@ -830,7 +860,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
             )}
 
             {/* Scrollable Material Content Area */}
-            <div className="flex-1 min-h-0 min-w-0 overflow-y-auto no-scrollbar p-4 sm:p-7 lg:p-5 xl:p-6">
+            <div className="flex-1 min-h-0 min-w-0 lg:overflow-y-auto no-scrollbar p-4 sm:p-7 lg:p-5 xl:p-6">
               <div className="max-w-4xl lg:max-w-5xl mx-auto w-full space-y-6">
             
                 {/* Identity prompt warning if not logged in */}
@@ -1027,7 +1057,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
                     submission={studentSession
                       ? submissions.find(submission => submission.assignmentId === assignment.id
                         && submission.studentId === studentSession.studentId
-                        && submission.periodId === studentSession.periodId)
+                        && submission.periodId === (activePeriod?.id || studentSession.periodId))
                       : undefined}
                   />
                 ))}

@@ -405,11 +405,33 @@ export class StorageService {
 
   // Student Session
   static getStudentSession(): StudentSession | null {
-    return getItem(STORAGE_KEYS.CURRENT_STUDENT_SESSION, null);
+    const raw = getItem<any>(STORAGE_KEYS.CURRENT_STUDENT_SESSION, null);
+    if (!raw || typeof raw !== 'object') return null;
+    const rawToken = raw.sessionToken;
+    const normalizedToken = typeof rawToken === 'object' && rawToken !== null
+      ? (typeof rawToken.sessionToken === 'string' ? rawToken.sessionToken : undefined)
+      : rawToken;
+    if (rawToken !== normalizedToken) {
+      const cleaned = { ...raw, sessionToken: normalizedToken };
+      setItem(STORAGE_KEYS.CURRENT_STUDENT_SESSION, cleaned);
+      return cleaned;
+    }
+    return raw;
   }
 
   static setStudentSession(session: StudentSession | null): void {
-    setItem(STORAGE_KEYS.CURRENT_STUDENT_SESSION, session);
+    if (!session) {
+      setItem(STORAGE_KEYS.CURRENT_STUDENT_SESSION, null);
+      return;
+    }
+    const rawToken: any = session.sessionToken;
+    const normalizedToken = typeof rawToken === 'object' && rawToken !== null
+      ? (typeof rawToken.sessionToken === 'string' ? rawToken.sessionToken : undefined)
+      : rawToken;
+    setItem(STORAGE_KEYS.CURRENT_STUDENT_SESSION, {
+      ...session,
+      sessionToken: normalizedToken,
+    });
   }
 }
 

@@ -190,25 +190,12 @@ export const App: React.FC = () => {
     setActiveRoute('NOT_FOUND');
   };
 
-  const isDarkFullscreenGate = activeRoute !== 'INSTRUCTOR' || !isInstructorLoggedIn;
-
-  useEffect(() => {
-    const root = document.documentElement;
-    const lockClass = 'portal-viewport-locked';
-
-    if (isDarkFullscreenGate) {
-      root.classList.add(lockClass);
-    } else {
-      root.classList.remove(lockClass);
-    }
-
-    return () => root.classList.remove(lockClass);
-  }, [isDarkFullscreenGate]);
+  const isPublicPortalShell = activeRoute !== 'INSTRUCTOR' || !isInstructorLoggedIn;
 
   return (
     <div className={`selection:bg-blue-600 selection:text-white ${
-      isDarkFullscreenGate
-        ? 'portal-shell-background h-screen h-[100dvh] w-screen overflow-hidden overscroll-none flex flex-col'
+      isPublicPortalShell
+        ? 'portal-shell-background min-h-[100dvh] w-full flex flex-col'
         : 'min-h-screen bg-slate-100 flex flex-col'
     }`}>
       
@@ -222,7 +209,7 @@ export const App: React.FC = () => {
       )}
 
       {/* Main Content Area */}
-      <div className={isDarkFullscreenGate ? 'flex-1 min-h-0 overflow-hidden flex flex-col' : 'flex-1'}>
+      <div className={isPublicPortalShell ? 'flex-1 flex flex-col' : 'flex-1'}>
         {/* ROOT: PILIHAN PORTAL (Portal Instruktur & Portal Mahasiswa) */}
         {activeRoute === 'ROOT_SELECTOR' && (
           <PortalSelectorGate

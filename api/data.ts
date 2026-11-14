@@ -2,7 +2,7 @@ import { getDbPool } from './_db.js';
 
 let cachedData: any = null;
 let lastCacheTime = 0;
-const CACHE_TTL_MS = 4000; // 4 seconds in-memory cache to coalesce bursts
+const CACHE_TTL_MS = 1000; // 1 second in-memory cache to coalesce simultaneous mounts without stale CDN/cross-lambda lag
 
 export function invalidateDataCache() {
   cachedData = null;
@@ -13,7 +13,7 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Cache-Control');
-  res.setHeader('Cache-Control', 'public, max-age=3, s-maxage=5, stale-while-revalidate=15');
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();

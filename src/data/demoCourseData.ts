@@ -316,24 +316,32 @@ export function buildDemoObeData(students: Student[]) {
       finalProjectUrl: item.projectConfirmed ? 'https://drive.google.com/poliwako/demo-cad-final-project' : undefined
     });
 
-    // Assessment
+    // Assessment with fluctuating sub-component & category scores
+    const entryScore = Math.min(100, item.q + 8);
+    const practiceScore = Math.max(0, item.q - 3);
+    const assignScore = Math.min(100, item.q + 5);
+    const postScore = Math.max(0, item.q - 9);
+    const attitudeVal = Math.min(100, item.a + 5);
+    const creativityVal = Math.max(0, item.c - 4);
+    const reportVal = Math.max(0, item.r - 8);
+
     assessments.push({
       id: `ass-demo-${participantId}`,
       periodId: period.id,
       studentId: student.id,
       qualityScore: item.q,
-      entryBehaviorScore: item.q >= 85 ? 90 : 80,
-      subCpmkPracticeScore: item.q,
-      assignmentScore: item.q,
-      postTestScore: item.q,
-      attitudeScore: item.a,
-      creativityScore: item.c,
-      reportScore: item.r,
+      entryBehaviorScore: entryScore,
+      subCpmkPracticeScore: practiceScore,
+      assignmentScore: assignScore,
+      postTestScore: postScore,
+      attitudeScore: attitudeVal,
+      creativityScore: creativityVal,
+      reportScore: reportVal,
       finalScore: item.finalScore,
-      qualityScores: makeQualityRubrics(item.q),
-      attitudeScores: [{ criterionId: 'rub-demo-s1', score: item.a, level: item.a >= 85 ? 'Sangat Baik' : 'Baik' }],
-      creativityScores: [{ criterionId: 'rub-demo-c1', score: item.c, level: item.c >= 85 ? 'Sangat Baik' : 'Baik' }],
-      reportScores: [{ criterionId: 'rub-demo-r1', score: item.r, level: item.r >= 85 ? 'Sangat Baik' : 'Baik' }],
+      qualityScores: makeQualityRubrics(practiceScore),
+      attitudeScores: [{ criterionId: 'rub-demo-s1', score: attitudeVal, level: attitudeVal >= 85 ? 'Sangat Baik' : 'Baik' }],
+      creativityScores: [{ criterionId: 'rub-demo-c1', score: creativityVal, level: creativityVal >= 85 ? 'Sangat Baik' : 'Baik' }],
+      reportScores: [{ criterionId: 'rub-demo-r1', score: reportVal, level: reportVal >= 85 ? 'Sangat Baik' : 'Baik' }],
       feedback: item.finalScore >= 85
         ? 'Karya pemodelan solid 3D dan drafting ISO sangat presisi, memenuhi kriteria OBE tingkat lanjut.'
         : item.finalScore >= 75

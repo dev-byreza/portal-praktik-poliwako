@@ -135,13 +135,14 @@ export async function mutateNeon(action: string, payload: any): Promise<any> {
   return data;
 }
 
-async function getNeonBootstrapData(): Promise<any> {
+async function getNeonBootstrapData(forceFresh = false): Promise<any> {
   if (typeof window === 'undefined') return null;
   const now = Date.now();
-  if (neonBootstrapPromise && (now - lastNeonFetchTime < 10000)) {
+  if (!forceFresh && neonBootstrapPromise && (now - lastNeonFetchTime < 10000)) {
     return neonBootstrapPromise;
   }
-  neonBootstrapPromise = fetch('/api/data')
+  const url = forceFresh ? `/api/data?fresh=true&_ts=${now}` : '/api/data';
+  neonBootstrapPromise = fetch(url, { cache: 'no-store' })
     .then(async res => {
       if (!res.ok) throw new Error('HTTP ' + res.status);
       lastNeonFetchTime = Date.now();
@@ -155,7 +156,21 @@ async function getNeonBootstrapData(): Promise<any> {
   return neonBootstrapPromise;
 }
 
+const normalizeSessionTokenValue = (token: any): string => {
+  if (typeof token === 'string') return token.trim();
+  if (token && typeof token === 'object' && typeof token.sessionToken === 'string') {
+    return token.sessionToken.trim();
+  }
+  return '';
+};
+
 export class ApiService {
+  static async refreshNeonBootstrapData(): Promise<boolean> {
+    invalidateNeonBootstrapData();
+    const data = await getNeonBootstrapData(true);
+    return Boolean(data);
+  }
+
   static isLiveBackend(): boolean {
     if (typeof window !== 'undefined') {
       return true;
@@ -710,36 +725,51 @@ export class ApiService {
   }
 
   static async studentCreatePeriodSession(sessionToken: string, courseSlug: string, periodId: string): Promise<string> {
+    const cleanToken = normalizeSessionTokenValue(sessionToken);
+    let neonSessionError: Error | null = null;
     try {
       const res = await fetch('/api/student-auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'create_period_session', sessionToken, courseSlug, periodId }),
+        body: JSON.stringify({ action: 'create_period_session', sessionToken: cleanToken, courseSlug, periodId }),
       });
       const data = await res.json().catch(() => null);
-      if (data?.sessionToken) return data.sessionToken;
+      if (!res.ok || data?.success === false) {
+        neonSessionError = new Error(data?.message || 'Sesi mahasiswa belum terverifikasi atau mata kuliah/periode tidak terdaftar.');
+      } else {
+        const nextToken = normalizeSessionTokenValue(data?.sessionToken);
+        if (nextToken) return nextToken;
+      }
     } catch (neonErr) {
       console.warn('Neon studentCreatePeriodSession error:', neonErr);
+    }
+    if (neonSessionError) {
+      throw neonSessionError;
     }
     // Fallback to student_create_period_session RPC if mock client is present in tests
     if (supabase) {
       const { data } = await (supabase as any).rpc('student_create_period_session', {
-        p_session_token: sessionToken,
+        p_session_token: cleanToken,
         p_course_slug: courseSlug,
         p_period_id: periodId,
       });
-      if (data?.sessionToken) return data.sessionToken;
+      if (data?.success === false) {
+        throw new Error(data?.message || 'Sesi mahasiswa belum terverifikasi atau mata kuliah/periode tidak terdaftar.');
+      }
+      const fallbackToken = normalizeSessionTokenValue(data?.sessionToken);
+      if (fallbackToken) return fallbackToken;
     }
-    return sessionToken;
+    return cleanToken;
   }
 
   static async studentRestoreSessionProfile(sessionToken: string): Promise<Student | null> {
-    if (!sessionToken) return null;
+    const cleanToken = normalizeSessionTokenValue(sessionToken);
+    if (!cleanToken) return null;
     try {
       const res = await fetch('/api/student-auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'restore_session', sessionToken }),
+        body: JSON.stringify({ action: 'restore_session', sessionToken: cleanToken }),
       });
       const data = await res.json().catch(() => null);
       const rawStudent = data?.student;

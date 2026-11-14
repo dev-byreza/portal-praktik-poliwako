@@ -16,7 +16,7 @@ Namun, berdasarkan audit kode antarmuka (*frontend audit*), masih terdapat pelua
 3. **Efisiensi Alur Kerja Instruktur (*Grading & Authoring Velocity*):** Mengurangi jumlah klik dan *scroll* saat memeriksa puluhan berkas laporan/CAD mahasiswa.
 4. **Konsistensi Sistem Desain (*Design System & Accessibility*):** Menertibkan ukuran font mikro, *touch target*, serta token warna *Light/Dark Mode*.
 
----
+---![alt text](image.png)
 
 ## 2. Rincian Deskripsi Pekerjaan per Modul
 
