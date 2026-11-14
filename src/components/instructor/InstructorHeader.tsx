@@ -45,7 +45,7 @@ export const InstructorHeader: React.FC<InstructorHeaderProps> = ({
   const todayWita = getWitaDateString();
 
   return (
-    <header className="h-16 glass-header border-b border-slate-200/80 dark:border-slate-800 px-4 sm:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-30 transition-colors">
+    <header className="mx-4 sm:mx-6 lg:mx-8 mt-3 h-16 rounded-2xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/85 dark:border-slate-800 px-4 sm:px-6 flex items-center justify-between sticky top-3 z-30 shadow-[0_8px_24px_-6px_rgba(15,23,42,0.05)] dark:shadow-[0_8px_24px_-6px_rgba(0,0,0,0.45)] transition-all">
       
       <button type="button" onClick={onOpenMobileMenu} aria-label="Buka menu navigasi" className="md:hidden p-2 -ml-2 mr-1 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
         <Menu className="w-5 h-5" />

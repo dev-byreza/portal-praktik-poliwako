@@ -104,7 +104,7 @@ export const InstructorCommandCenter: React.FC<InstructorCommandCenterProps> = (
       {/* Main Content Area (Offset by sidebar width) */}
       <div
         className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${
-          isCollapsed ? 'md:ml-20' : 'md:ml-64'
+          isCollapsed ? 'md:pl-[92px]' : 'md:pl-[272px]'
         }`}
       >
         {/* Top Header */}
