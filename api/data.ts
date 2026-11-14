@@ -44,13 +44,16 @@ export default async function handler(req: any, res: any) {
       profilesRes,
       announcementsRes,
       remedialsRes,
+      quizDefsRes,
+      quizQuestionsRes,
+      quizOptionsRes,
     ] = await Promise.all([
       pool.query('SELECT * FROM public.courses ORDER BY created_at ASC'),
       pool.query('SELECT * FROM public.course_sub_cpmk'),
       pool.query('SELECT * FROM public.rubric_criteria'),
       pool.query('SELECT * FROM public.practice_periods ORDER BY period_number ASC'),
       pool.query('SELECT * FROM public.practice_participants ORDER BY enrolled_at ASC'),
-      pool.query('SELECT id, nim, name, class_name, email, created_at, password_hash IS NOT NULL as has_password FROM public.students'),
+      pool.query('SELECT id, nim, name, class_name, email, created_at, password_hash IS NOT NULL as has_password FROM public.students ORDER BY nim ASC'),
       pool.query('SELECT * FROM public.learning_units ORDER BY unit_number ASC'),
       pool.query('SELECT * FROM public.learning_materials ORDER BY created_at ASC'),
       pool.query('SELECT * FROM public.assignments ORDER BY created_at ASC'),
@@ -60,6 +63,9 @@ export default async function handler(req: any, res: any) {
       pool.query('SELECT * FROM public.profiles'),
       pool.query('SELECT * FROM public.announcements ORDER BY published_at DESC'),
       pool.query('SELECT * FROM public.remedial_assignments ORDER BY created_at DESC'),
+      pool.query('SELECT * FROM public.quiz_definitions').catch(() => ({ rows: [] })),
+      pool.query('SELECT * FROM public.quiz_questions ORDER BY position ASC').catch(() => ({ rows: [] })),
+      pool.query('SELECT * FROM public.quiz_options ORDER BY position ASC').catch(() => ({ rows: [] })),
     ]);
 
     // Student lookup map
@@ -97,11 +103,8 @@ export default async function handler(req: any, res: any) {
         id: rc.id,
         subCpmkId: rc.sub_cpmk_id || undefined,
         name: rc.name,
-        scale1Desc: rc.scale_1_desc || '',
-        scale2Desc: rc.scale_2_desc || '',
-        scale3Desc: rc.scale_3_desc || '',
-        scale4Desc: rc.scale_4_desc || '',
-        scale5Desc: rc.scale_5_desc || '',
+        category: rc.category || 'QUALITY',
+        description: rc.description || '',
       });
       rubricsByCourse.set(rc.course_id, list);
     }
@@ -118,7 +121,7 @@ export default async function handler(req: any, res: any) {
       description: c.description || '',
       department: c.department,
       status: c.status,
-      qualityComponents: c.quality_components || [],
+      qualityComponents: Array.isArray(c.quality_components) ? c.quality_components : undefined,
       driveFolderUrl: c.drive_folder_url || undefined,
       masterDriveUrl: c.master_drive_url || undefined,
       subCpmks: subCpmkByCourse.get(c.id) || [],
@@ -163,17 +166,67 @@ export default async function handler(req: any, res: any) {
       finalProjectFeedback: p.final_project_feedback || undefined,
     }));
 
+    // Quizzes by Material
+    const optionsByQuestion = new Map<string, any[]>();
+    for (const opt of quizOptionsRes.rows) {
+      const list = optionsByQuestion.get(opt.question_id) || [];
+      list.push(opt);
+      optionsByQuestion.set(opt.question_id, list);
+    }
+    const questionsByQuiz = new Map<string, any[]>();
+    for (const q of quizQuestionsRes.rows) {
+      const list = questionsByQuiz.get(q.quiz_id) || [];
+      list.push(q);
+      questionsByQuiz.set(q.quiz_id, list);
+    }
+    const quizByMaterial = new Map<string, any>();
+    for (const qd of quizDefsRes.rows) {
+      const questions = (questionsByQuiz.get(qd.id) || [])
+        .sort((a: any, b: any) => Number(a.position || 0) - Number(b.position || 0))
+        .map((q: any) => ({
+          id: q.id,
+          prompt: q.prompt || '',
+          imageUrl: q.image_url || undefined,
+          explanation: q.explanation || undefined,
+          options: (optionsByQuestion.get(q.id) || [])
+            .sort((a: any, b: any) => Number(a.position || 0) - Number(b.position || 0))
+            .map((opt: any) => ({
+              id: opt.id,
+              text: opt.option_text || '',
+            })),
+          ...(q.correct_option_id ? { correctOptionId: q.correct_option_id } : {}),
+        }));
+      quizByMaterial.set(qd.material_id, {
+        description: qd.description || undefined,
+        shuffleQuestions: Boolean(qd.shuffle_questions),
+        passScore: Number(qd.pass_score ?? 70),
+        maxAttempts: Number(qd.max_attempts ?? 0),
+        questions,
+      });
+    }
+
     // Materials by Unit
     const materialsByUnit = new Map<string, any[]>();
     for (const m of materialsRes.rows) {
+      if (/dummy\.pdf/i.test(m.content_url || '')) continue;
       const list = materialsByUnit.get(m.unit_id) || [];
+      const quiz = quizByMaterial.get(m.id);
+      const url = m.content_url || m.file_url || undefined;
       list.push({
         id: m.id,
         unitId: m.unit_id,
         title: m.title,
         type: m.type,
-        fileUrl: m.content_url || m.file_url || null,
-        contentText: m.content_text,
+        contentUrl: url,
+        fileUrl: url || null,
+        contentText: m.type === 'QUIZ'
+          ? (quiz?.description || m.content_text || undefined)
+          : (m.content_text || undefined),
+        quiz,
+        fileSize: m.file_size || undefined,
+        countdownEnabled: Boolean(m.countdown_enabled),
+        countdownMinutes: m.countdown_minutes ? Number(m.countdown_minutes) : undefined,
+        countdownStartedAt: m.countdown_started_at || undefined,
       });
       materialsByUnit.set(m.unit_id, list);
     }
@@ -194,25 +247,30 @@ export default async function handler(req: any, res: any) {
         countdownEnabled: Boolean(a.countdown_enabled),
         countdownMinutes: a.countdown_minutes ? Number(a.countdown_minutes) : undefined,
         countdownStartedAt: a.countdown_started_at || undefined,
-        submissionType: a.submission_type || 'ASSIGNMENT',
+        submissionType: (a.submission_type && a.submission_type !== 'ASSIGNMENT')
+          ? a.submission_type
+          : (/laporan|report/i.test(a.title || '') ? 'REPORT' : 'ASSIGNMENT'),
       });
       assignmentsByUnit.set(a.unit_id, list);
     }
 
     // Learning Units
-    const learningUnits = unitsRes.rows.map(u => ({
-      id: u.id,
-      periodId: u.period_id,
-      courseId: u.course_id,
-      title: u.title,
-      description: u.description || '',
-      unitNumber: u.unit_number,
-      materials: materialsByUnit.get(u.id) || [],
-      assignments: assignmentsByUnit.get(u.id) || [],
-      countdownEnabled: Boolean(u.countdown_enabled),
-      countdownMinutes: u.countdown_minutes ? Number(u.countdown_minutes) : undefined,
-      countdownStartedAt: u.countdown_started_at || undefined,
-    }));
+    const learningUnits = unitsRes.rows.map(u => {
+      const unitAssignments = assignmentsByUnit.get(u.id) || [];
+      return {
+        id: u.id,
+        periodId: u.period_id,
+        title: u.title,
+        description: u.description || '',
+        unitNumber: u.unit_number,
+        materials: materialsByUnit.get(u.id) || [],
+        assignments: unitAssignments,
+        assignment: unitAssignments[0],
+        countdownEnabled: Boolean(u.countdown_enabled),
+        countdownMinutes: u.countdown_minutes ? Number(u.countdown_minutes) : undefined,
+        countdownStartedAt: u.countdown_started_at || undefined,
+      };
+    });
 
     // Attendance Records
     const attendance = attendanceRes.rows.map(r => ({
@@ -237,8 +295,8 @@ export default async function handler(req: any, res: any) {
       periodId: s.period_id,
       fileName: s.file_name,
       fileUrl: s.file_url,
-      fileSize: s.file_size ? Number(s.file_size) : undefined,
-      storagePath: s.storage_path,
+      fileSize: s.file_size || '0 KB',
+      storagePath: s.storage_path || undefined,
       submittedAt: s.submitted_at,
       status: s.status,
       submissionType: s.submission_type || 'ASSIGNMENT',
@@ -253,10 +311,11 @@ export default async function handler(req: any, res: any) {
       periodId: a.period_id,
       studentId: a.student_id,
       qualityScore: a.quality_score ? Number(a.quality_score) : 0,
-      entryBehaviorScore: a.entry_behavior_score ? Number(a.entry_behavior_score) : 0,
-      subCpmkPracticeScore: a.sub_cpmk_practice_score ? Number(a.sub_cpmk_practice_score) : 0,
-      assignmentScore: a.assignment_score ? Number(a.assignment_score) : 0,
-      postTestScore: a.post_test_score ? Number(a.post_test_score) : 0,
+      entryBehaviorScore: a.entry_behavior_score == null ? undefined : Number(a.entry_behavior_score),
+      subCpmkPracticeScore: a.sub_cpmk_practice_score == null ? undefined : Number(a.sub_cpmk_practice_score),
+      assignmentScore: a.assignment_score == null ? undefined : Number(a.assignment_score),
+      postTestScore: a.post_test_score == null ? undefined : Number(a.post_test_score),
+      postTestFileUrl: a.post_test_file_url || undefined,
       attitudeScore: a.attitude_score ? Number(a.attitude_score) : 0,
       creativityScore: a.creativity_score ? Number(a.creativity_score) : 0,
       reportScore: a.report_score ? Number(a.report_score) : 0,
@@ -264,11 +323,12 @@ export default async function handler(req: any, res: any) {
       feedback: a.feedback || '',
       isPublished: Boolean(a.is_published),
       publishedAt: a.published_at || undefined,
-      gradedAt: a.graded_at || undefined,
-      qualityScores: a.quality_scores || {},
-      attitudeScores: a.attitude_scores || {},
-      creativityScores: a.creativity_scores || {},
-      reportScores: a.report_scores || {},
+      gradedAt: a.graded_at || new Date().toISOString(),
+      updatedAt: a.updated_at || new Date().toISOString(),
+      qualityScores: Array.isArray(a.quality_scores) ? a.quality_scores : [],
+      attitudeScores: Array.isArray(a.attitude_scores) ? a.attitude_scores : [],
+      creativityScores: Array.isArray(a.creativity_scores) ? a.creativity_scores : [],
+      reportScores: Array.isArray(a.report_scores) ? a.report_scores : [],
     }));
 
     // Instructor Directory
@@ -301,18 +361,24 @@ export default async function handler(req: any, res: any) {
         title: a.title,
         message: a.message,
         priority: a.priority || 'INFO',
-        isActive: a.is_active,
+        isActive: Boolean(a.is_active),
+        publishedAt: a.published_at,
+        expiresAt: a.expires_at || undefined,
         createdAt: a.published_at,
       })),
       remedials: remedialsRes.rows.map(r => ({
         id: r.id,
         periodId: r.period_id,
         studentId: r.student_id,
-        assignmentId: r.assignment_id,
-        remedialDescription: r.remedial_description || '',
-        status: r.status,
+        title: r.title,
+        description: r.description || '',
         deadline: r.deadline,
-        createdAt: r.created_at,
+        status: r.status,
+        submittedAt: r.submitted_at || undefined,
+        reviewedAt: r.reviewed_at || undefined,
+        submissionFileName: r.submission_file_name || undefined,
+        submissionStoragePath: r.submission_storage_path || undefined,
+        submissionFileUrl: r.submission_file_url || undefined,
       })),
     };
 

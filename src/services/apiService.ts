@@ -762,7 +762,7 @@ export class ApiService {
 
   static async saveStudent(student: Student, instructorId?: string): Promise<void> {
     if (typeof window !== 'undefined') {
-      await mutateNeon('save_student', { student });
+      await mutateNeon('save_student', { student, instructorId });
     } else if (this.isLiveBackend() && supabase && instructorId) {
       const { error } = await supabase.from('students').upsert({
           id: student.id,
@@ -981,7 +981,9 @@ export class ApiService {
   }
 
   static async deleteAttendanceRecord(periodId: string, studentId: string): Promise<void> {
-    if (this.isLiveBackend() && supabase) {
+    if (typeof window !== 'undefined') {
+      await mutateNeon('delete_attendance', { periodId, studentId });
+    } else if (this.isLiveBackend() && supabase) {
       const { error } = await supabase.from('attendance_records')
         .delete()
         .eq('period_id', periodId)
@@ -1180,7 +1182,7 @@ export class ApiService {
   static async getLearningUnits(periodId?: string): Promise<LearningUnit[]> {
     try {
       const neon = await getNeonBootstrapData();
-      if (neon?.learningUnits && neon.learningUnits.length > 0) {
+      if (Array.isArray(neon?.learningUnits)) {
         if (periodId) {
           return neon.learningUnits.filter((u: any) => u.periodId === periodId);
         }
@@ -1384,11 +1386,16 @@ export class ApiService {
       ...assignment,
       id: await databaseId(assignment.id, `assignment:${unit.id}`),
       unitId,
+      periodId: unit.periodId,
+      deadline: normalizeDeadline(assignment.deadline),
     })));
     const savedUnit = { ...unit, id: unitId, materials: savedMaterials, assignments: savedAssignments, assignment: savedAssignments[0] };
 
     if (typeof window !== 'undefined') {
       await mutateNeon('save_learning_unit', { unit: savedUnit });
+      const units = StorageService.getLearningUnits().filter(existing => existing.id !== unit.id && existing.id !== unitId);
+      StorageService.saveLearningUnits([...units, savedUnit]);
+      return savedUnit;
     } else if (this.isLiveBackend() && supabase) {
       if (savedMaterials.some(material => material.type === 'QUIZ' && material.quiz)) {
         const { error: quizArchitectureError } = await supabase.from('quiz_definitions').select('id').limit(1);
@@ -1577,17 +1584,21 @@ export class ApiService {
 
   /** Persist only a unit's sequence number without rewriting its content. */
   static async updateLearningUnitNumber(unitId: string, unitNumber: number): Promise<void> {
-    if (this.isLiveBackend() && !supabase) throw new Error('Supabase belum tersedia; urutan unit belum tersimpan.');
-    if (this.isLiveBackend() && supabase) {
+    const dbUnitId = await databaseId(unitId, 'learning-unit');
+    if (typeof window !== 'undefined') {
+      await mutateNeon('update_learning_unit_number', { id: dbUnitId, unitNumber });
+    } else if (this.isLiveBackend() && supabase) {
       const { error } = await supabase
         .from('learning_units')
         .update({ unit_number: unitNumber })
-        .eq('id', await databaseId(unitId, 'learning-unit'));
+        .eq('id', dbUnitId);
       if (error) throw error;
+    } else if (this.isLiveBackend() && !supabase) {
+      throw new Error('Database server belum tersedia; urutan unit belum tersimpan.');
     }
 
     const units = StorageService.getLearningUnits().map(unit => (
-      unit.id === unitId ? { ...unit, unitNumber } : unit
+      unit.id === unitId || unit.id === dbUnitId ? { ...unit, unitNumber } : unit
     ));
     StorageService.saveLearningUnits(units);
   }

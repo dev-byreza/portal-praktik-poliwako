@@ -381,7 +381,7 @@ export const LearningContentStudio: React.FC = () => {
     setMatText('');
     showToast(
       editingMaterial ? 'Materi Diperbarui' : 'Materi Ditambahkan',
-      `Materi "${newMat.title}" sedang disinkronkan ke Supabase.`,
+      `Materi "${newMat.title}" sedang disinkronkan ke database Neon.`,
       'info'
     );
     setEditingMaterial(null);
@@ -390,7 +390,7 @@ export const LearningContentStudio: React.FC = () => {
   const handleSaveQuiz = (quiz: QuizDefinition) => {
     if (!activeSelectedUnit) return;
     if (!isLiveBackend) {
-      showToast('Supabase Belum Terhubung', 'Quiz tidak disimpan lokal. Hubungkan Supabase terlebih dahulu untuk menyimpan quiz.', 'error');
+      showToast('Database Belum Terhubung', 'Quiz tidak disimpan lokal. Hubungkan database server terlebih dahulu untuk menyimpan quiz.', 'error');
       return;
     }
     const newMat: LearningMaterial = {
@@ -413,7 +413,7 @@ export const LearningContentStudio: React.FC = () => {
     setEditingMaterial(null);
     setMatType('PDF');
     setMatTitle('');
-    showToast(editingMaterial ? 'Kuis Diperbarui' : 'Kuis Ditambahkan', `Kuis "${newMat.title}" tersimpan di Supabase.`, 'success');
+    showToast(editingMaterial ? 'Kuis Diperbarui' : 'Kuis Ditambahkan', `Kuis "${newMat.title}" tersimpan di database Neon.`, 'success');
   };
 
   const handleOpenCreateQuiz = () => {

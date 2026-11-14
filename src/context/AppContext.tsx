@@ -1351,7 +1351,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       showToast(
         'Mata Kuliah Tersimpan',
         isLiveBackend
-          ? `Mata Kuliah "${saved.name}" berhasil disimpan ke Supabase.`
+          ? `Mata Kuliah "${saved.name}" berhasil disimpan ke database Neon.`
           : `Mata Kuliah "${saved.name}" berhasil disimpan di perangkat ini.`,
         'success'
       );
@@ -1359,7 +1359,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (error: any) {
       setCourses(prev => prev.filter(course => course.id !== newCourse.id));
       if (activeCourseId === newCourse.id) setActiveCourseIdState('');
-      const message = error?.message || 'Mata kuliah tidak dapat disimpan ke Supabase.';
+      const message = error?.message || 'Mata kuliah tidak dapat disimpan ke database Neon.';
       showToast('Penyimpanan Gagal', message, 'error');
       throw error;
     }
@@ -1387,7 +1387,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setCourses(prev => prev.map(course => course.id === newCourse.id ? saved : course));
       setActiveCourseId(saved.id);
     }).catch(error => {
-      showToast('Sinkronisasi Gagal', `Salinan mata kuliah tersimpan lokal, tetapi gagal dikirim ke Supabase: ${error.message}`, 'error');
+      showToast('Sinkronisasi Gagal', `Salinan mata kuliah tersimpan lokal, tetapi gagal dikirim ke database Neon: ${error.message}`, 'error');
     });
     showToast('Mata Kuliah Disalin', `Struktur "${source.name}" berhasil disalin ke "${newCourse.name}".`, 'success');
     return newCourse;
@@ -1466,7 +1466,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setPeriods(prev => {
       const next = [...prev, newPeriod];
       void runServerSave('periode praktik', () => ApiService.savePeriod(newPeriod)).catch(error => {
-        showToast('Sinkronisasi Gagal', `Periode belum tersimpan ke Supabase: ${error.message}`, 'error');
+        showToast('Sinkronisasi Gagal', `Periode belum tersimpan ke database Neon: ${error.message}`, 'error');
       });
       return next;
     });
@@ -1518,7 +1518,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setPeriods(prev => {
       const next = [...prev, newPeriod];
       void runServerSave('periode praktik', () => ApiService.savePeriod(newPeriod)).catch(error => {
-        showToast('Sinkronisasi Gagal', `Periode belum tersimpan ke Supabase: ${error.message}`, 'error');
+        showToast('Sinkronisasi Gagal', `Periode belum tersimpan ke database Neon: ${error.message}`, 'error');
       });
       return next;
     });
@@ -1571,7 +1571,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           : period
       )));
       const message = error instanceof Error ? error.message : String(error);
-      showToast('Sinkronisasi Gagal', `Perubahan periode belum tersimpan ke Supabase: ${message}`, 'error');
+      showToast('Sinkronisasi Gagal', `Perubahan periode belum tersimpan ke database Neon: ${message}`, 'error');
       return false;
     }
   };
@@ -1689,7 +1689,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         await Promise.all(newAttendances.map(record => ApiService.saveAttendanceRecord(record)));
       })
         .catch(error => {
-          showToast('Sinkronisasi Gagal', `Peserta ditambahkan di layar, tetapi gagal dikirim ke Supabase: ${error.message}`, 'error');
+          showToast('Sinkronisasi Gagal', `Peserta ditambahkan di layar, tetapi gagal dikirim ke database Neon: ${error.message}`, 'error');
         });
     }
 
@@ -1700,7 +1700,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateParticipant = (updatedParticipant: PracticeParticipant) => {
     setParticipants(prev => prev.map(p => p.id === updatedParticipant.id ? updatedParticipant : p));
     void runServerSave('data peserta', () => ApiService.saveParticipant(updatedParticipant)).catch(error => {
-      showToast('Sinkronisasi Gagal', `Perubahan peserta belum tersimpan ke Supabase: ${error.message}`, 'error');
+      showToast('Sinkronisasi Gagal', `Perubahan peserta belum tersimpan ke database Neon: ${error.message}`, 'error');
     });
   };
 
@@ -1713,7 +1713,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (participant) {
       setAttendance(prev => prev.filter(a => !(a.periodId === participant.periodId && a.studentId === participant.studentId)));
       void runServerSave('hapus presensi peserta', () => ApiService.deleteAttendanceRecord(participant.periodId, participant.studentId)).catch(error => {
-        showToast('Sinkronisasi Gagal', `Presensi peserta belum terhapus dari Supabase: ${error.message}`, 'error');
+        showToast('Sinkronisasi Gagal', `Presensi peserta belum terhapus dari database Neon: ${error.message}`, 'error');
       });
     }
     showToast('Peserta Dihapus', 'Peserta telah dikeluarkan dari periode ini.', 'info');
@@ -1733,7 +1733,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newStudent = StorageService.addStudent(studentData);
     setStudents(StorageService.getStudents());
     void runServerSave('data mahasiswa', () => ApiService.saveStudent(newStudent, instructor.id)).catch(error => {
-      showToast('Sinkronisasi Gagal', `Mahasiswa tersimpan lokal, tetapi gagal dikirim ke Supabase: ${error.message}`, 'error');
+      showToast('Sinkronisasi Gagal', `Mahasiswa tersimpan lokal, tetapi gagal dikirim ke database Neon: ${error.message}`, 'error');
     });
     showToast('Mahasiswa Ditambahkan', `${newStudent.name} (${newStudent.nim}) berhasil disimpan.`, 'success');
     return newStudent;
@@ -1743,7 +1743,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const list = students.map(s => s.id === updated.id ? updated : s);
     setStudents(list);
     void runServerSave('data mahasiswa', () => ApiService.saveStudent(updated, instructor.id)).catch(error => {
-      showToast('Sinkronisasi Gagal', `Perubahan mahasiswa tersimpan lokal, tetapi gagal dikirim ke Supabase: ${error.message}`, 'error');
+      showToast('Sinkronisasi Gagal', `Perubahan mahasiswa tersimpan lokal, tetapi gagal dikirim ke database Neon: ${error.message}`, 'error');
     });
     showToast('Data Mahasiswa Diperbarui', `Data ${updated.name} berhasil diperbarui.`, 'success');
   };
@@ -1756,7 +1756,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const list = students.filter(s => s.id !== studentId);
     setStudents(list);
     void runServerSave('hapus mahasiswa', () => ApiService.deleteStudent(studentId)).catch(error => {
-      showToast('Sinkronisasi Gagal', `Penghapusan lokal berhasil, tetapi gagal diperbarui di Supabase: ${error.message}`, 'error');
+      showToast('Sinkronisasi Gagal', `Penghapusan lokal berhasil, tetapi gagal diperbarui di database Neon: ${error.message}`, 'error');
     });
     showToast('Mahasiswa Dihapus', 'Data mahasiswa telah dihapus dari Master.', 'info');
   };
@@ -1790,7 +1790,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const updated = [...newItems, ...students];
       setStudents(updated);
       void runServerSave('import mahasiswa', () => Promise.all(newItems.map(student => ApiService.saveStudent(student, instructor.id)))).catch(error => {
-        showToast('Sinkronisasi Gagal', `Sebagian mahasiswa tersimpan lokal, tetapi gagal dikirim ke Supabase: ${error.message}`, 'error');
+        showToast('Sinkronisasi Gagal', `Sebagian mahasiswa tersimpan lokal, tetapi gagal dikirim ke database Neon: ${error.message}`, 'error');
       });
     }
 
@@ -1814,7 +1814,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ApiService.updateLearningUnitNumber(unit.id, unit.unitNumber)
         .catch(error => {
           console.error('Error syncing learning unit order:', error);
-          showToast('Urutan Belum Tersimpan', `Nomor Unit ${unit.unitNumber} gagal disimpan ke Supabase.`, 'error');
+          showToast('Urutan Belum Tersimpan', `Nomor Unit ${unit.unitNumber} gagal disimpan ke database Neon.`, 'error');
         })
     )));
   };
@@ -1855,7 +1855,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const syncState = learningUnitSyncRef.current.get(newUnit.id);
       if (syncState?.revision === revision) learningUnitSyncRef.current.delete(newUnit.id);
       console.error('Error syncing learning unit:', error);
-      showToast('Sinkronisasi Gagal', `Unit belum tersimpan ke Supabase. ${error?.message || 'Periksa koneksi dan hak akses.'}`, 'error');
+      showToast('Sinkronisasi Gagal', `Unit belum tersimpan ke database Neon. ${error?.message || 'Periksa koneksi dan hak akses.'}`, 'error');
     });
     showToast('Unit Pembelajaran Dibuat', `Unit ${newUnit.unitNumber} berhasil ditambahkan.`, 'success');
     return newUnit;
@@ -1881,12 +1881,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setLearningUnits(prev => prev.map(unit => (
         unit.id === updated.id || unit.id === savedUnit.id ? savedUnit : unit
       )));
-      showToast('Unit Diperbarui', `Unit ${savedUnit.unitNumber} berhasil disinkronkan ke Supabase.`, 'success');
+      showToast('Unit Diperbarui', `Unit ${savedUnit.unitNumber} berhasil disinkronkan ke database Neon.`, 'success');
     }).catch(error => {
       const syncState = learningUnitSyncRef.current.get(updated.id);
       if (syncState?.revision === revision) learningUnitSyncRef.current.delete(updated.id);
       console.error('Error syncing learning unit:', error);
-      showToast('Sinkronisasi Gagal', `Perubahan tugas belum tersimpan ke Supabase. ${error?.message || 'Periksa koneksi dan hak akses.'}`, 'error');
+      showToast('Sinkronisasi Gagal', `Perubahan unit/tugas belum tersimpan ke database Neon. ${error?.message || 'Periksa koneksi dan hak akses.'}`, 'error');
     });
   };
 
@@ -1918,7 +1918,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       persistChangedUnitNumbers(nextUnits, previousUnits);
     }).catch(error => {
       console.error('Error deleting learning unit:', error);
-      showToast('Penghapusan Gagal', 'Unit belum berhasil dihapus dari Supabase.', 'error');
+      showToast('Penghapusan Gagal', 'Unit belum berhasil dihapus dari database Neon.', 'error');
     });
     showToast('Unit Dihapus', 'Unit pembelajaran telah dihapus.', 'info');
   };
@@ -2002,7 +2002,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       showToast(
         'Modul Berhasil Disalin',
-        `${selectedSourceUnits.length} modul berhasil disalin ke ${targetPeriodIds.length} minggu tujuan dan disimpan ke Supabase.`,
+        `${selectedSourceUnits.length} modul berhasil disalin ke ${targetPeriodIds.length} minggu tujuan dan disimpan ke database Neon.`,
         'success'
       );
 
