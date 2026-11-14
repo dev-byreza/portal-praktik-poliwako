@@ -839,18 +839,13 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
             {/* Content: Real Synchronized Rekap Nilai Chart or Zero State */}
             {rekapPerformance.hasData ? (
               <div className="mt-4 space-y-4">
-                {/* Modern Vertical Column Bar Chart with Target Line */}
+                {/* Modern Vertical Column Bar Chart */}
                 <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80">
                   <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">
                     <span>{chartViewMode === 'DAILY' ? 'Diagram Batang Tahapan 5 Hari' : 'Diagram Batang Komponen OBE'}</span>
-                    <span className="text-emerald-600 dark:text-emerald-400 font-mono">Target SKM: 75</span>
+                    <span className="text-indigo-600 dark:text-indigo-400 font-mono">Skala 0 – 100</span>
                   </div>
                   <div className="relative h-32 flex items-end justify-between gap-2.5 pt-4 px-2 border-b border-slate-200/70 dark:border-slate-700/70">
-                    {/* SKM 75% Reference Dashed Line */}
-                    <div
-                      className="absolute left-0 right-0 border-t border-dashed border-emerald-500/60 pointer-events-none"
-                      style={{ bottom: '75%' }}
-                    />
                     {(chartViewMode === 'DAILY'
                       ? rekapPerformance.dailyItems.map((it, idx) => ({
                           shortLabel: `H${idx + 1}`,
@@ -985,7 +980,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
           </div>
 
           <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-            <span>SKM Kelulusan: 75.0</span>
+            <span>Sinkronisasi Nilai Praktik</span>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => onNavigateTab('REKAP')}

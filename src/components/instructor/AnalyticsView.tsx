@@ -187,29 +187,18 @@ export const AnalyticsView: React.FC = () => {
                   {/* Right 5 cols: Vertical Grouped Column Bars */}
                   <div className="lg:col-span-5 p-4 sm:p-5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
                     <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
-                      <span>Perbandingan Target vs Aktual</span>
-                      <span className="text-emerald-600 dark:text-emerald-400 font-mono">SKM: 75%</span>
+                      <span>Diagram Batang Capaian Sub-CPMK</span>
+                      <span className="text-indigo-600 dark:text-indigo-400 font-mono">Aktual (%)</span>
                     </div>
                     <div className="relative h-32 flex items-end justify-around gap-2 pt-3 px-2 border-b border-slate-200/70 dark:border-slate-700/70">
-                      <div
-                        className="absolute left-0 right-0 border-t border-dashed border-emerald-500/60 pointer-events-none"
-                        style={{ bottom: '75%' }}
-                      />
                       {subCpmkAchievements.map(cpmk => (
                         <div key={`vbar-${cpmk.id}`} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
                           <div className="w-full max-w-[34px] h-full flex items-end justify-center gap-1">
-                            <div className="w-3 h-full bg-slate-200/70 dark:bg-slate-700/50 rounded-t-md flex items-end overflow-hidden">
+                            <div className="w-3.5 h-full bg-slate-200/70 dark:bg-slate-700/50 rounded-t-md flex items-end overflow-hidden">
                               <div
                                 className="w-full rounded-t-md bg-gradient-to-t from-indigo-600 to-indigo-400 transition-all duration-700"
                                 style={{ height: `${Math.min(100, Math.max(6, cpmk.avg))}%` }}
                                 title={`${cpmk.code} Aktual: ${cpmk.avg}%`}
-                              />
-                            </div>
-                            <div className="w-2.5 h-full bg-slate-200/70 dark:bg-slate-700/50 rounded-t-md flex items-end overflow-hidden">
-                              <div
-                                className="w-full rounded-t-md bg-gradient-to-t from-orange-500 to-amber-300 transition-all duration-700"
-                                style={{ height: '75%' }}
-                                title="Standar SKM: 75%"
                               />
                             </div>
                           </div>

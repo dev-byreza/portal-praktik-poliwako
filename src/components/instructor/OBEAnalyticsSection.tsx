@@ -164,67 +164,11 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
     let fullTitles: string[] = [];
     let scoreValues: number[] = [];
     let progressValues: number[] = [];
-    let targetOrPassValues: number[] = [];
 
     if (chartViewMode === 'PERIOD') {
-      if (coursePeriods.length > 0 && coursePeriods.length <= 3) {
-        // When there are 1-3 periods (e.g. Gel 1 & Gel 2), expand each period into 3 real OBE stages
-        // (Awal/Entry, Praktik/Unit, Akhir/OBE) so the line & bar chart has a rich 6-point progression
-        coursePeriods.forEach((p, idx) => {
-          const shortName = p.name.replace(/Gelombang\s*/i, 'Gel ').split('-')[0].trim() || `Gel ${idx + 1}`;
-          const pAss = assessments.filter(a => a.periodId === p.id && Number.isFinite(a.finalScore) && a.finalScore > 0);
-          const pParts = participants.filter(part => part.periodId === p.id);
-          const pAtt = attendance.filter(att => att.periodId === p.id);
-          const pUnits = learningUnits.filter(u => u.periodId === p.id);
-          const pAssignIds = new Set(pUnits.flatMap(u => getUnitAssignments(u).map(a => a.id)));
-          const pSubs = submissions.filter(s => s.periodId === p.id && pAssignIds.has(s.assignmentId) && s.status !== 'REVISION_REQUIRED');
-
-          const avgEntry = pAss.length > 0
-            ? Math.round(pAss.reduce((acc, a) => acc + (a.entryBehaviorScore ?? a.attitudeScore ?? a.qualityScore ?? 0), 0) / pAss.length)
-            : 0;
-          const avgPractice = pAss.length > 0
-            ? Math.round(pAss.reduce((acc, a) => acc + (a.subCpmkPracticeScore ?? a.qualityScore ?? 0), 0) / pAss.length)
-            : 0;
-          const avgFinal = pAss.length > 0
-            ? Math.round(pAss.reduce((acc, a) => acc + a.finalScore, 0) / pAss.length)
-            : 0;
-
-          const attRate = pAtt.length > 0
-            ? Math.round((pAtt.filter(a => a.isEligible).length / pAtt.length) * 100)
-            : (pParts.length > 0 && pAss.length > 0 ? Math.round((pAss.length / pParts.length) * 100) : 0);
-
-          const studentsWithUnitSub = new Set(pSubs.map(s => s.studentId));
-          const unitSubRate = pParts.length > 0
-            ? (pAssignIds.size > 0
-                ? Math.round((pParts.filter(pt => studentsWithUnitSub.has(pt.studentId)).length / pParts.length) * 100)
-                : Math.round((pParts.filter(pt => pt.finalProjectConfirmed).length / pParts.length) * 100))
-            : 0;
-
-          const finalProjRate = pParts.length > 0
-            ? Math.round((pParts.filter(pt => pt.finalProjectConfirmed).length / pParts.length) * 100)
-            : 0;
-
-          const passRateP = pAss.length > 0
-            ? Math.round((pAss.filter(a => a.finalScore >= 75).length / pAss.length) * 100)
-            : 0;
-
-          labels.push(`${shortName} • Awal`, `${shortName} • Inti`, `${shortName} • Akhir`);
-          fullTitles.push(
-            `${p.name} — Tahap Awal & Kesiapan`,
-            `${p.name} — Praktik Inti & Tugas CAD`,
-            `${p.name} — Evaluasi Akhir & Portofolio`
-          );
-          scoreValues.push(avgEntry, avgPractice, avgFinal);
-          progressValues.push(attRate, unitSubRate, finalProjRate);
-          targetOrPassValues.push(
-            avgEntry > 0 ? Math.min(100, Math.round((avgEntry / 75) * 85)) : 0,
-            avgPractice > 0 ? Math.min(100, Math.round((avgPractice / 75) * 85)) : 0,
-            passRateP
-          );
-        });
-      } else if (coursePeriods.length > 0) {
+      if (coursePeriods.length > 0) {
         const sliced = coursePeriods.slice(0, 8);
-        labels = sliced.map(p => p.name.replace(/Gelombang\s*/i, 'Gel ').split('-')[0].trim());
+        labels = sliced.map(p => p.name.replace(/Gelombang\s*/i, 'Gel '));
         fullTitles = sliced.map(p => p.name);
         scoreValues = sliced.map(p => {
           const pScores = assessments.filter(a => a.periodId === p.id && Number.isFinite(a.finalScore) && a.finalScore > 0).map(a => a.finalScore);
@@ -235,16 +179,11 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
           const done = pParts.filter(part => part.finalProjectConfirmed).length;
           return pParts.length > 0 ? Math.round((done / pParts.length) * 100) : 0;
         });
-        targetOrPassValues = sliced.map(p => {
-          const pScores = assessments.filter(a => a.periodId === p.id && Number.isFinite(a.finalScore) && a.finalScore > 0).map(a => a.finalScore);
-          return pScores.length > 0 ? Math.round((pScores.filter(s => s >= 75).length / pScores.length) * 100) : 0;
-        });
       } else {
-        labels = ['Gel 1', 'Gel 2', 'Gel 3', 'Gel 4', 'Gel 5'];
+        labels = ['Belum Ada Gelombang'];
         fullTitles = labels;
-        scoreValues = [0, 0, 0, 0, 0];
-        progressValues = [0, 0, 0, 0, 0];
-        targetOrPassValues = [0, 0, 0, 0, 0];
+        scoreValues = [0];
+        progressValues = [0];
       }
     } else if (chartViewMode === 'UNIT') {
       const periodIds = new Set(
@@ -289,35 +228,18 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
           const submittedCount = filteredParticipants.filter(p => studentsWithSubmission.has(p.studentId)).length;
           return Math.round((submittedCount / filteredParticipants.length) * 100);
         });
-        scoreValues = sortedUnitEntries.map((e, idx) => {
+        scoreValues = sortedUnitEntries.map((_, idx) => {
           if (validAss.length === 0) return 0;
           if (idx === 0) return Math.round(validAss.reduce((s, a) => s + (a.entryBehaviorScore ?? a.qualityScore), 0) / validAss.length);
           if (idx === 1) return Math.round(validAss.reduce((s, a) => s + (a.subCpmkPracticeScore ?? a.qualityScore), 0) / validAss.length);
           if (idx === 2) return Math.round(validAss.reduce((s, a) => s + (a.assignmentScore ?? a.qualityScore), 0) / validAss.length);
           return Math.round(validAss.reduce((s, a) => s + a.finalScore, 0) / validAss.length);
         });
-        targetOrPassValues = sortedUnitEntries.map((_, idx) => {
-          const s = scoreValues[idx] || 0;
-          return s > 0 ? Math.min(100, Math.round((s / 75) * 82)) : 0;
-        });
-
-        // Append Final Project & Evaluasi OBE if fewer than 4 units so the chart stays balanced
-        if (labels.length < 4) {
-          labels.push('Laporan CAD', 'Final Project', 'Evaluasi OBE');
-          fullTitles.push('Laporan Kerja Praktik CAD', 'Portofolio Final Project', 'Evaluasi Nilai Akhir OBE');
-          const avgRep = validAss.length > 0 ? Math.round(validAss.reduce((s, a) => s + (a.reportScore || 0), 0) / validAss.length) : 0;
-          const avgPrac = validAss.length > 0 ? Math.round(validAss.reduce((s, a) => s + (a.qualityScore || 0), 0) / validAss.length) : 0;
-          const avgFin = validAss.length > 0 ? Math.round(validAss.reduce((s, a) => s + a.finalScore, 0) / validAss.length) : 0;
-          scoreValues.push(avgRep, avgPrac, avgFin);
-          progressValues.push(metrics.completionRate, metrics.completionRate, metrics.passRate);
-          targetOrPassValues.push(metrics.passRate, metrics.completionRate, metrics.passRate);
-        }
       } else {
         labels = ['Unit 1', 'Unit 2', 'Unit 3', 'Unit 4', 'Final Project'];
         fullTitles = labels;
         scoreValues = [0, 0, 0, 0, 0];
         progressValues = [0, 0, 0, 0, 0];
-        targetOrPassValues = [0, 0, 0, 0, 0];
       }
     } else {
       // OBE Components: 6 rich dimensions
@@ -352,17 +274,15 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
           metrics.attendancePct || assessedPct,
           metrics.passRate || assessedPct
         ];
-        targetOrPassValues = scoreValues.map(s => (s >= 75 ? Math.min(100, s) : Math.max(0, s - 5)));
       } else {
         scoreValues = [0, 0, 0, 0, 0, 0];
         progressValues = [0, 0, 0, 0, 0, 0];
-        targetOrPassValues = [0, 0, 0, 0, 0, 0];
       }
     }
 
     const count = labels.length;
-    const startX = 65;
-    const endX = 525;
+    const startX = count === 2 ? 120 : count === 3 ? 95 : 65;
+    const endX = count === 2 ? 465 : count === 3 ? 490 : 525;
     const stepX = count > 1 ? (endX - startX) / (count - 1) : 0;
     const xCoords = count === 1 ? [Math.round((startX + endX) / 2)] : labels.map((_, i) => Math.round(startX + i * stepX));
 
@@ -385,19 +305,11 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
       fullTitle: fullTitles[i] || labels[i]
     }));
 
-    const passPoints = xCoords.map((x, i) => ({
-      x,
-      y: getY(targetOrPassValues[i]),
-      val: targetOrPassValues[i],
-      label: labels[i]
-    }));
-
     return {
       labels,
       fullTitles,
       scorePoints,
       progressPoints,
-      passPoints,
       scorePath: getSmoothWavePath(scorePoints),
       progressPath: getSmoothWavePath(progressPoints),
       scoreAreaPath: getSmoothAreaPath(scorePoints, 195),
@@ -486,24 +398,18 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
             </div>
             <div className="flex items-center gap-1.5 mt-4 text-xs font-bold">
               {metrics.hasData ? (
-                <>
-                  <span className="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 text-[11px]">
-                    Predikat {metrics.avgPred.letter} ({metrics.avgPred.predicate})
-                  </span>
-                  <span className="text-slate-400 font-normal text-[11px]">• SKM: 75</span>
-                </>
+                <span className="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 text-[11px]">
+                  Predikat {metrics.avgPred.letter} ({metrics.avgPred.predicate})
+                </span>
               ) : (
-                <>
-                  <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 text-[11px]">
-                    Belum Dinilai ({metrics.gradedCount}/{metrics.total})
-                  </span>
-                  <span className="text-slate-400 font-normal text-[11px]">• SKM: 75</span>
-                </>
+                <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 text-[11px]">
+                  Belum Dinilai ({metrics.gradedCount}/{metrics.total})
+                </span>
               )}
             </div>
           </div>
 
-          {/* 3. Tingkat Kelulusan SKM */}
+          {/* 3. Tingkat Kelulusan */}
           <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -511,7 +417,7 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
                   {metrics.passRate}%
                 </span>
                 <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
-                  Ketuntasan Standar SKM
+                  Tingkat Kelulusan Kelas
                 </p>
               </div>
               <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/60 flex items-center justify-center shrink-0">
@@ -740,26 +646,6 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
                 );
               })}
 
-              {/* Benchmark Reference Line: SKM = 75.0 */}
-              <line
-                x1="40"
-                y1={195 - (75 / 100) * 162}
-                x2="545"
-                y2={195 - (75 / 100) * 162}
-                stroke="#10b981"
-                strokeWidth="1.25"
-                strokeDasharray="5 4"
-                opacity="0.8"
-              />
-              <text
-                x="545"
-                y={195 - (75 / 100) * 162 - 5}
-                textAnchor="end"
-                className="fill-emerald-600 dark:fill-emerald-400 text-[9px] font-extrabold font-mono tracking-wider"
-              >
-                TARGET SKM: 75.0
-              </text>
-
               {/* Hover Column Highlight Pill */}
               {hoveredIndex !== null && chartData.scorePoints[hoveredIndex] && (
                 <rect
@@ -777,112 +663,49 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
               {(chartStyle === 'BAR' || chartStyle === 'COMBO') &&
                 chartData.scorePoints.map((pt, idx) => {
                   const progPt = chartData.progressPoints[idx];
-                  const passPt = chartData.passPoints[idx];
                   const isCombo = chartStyle === 'COMBO';
-                  const barWidth = isCombo ? 10 : 11;
-                  const gap = 3;
+                  const barWidth = isCombo ? 11 : 14;
                   const scoreHeight = Math.max(4, 195 - pt.y);
                   const progHeight = Math.max(4, 195 - progPt.y);
-                  const passHeight = Math.max(4, 195 - passPt.y);
                   const barOpacity = isCombo ? (hoveredIndex === idx ? 0.85 : 0.42) : 0.95;
 
                   return (
                     <g key={`bars-${idx}`} opacity={barOpacity} className="transition-opacity duration-200">
-                      {isCombo ? (
-                        <>
-                          {/* Subtle Track */}
-                          <rect
-                            x={pt.x - barWidth - 1.5}
-                            y="33"
-                            width={barWidth}
-                            height="162"
-                            rx="5"
-                            className="fill-slate-100/70 dark:fill-slate-800/40"
-                          />
-                          <rect
-                            x={pt.x + 1.5}
-                            y="33"
-                            width={barWidth}
-                            height="162"
-                            rx="5"
-                            className="fill-slate-100/70 dark:fill-slate-800/40"
-                          />
-                          {/* Bar 1: Rata-rata Nilai */}
-                          <rect
-                            x={pt.x - barWidth - 1.5}
-                            y={195 - scoreHeight}
-                            width={barWidth}
-                            height={scoreHeight}
-                            rx="5"
-                            fill="url(#obe-bar-indigo)"
-                          />
-                          {/* Bar 2: Ketuntasan Tugas */}
-                          <rect
-                            x={pt.x + 1.5}
-                            y={195 - progHeight}
-                            width={barWidth}
-                            height={progHeight}
-                            rx="5"
-                            fill="url(#obe-bar-coral)"
-                          />
-                        </>
-                      ) : (
-                        <>
-                          {/* 3 Grouped Bars in Pure Bar Mode (inspired by reference image) */}
-                          <rect
-                            x={pt.x - barWidth * 1.5 - gap}
-                            y="33"
-                            width={barWidth}
-                            height="162"
-                            rx="5.5"
-                            className="fill-slate-100/80 dark:fill-slate-800/50"
-                          />
-                          <rect
-                            x={pt.x - barWidth * 0.5}
-                            y="33"
-                            width={barWidth}
-                            height="162"
-                            rx="5.5"
-                            className="fill-slate-100/80 dark:fill-slate-800/50"
-                          />
-                          <rect
-                            x={pt.x + barWidth * 0.5 + gap}
-                            y="33"
-                            width={barWidth}
-                            height="162"
-                            rx="5.5"
-                            className="fill-slate-100/80 dark:fill-slate-800/50"
-                          />
-
-                          {/* Bar 1: Skor Nilai (Indigo) */}
-                          <rect
-                            x={pt.x - barWidth * 1.5 - gap}
-                            y={195 - scoreHeight}
-                            width={barWidth}
-                            height={scoreHeight}
-                            rx="5.5"
-                            fill="url(#obe-bar-indigo)"
-                          />
-                          {/* Bar 2: Ketuntasan Tugas (Coral Orange) */}
-                          <rect
-                            x={pt.x - barWidth * 0.5}
-                            y={195 - progHeight}
-                            width={barWidth}
-                            height={progHeight}
-                            rx="5.5"
-                            fill="url(#obe-bar-coral)"
-                          />
-                          {/* Bar 3: Daya Serap / Kelulusan SKM (Cyan) */}
-                          <rect
-                            x={pt.x + barWidth * 0.5 + gap}
-                            y={195 - passHeight}
-                            width={barWidth}
-                            height={passHeight}
-                            rx="5.5"
-                            fill="url(#obe-bar-cyan)"
-                          />
-                        </>
-                      )}
+                      {/* Subtle Track */}
+                      <rect
+                        x={pt.x - barWidth - 2}
+                        y="33"
+                        width={barWidth}
+                        height="162"
+                        rx="6"
+                        className="fill-slate-100/80 dark:fill-slate-800/45"
+                      />
+                      <rect
+                        x={pt.x + 2}
+                        y="33"
+                        width={barWidth}
+                        height="162"
+                        rx="6"
+                        className="fill-slate-100/80 dark:fill-slate-800/45"
+                      />
+                      {/* Bar 1: Rata-rata Nilai */}
+                      <rect
+                        x={pt.x - barWidth - 2}
+                        y={195 - scoreHeight}
+                        width={barWidth}
+                        height={scoreHeight}
+                        rx="6"
+                        fill="url(#obe-bar-indigo)"
+                      />
+                      {/* Bar 2: Ketuntasan Tugas */}
+                      <rect
+                        x={pt.x + 2}
+                        y={195 - progHeight}
+                        width={barWidth}
+                        height={progHeight}
+                        rx="6"
+                        fill="url(#obe-bar-coral)"
+                      />
                     </g>
                   );
                 })}
@@ -1013,19 +836,6 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
                       {chartData.progressPoints[hoveredIndex].val}% Tuntas
                     </span>
                   </div>
-                  <span className={`text-[9px] font-semibold block mt-1 ${
-                    chartData.scorePoints[hoveredIndex].val >= 75
-                      ? 'text-emerald-400'
-                      : chartData.scorePoints[hoveredIndex].val > 0
-                        ? 'text-rose-400'
-                        : 'text-slate-400'
-                  }`}>
-                    {chartData.scorePoints[hoveredIndex].val >= 75
-                      ? '✓ Memenuhi Standar SKM (≥75)'
-                      : chartData.scorePoints[hoveredIndex].val > 0
-                        ? '⚠ Di Bawah SKM (Perlu Evaluasi)'
-                        : '⏳ Menunggu Input Penilaian'}
-                  </span>
                 </div>
               </div>
             )}
@@ -1048,12 +858,6 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
                 </span>
                 <span>Ketuntasan Tugas (%)</span>
               </div>
-              {chartStyle === 'BAR' && (
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm bg-cyan-500"></span>
-                  <span>Daya Serap SKM (%)</span>
-                </div>
-              )}
             </div>
 
             {onNavigateTab ? (
@@ -1066,7 +870,7 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </button>
             ) : (
-              <span className="text-[10px] text-slate-400">Standar SKM Poliwako: 75.0</span>
+              <span className="text-[10px] text-slate-400">Formula OBE: Kualitas 70% + Laporan 15% + Sikap 10% + Kreativitas 5%</span>
             )}
           </div>
 
@@ -1146,7 +950,7 @@ export const OBEAnalyticsSection: React.FC<OBEAnalyticsSectionProps> = ({
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
             }`}>
               {metrics.hasData
-                ? `Predikat ${metrics.avgPred.letter} • ${metrics.passRate}% Lulus SKM`
+                ? `Predikat ${metrics.avgPred.letter} (${metrics.passRate}% Lulus)`
                 : `Belum Ada Nilai (0/${metrics.total})`}
             </div>
           </div>
