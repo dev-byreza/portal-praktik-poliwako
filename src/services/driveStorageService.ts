@@ -2,6 +2,8 @@
 // Handles student file uploads directly to Google Drive via backend integration
 import { ApiService } from './apiService';
 
+export type UploadProgressCallback = (percent: number, statusText: string) => void;
+
 export interface UploadSubmissionOptions {
   courseId: string;
   periodId: string;
@@ -12,6 +14,7 @@ export interface UploadSubmissionOptions {
   allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' | 'AUTOCAD_LINK';
   replaceStoragePath?: string;
   deferSignedUrl?: boolean;
+  onProgress?: UploadProgressCallback;
 }
 
 export interface UploadResult {
@@ -79,6 +82,7 @@ export async function uploadSubmissionFile(
   // Streams the raw binary file directly from browser to Google Drive!
   // ---------------------------------------------------------------
   try {
+    options.onProgress?.(8, 'Menyiapkan sesi Google Drive...');
     const initRes = await fetch('/api/drive', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -101,18 +105,44 @@ export async function uploadSubmissionFile(
 
     const initData = await initRes.json().catch(() => ({}));
     if (initRes.ok && initData?.success && initData?.uploadUrl) {
-      // Direct stream PUT to Google Drive (no auth header needed; signed session URI)
-      const driveUploadRes = await fetch(initData.uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': file.type || 'application/octet-stream',
-        },
-        body: file,
+      options.onProgress?.(15, 'Mulai mengunggah berkas...');
+
+      // Direct stream PUT to Google Drive via XMLHttpRequest for real-time progress events
+      const driveUploadData = await new Promise<any>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', initData.uploadUrl);
+        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+
+        if (xhr.upload) {
+          xhr.upload.onprogress = (evt) => {
+            if (evt.lengthComputable && evt.total > 0) {
+              const rawPercent = Math.min(100, Math.round((evt.loaded / evt.total) * 100));
+              // Map byte stream from 15% to 85%
+              const mappedPercent = Math.round(15 + (rawPercent * 0.70));
+              options.onProgress?.(mappedPercent, `Mengunggah berkas (${rawPercent}%)...`);
+            }
+          };
+        }
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              resolve(JSON.parse(xhr.responseText));
+            } catch {
+              resolve({});
+            }
+          } else {
+            reject(new Error(`Drive upload failed (${xhr.status}): ${xhr.responseText}`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Koneksi terputus saat mengunggah berkas ke Google Drive.'));
+        xhr.ontimeout = () => reject(new Error('Waktu pengunggahan habis (timeout).'));
+        xhr.send(file);
       });
 
-      const driveUploadData = await driveUploadRes.json().catch(() => ({}));
-      if (driveUploadRes.ok && driveUploadData?.id) {
-        // Finalize: Set public view permission & register
+      if (driveUploadData?.id) {
+        options.onProgress?.(88, 'Menyimpan tautan dan hak akses berkas...');
         const finRes = await fetch('/api/drive', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -133,6 +163,7 @@ export async function uploadSubmissionFile(
 
         const finData = await finRes.json().catch(() => ({}));
         if (finRes.ok && finData?.success && finData?.fileUrl) {
+          options.onProgress?.(100, 'Pengunggahan berhasil!');
           return {
             storagePath: finData.driveFileId,
             publicUrl: finData.fileUrl,
@@ -159,6 +190,7 @@ export async function uploadSubmissionFile(
   }
 
   try {
+    options.onProgress?.(25, 'Membaca berkas...');
     const dataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
@@ -166,6 +198,7 @@ export async function uploadSubmissionFile(
       reader.readAsDataURL(file);
     });
 
+    options.onProgress?.(50, 'Mengirim berkas melalui server...');
     const res = await fetch('/api/drive', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -207,6 +240,7 @@ export async function uploadSubmissionFile(
       };
     }
 
+    options.onProgress?.(100, 'Pengunggahan berhasil!');
     return {
       storagePath: driveRes.driveFileId,
       publicUrl: driveRes.fileUrl,

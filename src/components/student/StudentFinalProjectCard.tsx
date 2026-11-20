@@ -15,6 +15,7 @@ export const StudentFinalProjectCard: React.FC = () => {
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatusText, setUploadStatusText] = useState('');
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -39,7 +40,8 @@ export const StudentFinalProjectCard: React.FC = () => {
 
     setBusy(true);
     setError('');
-    setUploadStatusText('Membaca berkas dan mengunggah ke Google Drive...');
+    setUploadProgress(0);
+    setUploadStatusText('Menyiapkan berkas proyek...');
 
     try {
       // 1. Upload file via system backend to Google Drive
@@ -51,6 +53,10 @@ export const StudentFinalProjectCard: React.FC = () => {
         taskTitle: 'Proyek Akhir',
         allowedFileType: 'ANY',
         replaceStoragePath: participant?.finalProjectUrl,
+        onProgress: (percent, text) => {
+          setUploadProgress(percent);
+          setUploadStatusText(text);
+        },
       });
 
       if (uploadRes.error) {
@@ -74,6 +80,7 @@ export const StudentFinalProjectCard: React.FC = () => {
       setError(submitError?.message || 'Gagal mengunggah berkas proyek akhir ke Google Drive.');
     } finally {
       setBusy(false);
+      setUploadProgress(0);
       setUploadStatusText('');
     }
   };
@@ -191,6 +198,25 @@ export const StudentFinalProjectCard: React.FC = () => {
               )}
             </div>
           </div>
+
+          {/* Real-time Progress Bar */}
+          {busy && (
+            <div className="space-y-1.5 p-3.5 bg-blue-50/80 border border-blue-200 rounded-xl">
+              <div className="flex items-center justify-between text-xs font-semibold text-blue-900">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                  {uploadStatusText || 'Mengunggah ke Google Drive...'}
+                </span>
+                <span className="font-mono font-bold text-blue-900">{uploadProgress}%</span>
+              </div>
+              <div className="w-full bg-blue-200/80 rounded-full h-2.5 overflow-hidden shadow-inner">
+                <div
+                  className="bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 h-2.5 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${Math.max(4, uploadProgress)}%` }}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
             <button

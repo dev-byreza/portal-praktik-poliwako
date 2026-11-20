@@ -66,6 +66,8 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [autocadShareUrl, setAutocadShareUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatusText, setUploadStatusText] = useState('');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const deadlineTimestamp = useMemo(() => parseDeadlineTimestamp(assignment.deadline), [assignment.deadline]);
   const [now, setNow] = useState(() => Date.now());
@@ -137,16 +139,24 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
       return;
     }
     setIsUploading(true);
+    setUploadProgress(0);
+    setUploadStatusText('Menyiapkan berkas...');
     try {
       const result = await submitAssignment(
         assignment.id,
         selectedFile,
         assignment.submissionType || 'ASSIGNMENT',
-        assignment.allowedFileType || 'PDF'
+        assignment.allowedFileType || 'PDF',
+        (percent, statusText) => {
+          setUploadProgress(percent);
+          setUploadStatusText(statusText);
+        }
       );
       if (result.success) setSelectedFile(null);
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
+      setUploadStatusText('');
     }
   };
 
@@ -355,33 +365,65 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                   </div>
 
                   {selectedFile && (
-                  <div className="flex flex-col justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/80 p-3 xl:flex-row xl:items-center">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <RefreshCw className="w-5 h-5 text-blue-600 shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-slate-900 break-all">File baru: {selectedFile.name}</p>
-                        <p className="text-[10px] text-slate-500">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Belum disimpan</p>
+                  <div className="flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50/80 p-3.5">
+                    <div className="flex flex-col justify-between gap-3 xl:flex-row xl:items-center">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <RefreshCw className={`w-5 h-5 text-blue-600 shrink-0 ${isUploading ? 'animate-spin' : ''}`} />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-900 break-all">File baru: {selectedFile.name}</p>
+                          <p className="text-[10px] text-slate-500">
+                            {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • {isUploading ? (uploadStatusText || 'Sedang mengunggah...') : 'Belum disimpan'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex w-full items-center justify-end gap-2 xl:w-auto">
+                        {!isUploading && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedFile(null)}
+                            className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
+                            aria-label="Batalkan file baru"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleUpload}
+                          disabled={isUploading}
+                          className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition-colors shadow-sm disabled:opacity-75 flex items-center gap-1.5 min-w-[120px] justify-center"
+                        >
+                          {isUploading ? (
+                            <>
+                              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              <span>{uploadProgress > 0 ? `${uploadProgress}%` : 'Menyimpan...'}</span>
+                            </>
+                          ) : (
+                            'Simpan File Baru'
+                          )}
+                        </button>
                       </div>
                     </div>
 
-                    <div className="flex w-full items-center justify-end gap-2 xl:w-auto">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedFile(null)}
-                        className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
-                        aria-label="Batalkan file baru"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleUpload}
-                        disabled={isUploading}
-                        className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition-colors shadow-sm disabled:opacity-60"
-                      >
-                        {isUploading ? 'Menyimpan...' : 'Simpan File Baru'}
-                      </button>
-                    </div>
+                    {/* Real-time Progress Bar */}
+                    {isUploading && (
+                      <div className="space-y-1.5 pt-2 border-t border-blue-200/80">
+                        <div className="flex items-center justify-between text-[11px] font-semibold text-blue-900">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                            {uploadStatusText || 'Mengunggah ke Google Drive...'}
+                          </span>
+                          <span className="font-mono font-bold text-blue-900">{uploadProgress}%</span>
+                        </div>
+                        <div className="w-full bg-blue-200/80 rounded-full h-2 overflow-hidden shadow-inner">
+                          <div
+                            className="bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 h-2 rounded-full transition-all duration-300 ease-out"
+                            style={{ width: `${Math.max(4, uploadProgress)}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                   )}
                   </>
@@ -448,30 +490,64 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
 
                 {/* Selected File Preview before submit */}
                 {selectedFile && (
-                  <div className="mt-4 flex flex-col justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/80 p-3 xl:flex-row xl:items-center">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <FileText className="w-5 h-5 text-blue-600 shrink-0" />
-                      <div>
-                        <p className="text-xs font-bold text-slate-900 break-all">{selectedFile.name}</p>
-                        <p className="text-[10px] text-slate-500">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                  <div className="mt-4 flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50/80 p-3.5">
+                    <div className="flex flex-col justify-between gap-3 xl:flex-row xl:items-center">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <FileText className="w-5 h-5 text-blue-600 shrink-0" />
+                        <div>
+                          <p className="text-xs font-bold text-slate-900 break-all">{selectedFile.name}</p>
+                          <p className="text-[10px] text-slate-500">
+                            {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • {isUploading ? (uploadStatusText || 'Sedang mengunggah...') : 'Siap dikirim'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex w-full items-center justify-end gap-2 xl:w-auto">
+                        {!isUploading && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedFile(null)}
+                            className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleUpload}
+                          disabled={isUploading}
+                          className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition-colors shadow-sm flex items-center gap-1.5 min-w-[110px] justify-center disabled:opacity-75"
+                        >
+                          {isUploading ? (
+                            <>
+                              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              <span>{uploadProgress > 0 ? `${uploadProgress}%` : 'Mengunggah...'}</span>
+                            </>
+                          ) : (
+                            'Kirim Tugas'
+                          )}
+                        </button>
                       </div>
                     </div>
 
-                    <div className="flex w-full items-center justify-end gap-2 xl:w-auto">
-                      <button
-                        onClick={() => setSelectedFile(null)}
-                        className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={handleUpload}
-                        disabled={isUploading}
-                        className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition-colors shadow-sm flex items-center gap-1.5"
-                      >
-                        {isUploading ? 'Mengunggah...' : 'Kirim Tugas'}
-                      </button>
-                    </div>
+                    {/* Real-time Progress Bar */}
+                    {isUploading && (
+                      <div className="space-y-1.5 pt-2 border-t border-blue-200/80">
+                        <div className="flex items-center justify-between text-[11px] font-semibold text-blue-900">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                            {uploadStatusText || 'Mengunggah ke Google Drive...'}
+                          </span>
+                          <span className="font-mono font-bold text-blue-900">{uploadProgress}%</span>
+                        </div>
+                        <div className="w-full bg-blue-200/80 rounded-full h-2 overflow-hidden shadow-inner">
+                          <div
+                            className="bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 h-2 rounded-full transition-all duration-300 ease-out"
+                            style={{ width: `${Math.max(4, uploadProgress)}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

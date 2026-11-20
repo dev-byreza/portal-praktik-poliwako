@@ -135,7 +135,7 @@ interface AppContextType {
   clearStudentIdentity: (reason?: 'USER' | 'EXPIRED') => void;
 
   // Student Actions
-  submitAssignment: (assignmentId: string, file: File, submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST', allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' | 'AUTOCAD_LINK') => Promise<{ success: boolean; message?: string }>;
+  submitAssignment: (assignmentId: string, file: File, submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST', allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' | 'AUTOCAD_LINK', onProgress?: (percent: number, statusText: string) => void) => Promise<{ success: boolean; message?: string }>;
   submitAssignmentLink: (assignmentId: string, url: string, submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST') => Promise<{ success: boolean; message?: string }>;
   reviewSubmission: (submissionId: string, status: 'REVISION_REQUIRED' | 'ACCEPTED', feedback: string) => Promise<void>;
   confirmFinalProject: (customFileUrl?: string) => Promise<void>;
@@ -1229,7 +1229,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Student Assignment Submission
-  const submitAssignment = async (assignmentId: string, file: File, submissionType: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST' = 'ASSIGNMENT', allowedFileType: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' | 'AUTOCAD_LINK' = 'PDF'): Promise<{ success: boolean; message?: string }> => {
+  const submitAssignment = async (
+    assignmentId: string,
+    file: File,
+    submissionType: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST' = 'ASSIGNMENT',
+    allowedFileType: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' | 'AUTOCAD_LINK' = 'PDF',
+    onProgress?: (percent: number, statusText: string) => void
+  ): Promise<{ success: boolean; message?: string }> => {
     if (allowedFileType === 'AUTOCAD_LINK') {
       return { success: false, message: 'Tugas Autodesk Share harus dikirim melalui link, bukan unggahan file.' };
     }
@@ -1267,6 +1273,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           allowedFileType: allowedFileType as 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY',
           replaceStoragePath: existing?.storagePath,
           deferSignedUrl: true,
+          onProgress,
         });
         if (upload.error || !upload.storagePath) throw upload.error || new Error('File tidak dapat disimpan ke Google Drive.');
 
