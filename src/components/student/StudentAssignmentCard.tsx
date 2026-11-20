@@ -417,10 +417,15 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                           </span>
                           <span className="font-mono font-bold text-blue-900">{uploadProgress}%</span>
                         </div>
-                        <div className="w-full bg-blue-200/80 rounded-full h-2 overflow-hidden shadow-inner">
+                        <div className="w-full bg-slate-200/90 rounded-full h-2.5 overflow-hidden shadow-inner relative">
                           <div
-                            className="bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 h-2 rounded-full transition-all duration-300 ease-out"
-                            style={{ width: `${Math.max(4, uploadProgress)}%` }}
+                            className="bg-gradient-to-r from-blue-600 via-cyan-500 to-emerald-500 h-2.5 rounded-full transition-all duration-300 ease-out"
+                            style={{
+                              width: `${Math.max(3, uploadProgress)}%`,
+                              backgroundSize: `${10000 / Math.max(3, uploadProgress)}% 100%`,
+                              backgroundPosition: 'left center',
+                              backgroundRepeat: 'no-repeat',
+                            }}
                           />
                         </div>
                       </div>
@@ -541,10 +546,15 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                           </span>
                           <span className="font-mono font-bold text-blue-900">{uploadProgress}%</span>
                         </div>
-                        <div className="w-full bg-blue-200/80 rounded-full h-2 overflow-hidden shadow-inner">
+                        <div className="w-full bg-slate-200/90 rounded-full h-2.5 overflow-hidden shadow-inner relative">
                           <div
-                            className="bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 h-2 rounded-full transition-all duration-300 ease-out"
-                            style={{ width: `${Math.max(4, uploadProgress)}%` }}
+                            className="bg-gradient-to-r from-blue-600 via-cyan-500 to-emerald-500 h-2.5 rounded-full transition-all duration-300 ease-out"
+                            style={{
+                              width: `${Math.max(3, uploadProgress)}%`,
+                              backgroundSize: `${10000 / Math.max(3, uploadProgress)}% 100%`,
+                              backgroundPosition: 'left center',
+                              backgroundRepeat: 'no-repeat',
+                            }}
                           />
                         </div>
                       </div>

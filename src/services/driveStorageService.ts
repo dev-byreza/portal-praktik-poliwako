@@ -117,9 +117,9 @@ export async function uploadSubmissionFile(
           xhr.upload.onprogress = (evt) => {
             if (evt.lengthComputable && evt.total > 0) {
               const rawPercent = Math.min(100, Math.round((evt.loaded / evt.total) * 100));
-              // Map byte stream from 15% to 85%
-              const mappedPercent = Math.round(15 + (rawPercent * 0.70));
-              options.onProgress?.(mappedPercent, `Mengunggah berkas (${rawPercent}%)...`);
+              // Map byte stream from 15% to 88%
+              const mappedPercent = Math.round(15 + (rawPercent * 0.73));
+              options.onProgress?.(mappedPercent, `Mengunggah berkas (${mappedPercent}%)...`);
             }
           };
         }
