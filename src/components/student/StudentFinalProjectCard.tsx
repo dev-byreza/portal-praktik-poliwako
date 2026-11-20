@@ -32,8 +32,8 @@ export const StudentFinalProjectCard: React.FC = () => {
     event.preventDefault();
     if (!selectedFile || busy || !period || !studentSession) return;
 
-    if (selectedFile.size > 4.5 * 1024 * 1024) {
-      setError('Ukuran berkas melebihi batas 4.5 MB untuk upload langsung ke Google Drive. Silakan kompres berkas PDF Anda terlebih dahulu.');
+    if (selectedFile.size > 50 * 1024 * 1024) {
+      setError('Ukuran berkas melebihi batas 50 MB. Silakan kompres berkas proyek akhir Anda jika melebihi 50 MB.');
       return;
     }
 

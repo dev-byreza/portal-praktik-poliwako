@@ -244,6 +244,227 @@ export default async function handler(req: any, res: any) {
     }
 
     // ================================================================
+    // ACTION: init_direct_upload (Google Drive Resumable Direct Upload)
+    // ================================================================
+    if (action === 'init_direct_upload') {
+      const {
+        courseId,
+        periodId,
+        studentId,
+        assignmentId,
+        taskTitle,
+        fileName,
+        fileSize,
+        mimeType,
+        submissionType = 'ASSIGNMENT',
+      } = payload || {};
+
+      if (!periodId || !studentId || !fileName) {
+        return res.status(400).json({ error: 'periodId, studentId, and fileName are required' });
+      }
+
+      const client = await pool.connect();
+      try {
+        const infoRes = await client.query(`
+          SELECT
+            pp.name as period_name,
+            pp.final_project_drive_url,
+            c.name as course_name,
+            c.id as course_id,
+            c.academic_year,
+            s.nim,
+            s.name as student_name
+          FROM public.practice_periods pp
+          JOIN public.courses c ON c.id = pp.course_id
+          JOIN public.students s ON s.id = $2
+          WHERE pp.id = $1
+          LIMIT 1
+        `, [periodId, studentId]);
+
+        if (!infoRes.rows[0]) {
+          return res.status(404).json({ error: 'Data periode atau mahasiswa tidak ditemukan.' });
+        }
+
+        const info = infoRes.rows[0];
+        let targetFolderUrl = info.final_project_drive_url;
+        let targetFolderId = extractDriveId(targetFolderUrl);
+
+        if (!targetFolderId) {
+          const structure = await ensureCourseAndPeriodFolders(info.course_name, info.period_name, info.academic_year);
+          targetFolderUrl = structure.studentSubmissionFolder.webViewLink;
+          targetFolderId = structure.studentSubmissionFolder.id;
+
+          await client.query(`
+            UPDATE public.practice_periods
+            SET
+              final_project_drive_url = $1,
+              instructor_drive_url = $2,
+              updated_at = NOW()
+            WHERE id = $3
+          `, [
+            structure.studentSubmissionFolder.webViewLink,
+            structure.instructorAssignmentFolder.webViewLink,
+            periodId
+          ]);
+        }
+
+        let resolvedTaskTitle = (taskTitle || '').trim();
+        if (!resolvedTaskTitle && assignmentId) {
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(assignmentId);
+          if (isUuid) {
+            if (submissionType === 'REMEDIAL') {
+              const remRes = await client.query('SELECT title FROM public.remedial_assignments WHERE id = $1 LIMIT 1', [assignmentId]);
+              resolvedTaskTitle = remRes.rows[0]?.title || '';
+            } else {
+              const assignRes = await client.query('SELECT title FROM public.assignments WHERE id = $1 LIMIT 1', [assignmentId]);
+              resolvedTaskTitle = assignRes.rows[0]?.title || '';
+            }
+          }
+        }
+
+        const taskFolderName = resolveTaskFolderName(submissionType, resolvedTaskTitle);
+        let destinationFolderId = targetFolderId;
+        let taskFolderInfo: any = null;
+
+        const token = await getDriveAccessToken();
+        if (targetFolderId) {
+          try {
+            taskFolderInfo = await getOrCreateFolder(token, targetFolderId, taskFolderName);
+            if (taskFolderInfo?.id) {
+              destinationFolderId = taskFolderInfo.id;
+            }
+          } catch (folderErr: any) {
+            console.warn('Could not ensure task subfolder, falling back to period submission folder:', folderErr.message);
+          }
+        }
+
+        const cleanStudentNim = String(info.nim || '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
+        const cleanStudentName = String(info.student_name || '').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+        const safeOriginalName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const driveFileName = `${cleanStudentNim}_${cleanStudentName}_${safeOriginalName}`;
+
+        if (!destinationFolderId) {
+          throw new Error('Folder tujuan Google Drive tidak ditemukan untuk periode ini.');
+        }
+
+        // Request Resumable Upload session URL from Google Drive
+        const headers: Record<string, string> = {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json; charset=UTF-8',
+          'X-Upload-Content-Type': mimeType || 'application/octet-stream',
+        };
+        if (fileSize) {
+          headers['X-Upload-Content-Length'] = String(fileSize);
+        }
+
+        const initRes = await fetch(
+          'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true',
+          {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              name: driveFileName,
+              parents: [destinationFolderId],
+            }),
+          }
+        );
+
+        const uploadUrl = initRes.headers.get('location');
+        if (!initRes.ok || !uploadUrl) {
+          const errText = await initRes.text().catch(() => '');
+          throw new Error(`Google Drive Resumable Session Error: ${errText || initRes.statusText}`);
+        }
+
+        return res.status(200).json({
+          success: true,
+          uploadUrl,
+          driveFileName,
+          destinationFolderId,
+          taskFolderName,
+          taskFolderUrl: taskFolderInfo?.webViewLink || null,
+        });
+      } finally {
+        client.release();
+      }
+    }
+
+    // ================================================================
+    // ACTION: finalize_direct_upload (Ensure permissions & DB link)
+    // ================================================================
+    if (action === 'finalize_direct_upload') {
+      const {
+        fileId,
+        driveFileName,
+        periodId,
+        studentId,
+        submissionType = 'ASSIGNMENT',
+        taskFolderName,
+        taskFolderUrl,
+      } = payload || {};
+
+      if (!fileId) {
+        return res.status(400).json({ error: 'fileId is required' });
+      }
+
+      const token = await getDriveAccessToken();
+
+      // Ensure file permission so anyone with link can view
+      try {
+        await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions?supportsAllDrives=true`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            role: 'reader',
+            type: 'anyone',
+          }),
+        });
+      } catch (permErr: any) {
+        console.warn('Could not set public permission on direct upload file:', permErr.message);
+      }
+
+      // Fetch file details (webViewLink)
+      const fileRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,webViewLink&supportsAllDrives=true`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const fileInfo = await fileRes.json().catch(() => ({}));
+      const finalFileUrl = fileInfo?.webViewLink || `https://drive.google.com/file/d/${fileId}/view`;
+
+      // If it's a final project, also record in practice_participants
+      if (submissionType === 'FINAL_PROJECT' && periodId && studentId) {
+        const client = await pool.connect();
+        try {
+          await client.query(`
+            UPDATE public.practice_participants
+            SET
+              final_project_url = $1,
+              final_project_confirmed = true,
+              final_project_review_status = 'PENDING'
+            WHERE period_id = $2 AND student_id = $3
+          `, [finalFileUrl, periodId, studentId]);
+        } finally {
+          client.release();
+        }
+      }
+
+      invalidateDataCache();
+
+      return res.status(200).json({
+        success: true,
+        fileUrl: finalFileUrl,
+        driveUrl: finalFileUrl,
+        driveFileId: fileId,
+        taskFolderName: taskFolderName || null,
+        taskFolderUrl: taskFolderUrl || null,
+        fileName: driveFileName || fileInfo?.name || fileId,
+        storageProvider: 'google_drive',
+      });
+    }
+
+    // ================================================================
     // ACTION: upload_submission_file
     // ================================================================
     if (action === 'upload_submission_file') {

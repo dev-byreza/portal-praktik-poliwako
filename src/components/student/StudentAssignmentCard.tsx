@@ -122,8 +122,8 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
     }
 
     // Size limit 50MB (matches the Supabase submissions bucket limit)
-    if (file.size > 4.5 * 1024 * 1024) {
-      showToast('Ukuran Terlalu Besar', 'Ukuran file maksimal 4.5 MB untuk upload langsung ke Google Drive. Silakan kompres PDF Anda terlebih dahulu.', 'error');
+    if (file.size > 50 * 1024 * 1024) {
+      showToast('Ukuran Terlalu Besar', 'Ukuran file maksimal 50 MB.', 'error');
       return;
     }
 
@@ -443,7 +443,7 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
                       className="ui-file-input"
                     />
                   </label>
-                  <p className="text-[11px] text-slate-400 mt-2">Format: {fileRule((assignment.allowedFileType || 'PDF') as AllowedFileType).extensions} (Maks. 4.5 MB)</p>
+                  <p className="text-[11px] text-slate-400 mt-2">Format: {fileRule((assignment.allowedFileType || 'PDF') as AllowedFileType).extensions} (Maks. 50 MB)</p>
                 </div>
 
                 {/* Selected File Preview before submit */}
