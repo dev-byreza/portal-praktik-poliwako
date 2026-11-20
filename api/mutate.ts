@@ -798,30 +798,54 @@ export default async function handler(req: any, res: any) {
         `, [providedId, cleanAssignmentId, cleanStudentId, cleanPeriodId]);
 
         const existingRow = existCheck.rows[0];
-        const targetId = existingRow?.id || providedId;
-        const targetRevision = existingRow ? (Number(existingRow.revision_number || 1) + 1) : 1;
 
-        const subRes = await client.query(`
+        if (existingRow) {
+          const nextRevision = Number(existingRow.revision_number || 1) + 1;
+          const updateRes = await client.query(`
+            UPDATE public.submissions
+            SET
+              file_name = $1,
+              file_url = $2,
+              file_size = $3,
+              storage_path = $4,
+              submitted_at = $5,
+              status = 'SUBMITTED',
+              submission_type = $6,
+              review_feedback = NULL,
+              reviewed_at = NULL,
+              revision_number = $7
+            WHERE id = $8
+            RETURNING submitted_at, id, revision_number;
+          `, [
+            s.fileName || 'Dokumen Tugas',
+            s.fileUrl || '',
+            s.fileSize || '0 KB',
+            s.storagePath || null,
+            s.submittedAt || new Date().toISOString(),
+            s.submissionType || 'ASSIGNMENT',
+            nextRevision,
+            existingRow.id,
+          ]);
+
+          invalidateDataCache();
+          return res.status(200).json({
+            success: true,
+            id: existingRow.id,
+            revisionNumber: nextRevision,
+            submittedAt: updateRes.rows[0]?.submitted_at || s.submittedAt,
+          });
+        }
+
+        const insertRes = await client.query(`
           INSERT INTO public.submissions (
             id, assignment_id, student_id, period_id, file_name, file_url, file_size,
             storage_path, submitted_at, status, submission_type, review_feedback, reviewed_at, revision_number
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, 'SUBMITTED', $10, NULL, NULL, 1
           )
-          ON CONFLICT (id) DO UPDATE SET
-            file_name = EXCLUDED.file_name,
-            file_url = EXCLUDED.file_url,
-            file_size = EXCLUDED.file_size,
-            storage_path = EXCLUDED.storage_path,
-            submitted_at = EXCLUDED.submitted_at,
-            status = 'SUBMITTED',
-            submission_type = EXCLUDED.submission_type,
-            review_feedback = NULL,
-            reviewed_at = NULL,
-            revision_number = EXCLUDED.revision_number
           RETURNING submitted_at, id, revision_number;
         `, [
-          targetId,
+          providedId,
           cleanAssignmentId,
           cleanStudentId,
           cleanPeriodId,
@@ -830,19 +854,15 @@ export default async function handler(req: any, res: any) {
           s.fileSize || '0 KB',
           s.storagePath || null,
           s.submittedAt || new Date().toISOString(),
-          'SUBMITTED',
           s.submissionType || 'ASSIGNMENT',
-          null,
-          null,
-          targetRevision,
         ]);
 
         invalidateDataCache();
         return res.status(200).json({
           success: true,
-          id: targetId,
-          revisionNumber: targetRevision,
-          submittedAt: subRes.rows[0]?.submitted_at || s.submittedAt,
+          id: providedId,
+          revisionNumber: 1,
+          submittedAt: insertRes.rows[0]?.submitted_at || s.submittedAt,
         });
       }
 
