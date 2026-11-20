@@ -352,11 +352,22 @@ export default async function handler(req: any, res: any) {
           throw new Error('Folder tujuan Google Drive tidak ditemukan untuk periode ini.');
         }
 
-        // Request Resumable Upload session URL from Google Drive
+        // Request Resumable Upload session URL from Google Drive with client Origin for browser CORS
+        let clientOrigin = 'https://praktik.devbyreza.cloud';
+        const rawOrigin = req.headers?.origin || req.headers?.referer;
+        if (rawOrigin) {
+          try {
+            clientOrigin = new URL(rawOrigin).origin;
+          } catch {
+            clientOrigin = String(rawOrigin).trim().replace(/\/$/, '');
+          }
+        }
+
         const headers: Record<string, string> = {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json; charset=UTF-8',
           'X-Upload-Content-Type': mimeType || 'application/octet-stream',
+          'Origin': clientOrigin,
         };
         if (fileSize) {
           headers['X-Upload-Content-Length'] = String(fileSize);

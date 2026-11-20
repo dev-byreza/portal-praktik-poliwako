@@ -150,7 +150,8 @@ export const StudentAssignmentCard: React.FC<StudentAssignmentCardProps> = ({
         (percent, statusText) => {
           setUploadProgress(percent);
           setUploadStatusText(statusText);
-        }
+        },
+        submission?.id
       );
       if (result.success) setSelectedFile(null);
     } finally {

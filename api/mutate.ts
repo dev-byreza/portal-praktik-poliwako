@@ -785,6 +785,22 @@ export default async function handler(req: any, res: any) {
           return res.status(400).json({ error: 'Submission id, assignmentId, studentId, and periodId required' });
         }
 
+        const cleanAssignmentId = ensureUuid(s.assignmentId, 'assignment');
+        const cleanStudentId = ensureUuid(s.studentId, 'student');
+        const cleanPeriodId = ensureUuid(s.periodId, 'period');
+        const providedId = ensureUuid(s.id, 'submission');
+
+        // Check if an existing submission already exists in DB for this assignment + student + period (or by ID)
+        const existCheck = await client.query(`
+          SELECT id, revision_number FROM public.submissions
+          WHERE id = $1 OR (assignment_id = $2 AND student_id = $3 AND period_id = $4)
+          LIMIT 1
+        `, [providedId, cleanAssignmentId, cleanStudentId, cleanPeriodId]);
+
+        const existingRow = existCheck.rows[0];
+        const targetId = existingRow?.id || providedId;
+        const targetRevision = existingRow ? (Number(existingRow.revision_number || 1) + 1) : 1;
+
         const subRes = await client.query(`
           INSERT INTO public.submissions (
             id, assignment_id, student_id, period_id, file_name, file_url, file_size,
@@ -798,32 +814,34 @@ export default async function handler(req: any, res: any) {
             file_size = EXCLUDED.file_size,
             storage_path = EXCLUDED.storage_path,
             submitted_at = EXCLUDED.submitted_at,
-            status = EXCLUDED.status,
+            status = 'SUBMITTED',
             submission_type = EXCLUDED.submission_type,
-            review_feedback = EXCLUDED.review_feedback,
-            reviewed_at = EXCLUDED.reviewed_at,
+            review_feedback = NULL,
+            reviewed_at = NULL,
             revision_number = EXCLUDED.revision_number
-          RETURNING submitted_at;
+          RETURNING submitted_at, id, revision_number;
         `, [
-          ensureUuid(s.id, 'submission'),
-          ensureUuid(s.assignmentId, 'assignment'),
-          ensureUuid(s.studentId, 'student'),
-          ensureUuid(s.periodId, 'period'),
+          targetId,
+          cleanAssignmentId,
+          cleanStudentId,
+          cleanPeriodId,
           s.fileName || 'Dokumen Tugas',
           s.fileUrl || '',
           s.fileSize || '0 KB',
           s.storagePath || null,
           s.submittedAt || new Date().toISOString(),
-          s.status || 'SUBMITTED',
+          'SUBMITTED',
           s.submissionType || 'ASSIGNMENT',
-          s.reviewFeedback || null,
-          s.reviewedAt || null,
-          Number(s.revisionNumber) || 1,
+          null,
+          null,
+          targetRevision,
         ]);
 
         invalidateDataCache();
         return res.status(200).json({
           success: true,
+          id: targetId,
+          revisionNumber: targetRevision,
           submittedAt: subRes.rows[0]?.submitted_at || s.submittedAt,
         });
       }

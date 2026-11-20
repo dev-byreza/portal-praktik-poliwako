@@ -135,7 +135,7 @@ interface AppContextType {
   clearStudentIdentity: (reason?: 'USER' | 'EXPIRED') => void;
 
   // Student Actions
-  submitAssignment: (assignmentId: string, file: File, submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST', allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' | 'AUTOCAD_LINK', onProgress?: (percent: number, statusText: string) => void) => Promise<{ success: boolean; message?: string }>;
+  submitAssignment: (assignmentId: string, file: File, submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST', allowedFileType?: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' | 'AUTOCAD_LINK', onProgress?: (percent: number, statusText: string) => void, existingSubmissionId?: string) => Promise<{ success: boolean; message?: string }>;
   submitAssignmentLink: (assignmentId: string, url: string, submissionType?: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST') => Promise<{ success: boolean; message?: string }>;
   reviewSubmission: (submissionId: string, status: 'REVISION_REQUIRED' | 'ACCEPTED', feedback: string) => Promise<void>;
   confirmFinalProject: (customFileUrl?: string) => Promise<void>;
@@ -1234,7 +1234,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     file: File,
     submissionType: 'ASSIGNMENT' | 'REPORT' | 'POST_TEST' = 'ASSIGNMENT',
     allowedFileType: 'PDF' | 'IMAGE' | 'ZIP' | 'RAR' | 'ANY' | 'AUTOCAD_LINK' = 'PDF',
-    onProgress?: (percent: number, statusText: string) => void
+    onProgress?: (percent: number, statusText: string) => void,
+    existingSubmissionId?: string
   ): Promise<{ success: boolean; message?: string }> => {
     if (allowedFileType === 'AUTOCAD_LINK') {
       return { success: false, message: 'Tugas Autodesk Share harus dikirim melalui link, bukan unggahan file.' };
@@ -1253,7 +1254,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .flatMap(getUnitAssignments)
       .find(item => item.id === assignmentId);
     const deadlineTimestamp = assignment ? parseAssignmentDeadline(assignment.deadline) : null;
-    const existing = submissions.find((item) => item.assignmentId === assignmentId && item.studentId === studentId && item.periodId === periodId);
+    const existing = existingSubmissionId
+      ? submissions.find(item => item.id === existingSubmissionId)
+      : (submissions.find(item => item.assignmentId === assignmentId && item.studentId === studentId && item.periodId === periodId)
+         || submissions.find(item => item.assignmentId === assignmentId && item.studentId === studentId));
     const isRequestedRevision = existing?.status === 'REVISION_REQUIRED';
     if (deadlineTimestamp !== null && Date.now() >= deadlineTimestamp && !isRequestedRevision) {
       const message = 'Batas waktu pengumpulan sudah berakhir. Tunggu instruktur memperbarui deadline sebelum mengunggah.';
