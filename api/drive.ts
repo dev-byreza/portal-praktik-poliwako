@@ -7,6 +7,8 @@ import {
   getOrCreateFolder,
   getDriveAccessToken,
   deleteDriveFile,
+  cleanupStudentOldFilesInFolder,
+  formatSubmissionDriveFileName,
 } from './_drive.js';
 import { invalidateDataCache } from './data.js';
 
@@ -345,8 +347,13 @@ export default async function handler(req: any, res: any) {
 
         const cleanStudentNim = String(info.nim || '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
         const cleanStudentName = String(info.student_name || '').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-        const safeOriginalName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const driveFileName = `${cleanStudentNim}_${cleanStudentName}_${safeOriginalName}`;
+        const driveFileName = formatSubmissionDriveFileName(
+          resolvedTaskTitle,
+          cleanStudentNim,
+          cleanStudentName,
+          fileName,
+          submissionType
+        );
 
         if (!destinationFolderId) {
           throw new Error('Folder tujuan Google Drive tidak ditemukan untuk periode ini.');
@@ -413,6 +420,7 @@ export default async function handler(req: any, res: any) {
         driveFileName,
         periodId,
         studentId,
+        destinationFolderId,
         submissionType = 'ASSIGNMENT',
         taskFolderName,
         taskFolderUrl,
@@ -455,13 +463,31 @@ export default async function handler(req: any, res: any) {
         console.warn('Could not set public permission on direct upload file:', permErr.message);
       }
 
-      // Fetch file details (webViewLink)
+      // Fetch file details (webViewLink & parents for cleanup)
       const fileRes = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,webViewLink&supportsAllDrives=true`,
+        `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,parents,webViewLink&supportsAllDrives=true`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const fileInfo = await fileRes.json().catch(() => ({}));
       const finalFileUrl = fileInfo?.webViewLink || `https://drive.google.com/file/d/${fileId}/view`;
+      const targetFolderId = destinationFolderId || fileInfo?.parents?.[0];
+
+      // Clean up any other old/duplicate files from this student in the destination folder
+      if (targetFolderId && studentId) {
+        try {
+          const client = await pool.connect();
+          try {
+            const sRes = await client.query('SELECT nim, name FROM public.students WHERE id = $1 LIMIT 1', [studentId]);
+            const sNim = sRes.rows[0]?.nim || '';
+            const sName = sRes.rows[0]?.name || '';
+            await cleanupStudentOldFilesInFolder(token, targetFolderId, sNim, sName, fileId);
+          } finally {
+            client.release();
+          }
+        } catch (cleanErr: any) {
+          console.warn('[Drive Cleanup] Folder sweep error:', cleanErr.message);
+        }
+      }
 
       // If it's a final project, also record in practice_participants
       if (submissionType === 'FINAL_PROJECT' && periodId && studentId) {
@@ -601,8 +627,13 @@ export default async function handler(req: any, res: any) {
         const fileBuffer = Buffer.from(base64Data, 'base64');
         const cleanStudentNim = String(info.nim || '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
         const cleanStudentName = String(info.student_name || '').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-        const safeOriginalName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const driveFileName = `${cleanStudentNim}_${cleanStudentName}_${safeOriginalName}`;
+        const driveFileName = formatSubmissionDriveFileName(
+          resolvedTaskTitle,
+          cleanStudentNim,
+          cleanStudentName,
+          fileName,
+          submissionType
+        );
 
         if (!destinationFolderId) {
           throw new Error('Folder tujuan Google Drive tidak ditemukan untuk periode ini.');
@@ -622,16 +653,25 @@ export default async function handler(req: any, res: any) {
         const finalFileUrl = driveFile.webViewLink;
 
         // Clean up replaced old file from Google Drive if provided
+        const token = await getDriveAccessToken();
         if (replaceStoragePath) {
           const oldFileId = extractDriveId(replaceStoragePath);
           if (oldFileId && oldFileId !== driveFile.id) {
             try {
-              const token = await getDriveAccessToken();
               await deleteDriveFile(token, oldFileId);
               console.log(`[Drive Cleanup] Old file ${oldFileId} deleted on replacement (fallback).`);
             } catch (delErr: any) {
               console.warn('[Drive Cleanup] Failed to delete old file in fallback:', delErr.message);
             }
+          }
+        }
+
+        // Clean up any other old/duplicate files from this student in the destination folder
+        if (destinationFolderId) {
+          try {
+            await cleanupStudentOldFilesInFolder(token, destinationFolderId, cleanStudentNim, cleanStudentName, driveFile.id);
+          } catch (sweepErr: any) {
+            console.warn('[Drive Cleanup] Fallback sweep error:', sweepErr.message);
           }
         }
 

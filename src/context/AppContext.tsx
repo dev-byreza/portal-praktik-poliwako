@@ -1281,9 +1281,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         });
         if (upload.error || !upload.storagePath) throw upload.error || new Error('File tidak dapat disimpan ke Google Drive.');
 
+        const finalFileName = upload.driveFileName || file.name;
         const submission: Submission = {
           id: existing?.id || crypto.randomUUID(), assignmentId, studentId, periodId,
-          fileName: file.name, fileUrl: upload.publicUrl || upload.storagePath, fileSize: (file.size / (1024 * 1024)).toFixed(2) + ' MB', submissionType,
+          fileName: finalFileName, fileUrl: upload.publicUrl || upload.storagePath, fileSize: (file.size / (1024 * 1024)).toFixed(2) + ' MB', submissionType,
           storagePath: upload.storagePath, submittedAt: new Date().toISOString(), status: 'SUBMITTED',
           reviewFeedback: undefined, reviewedAt: undefined, revisionNumber: (existing?.revisionNumber || 0) + 1,
         };
@@ -1340,7 +1341,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await runServerSave('pengumpulan remedial', async () => {
       const upload = await uploadSubmissionPDF(file, {courseId: period.courseId, periodId: period.id, studentId: studentSession.studentId, assignmentId: remedial.id, taskTitle: remedial.title, submissionType:'REMEDIAL', allowedFileType:'PDF', replaceStoragePath: remedial.submissionStoragePath, deferSignedUrl: true});
       if (upload.error || !upload.storagePath) throw upload.error || new Error('Berkas gagal diunggah.');
-      const updated: RemedialAssignment = {...remedial, submissionFileName: file.name, submissionFileUrl: upload.publicUrl || upload.storagePath, submissionStoragePath: upload.storagePath, submittedAt: new Date().toISOString(), status: 'SUBMITTED'};
+      const updated: RemedialAssignment = {...remedial, submissionFileName: upload.driveFileName || file.name, submissionFileUrl: upload.publicUrl || upload.storagePath, submissionStoragePath: upload.storagePath, submittedAt: new Date().toISOString(), status: 'SUBMITTED'};
       const saved = await ApiService.saveRemedial(updated);
       setRemedials(prev => prev.map(r => r.id === remedialId ? saved : r));
     });

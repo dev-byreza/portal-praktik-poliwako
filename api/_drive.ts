@@ -377,16 +377,114 @@ export async function uploadFileToDrive(
   };
 }
 
+export function formatSubmissionDriveFileName(
+  taskTitle: string | undefined,
+  studentNim: string | undefined,
+  studentName: string | undefined,
+  originalFileName: string,
+  submissionType?: string
+): string {
+  const cleanNim = String(studentNim || '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
+  const cleanName = String(studentName || '').trim().replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_') || 'Mahasiswa';
+
+  const rawExt = originalFileName && originalFileName.includes('.')
+    ? originalFileName.split('.').pop() || 'pdf'
+    : 'pdf';
+  const cleanExt = rawExt.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'pdf';
+
+  let resolvedTitle = (taskTitle || '').trim();
+  if (!resolvedTitle) {
+    if (submissionType === 'FINAL_PROJECT') resolvedTitle = 'Proyek Akhir';
+    else if (submissionType === 'REMEDIAL') resolvedTitle = 'Tugas Remedial';
+    else resolvedTitle = 'Tugas';
+  } else if (submissionType === 'REMEDIAL' && !/^remedial/i.test(resolvedTitle)) {
+    resolvedTitle = `Remedial_${resolvedTitle}`;
+  }
+
+  let cleanTask = resolvedTitle
+    .replace(/[:\/\\|*?"<>]/g, '_')
+    .replace(/\s+/g, '_')
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/_+/g, '_');
+
+  if (cleanTask.length > 70) {
+    cleanTask = cleanTask.substring(0, 70);
+  }
+
+  return cleanNim
+    ? `${cleanTask}_${cleanNim}_${cleanName}.${cleanExt}`
+    : `${cleanTask}_${cleanName}.${cleanExt}`;
+}
+
 export async function deleteDriveFile(token: string, fileId: string): Promise<boolean> {
   try {
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`, {
+    // In Google Drive shared folders / shared drives, collaborator permissions
+    // typically have canTrash: true and canDelete: false.
+    // Trashing the file moves it out of the folder into the trash bin immediately.
+    const trashRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ trashed: true }),
+    });
+
+    if (trashRes.ok || trashRes.status === 404) {
+      return true;
+    }
+
+    // Fallback: try hard delete if user has owner/manager role
+    const delRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
-    return res.ok || res.status === 404;
+    return delRes.ok || delRes.status === 404;
   } catch (err: any) {
     console.warn(`Could not delete Google Drive file (${fileId}):`, err.message);
     return false;
   }
+}
+
+export async function cleanupStudentOldFilesInFolder(
+  token: string,
+  folderId: string,
+  studentNim: string,
+  studentName: string,
+  keepFileId: string
+): Promise<number> {
+  if (!folderId || !keepFileId) return 0;
+  let cleanedCount = 0;
+  try {
+    const cleanNim = String(studentNim || '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
+    const cleanName = String(studentName || '').trim().replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_');
+
+    const q = `'${folderId}' in parents and trashed = false`;
+    const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&pageSize=100&supportsAllDrives=true&includeItemsFromAllDrives=true`;
+    const res = await fetch(searchUrl, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json().catch(() => ({}));
+    const files: Array<{ id: string; name: string }> = data?.files || [];
+
+    for (const f of files) {
+      if (f.id === keepFileId) continue;
+
+      const fileNameLower = f.name.toLowerCase();
+      const matchNim = cleanNim && cleanNim.length >= 2 && fileNameLower.includes(cleanNim.toLowerCase());
+      const matchName = cleanName && cleanName.length >= 3 && fileNameLower.includes(cleanName.toLowerCase());
+
+      if (matchNim || matchName) {
+        const deleted = await deleteDriveFile(token, f.id);
+        if (deleted) {
+          cleanedCount++;
+          console.log(`[Drive Cleanup] Trashed old file ${f.name} (${f.id}) for student ${cleanNim || cleanName}.`);
+        }
+      }
+    }
+  } catch (err: any) {
+    console.warn('[Drive Cleanup] Failed to cleanup old files in folder:', err.message);
+  }
+  return cleanedCount;
 }
 

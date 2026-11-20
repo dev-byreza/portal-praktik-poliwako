@@ -21,6 +21,7 @@ export interface UploadResult {
   storagePath: string | null;
   publicUrl: string | null;
   driveUrl?: string | null;
+  driveFileName?: string | null;
   error: Error | null;
 }
 
@@ -153,6 +154,7 @@ export async function uploadSubmissionFile(
               driveFileName: initData.driveFileName || file.name,
               periodId: options.periodId,
               studentId: options.studentId,
+              destinationFolderId: initData.destinationFolderId,
               submissionType: options.submissionType || 'ASSIGNMENT',
               taskFolderName: initData.taskFolderName,
               taskFolderUrl: initData.taskFolderUrl,
@@ -168,6 +170,7 @@ export async function uploadSubmissionFile(
             storagePath: finData.driveFileId,
             publicUrl: finData.fileUrl,
             driveUrl: finData.driveUrl || finData.fileUrl,
+            driveFileName: finData.fileName || initData.driveFileName || file.name,
             error: null,
           };
         }
@@ -245,6 +248,7 @@ export async function uploadSubmissionFile(
       storagePath: driveRes.driveFileId,
       publicUrl: driveRes.fileUrl,
       driveUrl: driveRes.driveUrl || driveRes.fileUrl,
+      driveFileName: driveRes.fileName || file.name,
       error: null,
     };
   } catch (err: any) {
