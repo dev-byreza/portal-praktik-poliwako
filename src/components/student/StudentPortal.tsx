@@ -521,9 +521,8 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ courseSlug = 'peme
 
           <div className="w-full">
             <StudentIdentityModal
-              // Initial login is course-agnostic; the student selects an
-              // enrolled course after NIM verification succeeds.
-              courseSlug={undefined}
+              // Pass courseSlug from URL so the login gate knows which course context.
+              courseSlug={getStudentRouteState(window.location.pathname).slug || undefined}
               isEmbedded={true}
             />
           </div>

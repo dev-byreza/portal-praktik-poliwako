@@ -33,12 +33,32 @@ export default async function handler(req: any, res: any) {
   try {
     client = await getDbPool().connect();
     if (action === 'lookup') {
-      const validPeriodId = toValidUuid(periodId);
+      // FIX: If client passes a periodId, verify student is actually enrolled in it.
+      // If not enrolled in that period, reset to null so DB auto-resolves the correct period.
+      let validPeriodId = toValidUuid(periodId);
+      if (validPeriodId && cleanNim) {
+        const checkEnr = await client.query(
+          `SELECT 1 FROM public.practice_participants pp
+           JOIN public.students s ON s.id = pp.student_id
+           WHERE lower(trim(s.nim)) = $1 AND pp.period_id = $2`,
+          [cleanNim, validPeriodId]
+        );
+        if (!checkEnr.rows[0]) validPeriodId = null;
+      }
+
       const lookupRes = await client.query(
         'SELECT public.student_auth_lookup($1, $2, $3) as result',
         [cleanNim, courseSlug || null, validPeriodId]
       );
       const result = lookupRes.rows[0]?.result || { exists: false, isEnrolled: false, hasCreatedPassword: false };
+
+      if (result.exists && !result.isEnrolled) {
+        result.message = courseSlug
+          ? `Mahasiswa terdaftar di data akademik, namun belum didaftarkan sebagai peserta pada mata kuliah ini. Hubungi instruktur.`
+          : `Mahasiswa terdaftar di data akademik, namun belum didaftarkan pada periode praktik mana pun. Hubungi instruktur.`;
+      } else if (!result.exists) {
+        result.message = `NIM "${cleanNim}" tidak terdaftar dalam pangkalan data mahasiswa Politeknik Sorowako.`;
+      }
 
       if (result.exists) {
         const stdRes = await client.query(
@@ -66,6 +86,19 @@ export default async function handler(req: any, res: any) {
 
       let resolvedCourseSlug = courseSlug || null;
       let resolvedPeriodId = toValidUuid(periodId);
+
+      // FIX: Verify student is actually enrolled in the given periodId.
+      // If not, reset to null so we auto-resolve the student's actual enrolled period.
+      if (resolvedPeriodId) {
+        const checkEnr = await client.query(
+          `SELECT 1 FROM public.practice_participants pp
+           JOIN public.students s ON s.id = pp.student_id
+           WHERE lower(trim(s.nim)) = $1 AND pp.period_id = $2`,
+          [cleanNim, resolvedPeriodId]
+        );
+        if (!checkEnr.rows[0]) resolvedPeriodId = null;
+      }
+
       if (!resolvedPeriodId) {
         const enrRes = await client.query(`
           SELECT pp.period_id, c.slug as course_slug
@@ -97,17 +130,30 @@ export default async function handler(req: any, res: any) {
         return res.status(400).json({ success: false, message: 'Password minimal 4 karakter.' });
       }
 
-      const stdRes = await client.query(
+      // FIX: Use 4-arg public.student_auth_set_password(nim, password, courseSlug, periodId).
+      // The old code passed (studentId, nim, ...) which mapped UUID to p_nim → "NIM tidak ditemukan".
+      let resolvedCourseSlug = courseSlug || null;
+      let resolvedPeriodId = toValidUuid(periodId);
+
+      // Verify student exists first
+      const stdCheck = await client.query(
         'SELECT id FROM public.students WHERE lower(trim(nim)) = $1 LIMIT 1',
         [cleanNim]
       );
-      if (!stdRes.rows[0]) {
-        return res.status(404).json({ success: false, message: 'Data mahasiswa tidak ditemukan.' });
+      if (!stdCheck.rows[0]) {
+        return res.status(404).json({ success: false, message: `NIM "${cleanNim}" tidak terdaftar dalam pangkalan data mahasiswa Politeknik Sorowako.` });
+      }
+      const studentId = stdCheck.rows[0].id;
+
+      // FIX: Verify enrollment in the given periodId; if not enrolled reset so we auto-resolve.
+      if (resolvedPeriodId) {
+        const checkEnr = await client.query(
+          'SELECT 1 FROM public.practice_participants WHERE student_id = $1 AND period_id = $2',
+          [studentId, resolvedPeriodId]
+        );
+        if (!checkEnr.rows[0]) resolvedPeriodId = null;
       }
 
-      const studentId = stdRes.rows[0].id;
-      let resolvedCourseSlug = courseSlug || null;
-      let resolvedPeriodId = toValidUuid(periodId);
       if (!resolvedPeriodId) {
         const enrRes = await client.query(`
           SELECT pp.period_id, c.slug as course_slug
@@ -125,9 +171,10 @@ export default async function handler(req: any, res: any) {
         }
       }
 
+      // Call 4-arg overload: (p_nim, p_password, p_course_slug, p_period_id)
       const setRes = await client.query(
-        'SELECT public.student_auth_set_password($1, $2, $3, $4, $5) as result',
-        [studentId, cleanNim, password, resolvedCourseSlug, resolvedPeriodId]
+        'SELECT public.student_auth_set_password($1, $2, $3, $4::uuid) as result',
+        [cleanNim, password, resolvedCourseSlug, resolvedPeriodId]
       );
       const result = setRes.rows[0]?.result || { success: false, message: 'Gagal membuat password.' };
       return res.status(200).json(result);

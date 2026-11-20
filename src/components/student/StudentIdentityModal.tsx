@@ -135,14 +135,20 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
     setTargetCourseSlug('');
     setIsSubmitting(true);
     try {
-      const verification = await verifyStudentNim(nim, courseSlug, activePeriod?.id);
+      // FIX: Do NOT pass activePeriod?.id — it forces a wrong period for completed-period students.
+      // The server now auto-resolves the student's actual enrolled period.
+      const verification = await verifyStudentNim(nim, courseSlug);
       if (requestId !== verificationRequestRef.current) return;
 
       if (!verification.exists || !verification.isEnrolled) {
-        const msg = verification.message?.includes('Failed to fetch')
+        const isFetchError = verification.message?.includes('Failed to fetch');
+        const msg = isFetchError
           ? 'Tidak dapat terhubung ke server backend. Pastikan server dev ("npm run dev") aktif atau periksa koneksi internet.'
-          : verification.message;
-        setErrorMessage(msg || `NIM "${nim}" tidak terdaftar dalam pangkalan data mahasiswa Politeknik Sorowako.`);
+          : verification.message
+            || (verification.exists
+              ? `Mahasiswa terdaftar di pangkalan data, namun belum didaftarkan sebagai peserta pada periode praktik. Silakan hubungi instruktur.`
+              : `NIM "${nim}" tidak terdaftar dalam pangkalan data mahasiswa Politeknik Sorowako.`);
+        setErrorMessage(msg);
         return;
       }
 
@@ -161,7 +167,9 @@ export const StudentIdentityModal: React.FC<StudentIdentityModalProps> = ({
       setTargetStudyProgram(verification.studyProgramName && verification.studyProgramCode
         ? { name: verification.studyProgramName, code: verification.studyProgramCode }
         : null);
-      setTargetPeriodId(verification.periodId || activePeriod?.id || '');
+      // FIX: Use the period resolved by server (verification.periodId), do NOT fall back to
+      // activePeriod?.id which may be the wrong gelombang for this student.
+      setTargetPeriodId(verification.periodId || '');
       setTargetCourseSlug(
         verification.courseSlug ||
         (verification.periodId && periods.find(period => period.id === verification.periodId)
