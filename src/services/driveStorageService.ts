@@ -47,11 +47,11 @@ export async function uploadSubmissionFile(
     };
   }
 
-  if (file.size > 100 * 1024 * 1024) {
+  if (file.size > 4.5 * 1024 * 1024) {
     return {
       storagePath: null,
       publicUrl: null,
-      error: new Error('Ukuran file melebihi batas maksimal 100MB.'),
+      error: new Error('Ukuran file melebihi batas maksimal serverless (4.5 MB). Silakan kompres berkas PDF Anda terlebih dahulu.'),
     };
   }
 

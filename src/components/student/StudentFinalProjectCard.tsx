@@ -32,6 +32,11 @@ export const StudentFinalProjectCard: React.FC = () => {
     event.preventDefault();
     if (!selectedFile || busy || !period || !studentSession) return;
 
+    if (selectedFile.size > 4.5 * 1024 * 1024) {
+      setError('Ukuran berkas melebihi batas 4.5 MB untuk upload langsung ke Google Drive. Silakan kompres berkas PDF Anda terlebih dahulu.');
+      return;
+    }
+
     setBusy(true);
     setError('');
     setUploadStatusText('Membaca berkas dan mengunggah ke Google Drive...');
@@ -53,8 +58,8 @@ export const StudentFinalProjectCard: React.FC = () => {
 
       const fileUrl = uploadRes.publicUrl || uploadRes.driveUrl || driveFolderUrl || '';
 
-      // 2. Confirm final project
-      await confirmFinalProject();
+      // 2. Confirm final project with uploaded file URL
+      await confirmFinalProject(fileUrl);
 
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
