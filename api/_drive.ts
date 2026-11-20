@@ -376,3 +376,17 @@ export async function uploadFileToDrive(
     size: Number(fileData.size || fileBuffer.length),
   };
 }
+
+export async function deleteDriveFile(token: string, fileId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.ok || res.status === 404;
+  } catch (err: any) {
+    console.warn(`Could not delete Google Drive file (${fileId}):`, err.message);
+    return false;
+  }
+}
+

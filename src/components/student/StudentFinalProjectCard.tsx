@@ -50,6 +50,7 @@ export const StudentFinalProjectCard: React.FC = () => {
         submissionType: 'FINAL_PROJECT',
         taskTitle: 'Proyek Akhir',
         allowedFileType: 'ANY',
+        replaceStoragePath: participant?.finalProjectUrl,
       });
 
       if (uploadRes.error) {

@@ -6,15 +6,20 @@ import {
   resolveTaskFolderName,
   getOrCreateFolder,
   getDriveAccessToken,
+  deleteDriveFile,
 } from './_drive.js';
 import { invalidateDataCache } from './data.js';
 
 function extractDriveId(url?: string): string | null {
   if (!url) return null;
-  const folderMatch = url.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  const trimmed = url.trim();
+  const folderMatch = trimmed.match(/\/folders\/([a-zA-Z0-9_-]+)/);
   if (folderMatch) return folderMatch[1];
-  const fileMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  const fileMatch = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/);
   if (fileMatch) return fileMatch[1];
+  const idParamMatch = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (idParamMatch) return idParamMatch[1];
+  if (/^[a-zA-Z0-9_-]{20,70}$/.test(trimmed)) return trimmed;
   return null;
 }
 
@@ -400,6 +405,7 @@ export default async function handler(req: any, res: any) {
         submissionType = 'ASSIGNMENT',
         taskFolderName,
         taskFolderUrl,
+        replaceStoragePath,
       } = payload || {};
 
       if (!fileId) {
@@ -407,6 +413,19 @@ export default async function handler(req: any, res: any) {
       }
 
       const token = await getDriveAccessToken();
+
+      // Clean up replaced old file from Google Drive if provided
+      if (replaceStoragePath) {
+        const oldFileId = extractDriveId(replaceStoragePath);
+        if (oldFileId && oldFileId !== fileId) {
+          try {
+            await deleteDriveFile(token, oldFileId);
+            console.log(`[Drive Cleanup] Old file ${oldFileId} deleted on replacement.`);
+          } catch (delErr: any) {
+            console.warn('[Drive Cleanup] Failed to delete old file:', delErr.message);
+          }
+        }
+      }
 
       // Ensure file permission so anyone with link can view
       try {
@@ -478,6 +497,7 @@ export default async function handler(req: any, res: any) {
         fileBase64,
         mimeType,
         submissionType = 'ASSIGNMENT',
+        replaceStoragePath,
       } = payload || {};
 
       if (!periodId || !studentId || !fileName || !fileBase64) {
@@ -589,6 +609,20 @@ export default async function handler(req: any, res: any) {
         }
 
         const finalFileUrl = driveFile.webViewLink;
+
+        // Clean up replaced old file from Google Drive if provided
+        if (replaceStoragePath) {
+          const oldFileId = extractDriveId(replaceStoragePath);
+          if (oldFileId && oldFileId !== driveFile.id) {
+            try {
+              const token = await getDriveAccessToken();
+              await deleteDriveFile(token, oldFileId);
+              console.log(`[Drive Cleanup] Old file ${oldFileId} deleted on replacement (fallback).`);
+            } catch (delErr: any) {
+              console.warn('[Drive Cleanup] Failed to delete old file in fallback:', delErr.message);
+            }
+          }
+        }
 
         // If it's a final project, also record in practice_participants
         if (submissionType === 'FINAL_PROJECT') {

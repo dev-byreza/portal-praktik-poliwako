@@ -94,6 +94,7 @@ export async function uploadSubmissionFile(
           fileSize: file.size,
           mimeType: file.type || 'application/octet-stream',
           submissionType: options.submissionType || 'ASSIGNMENT',
+          replaceStoragePath: options.replaceStoragePath,
         },
       }),
     });
@@ -125,6 +126,7 @@ export async function uploadSubmissionFile(
               submissionType: options.submissionType || 'ASSIGNMENT',
               taskFolderName: initData.taskFolderName,
               taskFolderUrl: initData.taskFolderUrl,
+              replaceStoragePath: options.replaceStoragePath,
             },
           }),
         });
@@ -179,6 +181,7 @@ export async function uploadSubmissionFile(
           fileBase64: dataUrl,
           mimeType: file.type || 'application/octet-stream',
           submissionType: options.submissionType || 'ASSIGNMENT',
+          replaceStoragePath: options.replaceStoragePath,
         },
       }),
     });
